@@ -1,5 +1,7 @@
 use super::*;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{sync::Mutex, time::{SystemTime, UNIX_EPOCH}};
+
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 #[test]
 fn encrypted_database_is_not_plaintext_and_rejects_wrong_passphrase() {
@@ -98,9 +100,27 @@ fn unlock_database_creates_encrypted_state() {
 }
 
 #[test]
-fn dev_database_state_opens_plaintext_mock_database() {
+fn dev_database_state_defaults_to_encrypted_setup() {
+    let _guard = ENV_LOCK.lock().unwrap();
+    let dir = temp_dir_path("dev-default");
+    fs::create_dir_all(&dir).unwrap();
+    std::env::remove_var("ME_HEALTH_USE_MOCK_DB");
+
+    let state = init_dev_database_state(&dir).unwrap();
+    let status = state.status();
+
+    assert_eq!(status.state, "needsSetup");
+    assert!(!status.unlocked);
+    assert!(with_connection(&state, |_| Ok(())).is_err());
+    let _ = fs::remove_dir_all(dir);
+}
+
+#[test]
+fn dev_database_state_opens_plaintext_mock_database_when_enabled() {
+    let _guard = ENV_LOCK.lock().unwrap();
     let dir = temp_dir_path("dev-mock");
     fs::create_dir_all(&dir).unwrap();
+    std::env::set_var("ME_HEALTH_USE_MOCK_DB", "1");
 
     let state = init_dev_database_state(&dir).unwrap();
     let status = state.status();
@@ -117,6 +137,7 @@ fn dev_database_state_opens_plaintext_mock_database() {
         Ok(())
     })
     .unwrap();
+    std::env::remove_var("ME_HEALTH_USE_MOCK_DB");
     let _ = fs::remove_dir_all(dir);
 }
 
@@ -169,13 +190,15 @@ fn export_database_uses_unique_paths() {
 }
 
 #[test]
-fn migrate_schema_adds_reference_range_to_legacy_tables() {
+fn migrate_schema_adds_reference_range_soft_delete_and_order_to_legacy_tables() {
     let path = temp_db_path("migrate-ref-range");
     let conn = Connection::open(&path).unwrap();
     // A database created before reference_range existed: the column is
     // absent and existing rows must keep their data when it is added.
     conn.execute_batch(
-        "CREATE TABLE lab_reports (id INTEGER PRIMARY KEY);
+        "CREATE TABLE organs (key TEXT PRIMARY KEY, name TEXT, system TEXT, status TEXT, notes TEXT);
+         INSERT INTO organs (key, name, system, status, notes) VALUES ('heart', 'Heart', 'Cardiovascular', 'normal', '');
+         CREATE TABLE lab_reports (id INTEGER PRIMARY KEY);
          INSERT INTO lab_reports DEFAULT VALUES;
          CREATE TABLE lab_results (
                id INTEGER PRIMARY KEY,
@@ -188,6 +211,7 @@ fn migrate_schema_adds_reference_range_to_legacy_tables() {
     .unwrap();
 
     migrate_schema(&conn).unwrap();
+    seed_organs(&conn).unwrap();
 
     let range: String = conn
         .query_row(
@@ -205,6 +229,14 @@ fn migrate_schema_adds_reference_range_to_legacy_tables() {
         .query_row("SELECT local_copy_path FROM lab_reports LIMIT 1", [], |row| row.get(0))
         .unwrap();
     assert_eq!(copy_path, "");
+    let deleted_at: String = conn
+        .query_row("SELECT deleted_at FROM lab_results WHERE marker = 'LDL'", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(deleted_at, "");
+    let display_order: i64 = conn
+        .query_row("SELECT display_order FROM organs WHERE key = 'heart'", [], |row| row.get(0))
+        .unwrap();
+    assert!(display_order > 0);
 
     // Idempotent: a second run is a no-op and does not error.
     migrate_schema(&conn).unwrap();

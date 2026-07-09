@@ -23,21 +23,23 @@ export function formatDate(value: string): string {
   if (!value) {
     return t("dashboard.noDate");
   }
-  if (!isIsoDate(value)) {
+  const dateParts = isoDateParts(value);
+  if (!dateParts) {
     return t("dashboard.invalidDate");
   }
-  const [year, month, day] = value.split("-").map(Number);
+  const [year, month, day] = dateParts;
   const date = new Date(year, month - 1, day);
   return Number.isNaN(date.getTime()) ? t("dashboard.invalidDate") : shortDateFormat.format(date);
 }
 
-function isIsoDate(value: string): boolean {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
-  if (!match) return false;
+function isoDateParts(value: string): [number, number, number] | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/u.exec(value);
+  if (!match) return null;
   const [, yearText, monthText, dayText] = match;
   const year = Number(yearText);
   const month = Number(monthText);
   const day = Number(dayText);
   const date = new Date(year, month - 1, day);
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+  return [year, month, day];
 }

@@ -3,6 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::database::{self, AppState};
 pub(crate) mod parse;
+pub(crate) mod reports;
+pub(crate) mod symptoms;
+pub use reports::{list_lab_reports_for_snapshot, LabReportEntry};
+pub use symptoms::{list_recent_symptoms, SymptomEntry};
+use reports::{insert_lab_report, LabReportInput};
 use parse::{
     derive_flag, parse_lab_number, parse_reference_range, validate_iso_date, validate_required,
     validate_status,
@@ -31,15 +36,6 @@ pub struct LabResult {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LabReportInput {
-    source_name: String,
-    file_type: String,
-    size_label: String,
-    local_copy_path: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AddLabResultInput {
     organ_key: String,
     marker: String,
@@ -50,6 +46,20 @@ pub struct AddLabResultInput {
     notes: String,
     reference_range: String,
     report: Option<LabReportInput>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateLabResultInput {
+    id: i64,
+    organ_key: String,
+    marker: String,
+    value: String,
+    unit: String,
+    status: String,
+    measured_at: String,
+    notes: String,
+    reference_range: String,
 }
 
 #[derive(Deserialize)]
@@ -73,27 +83,6 @@ pub struct AddLabResultsBatchInput {
 }
 
 #[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SymptomEntry {
-    id: i64,
-    organ_key: String,
-    name: String,
-    severity: i64,
-    observed_at: String,
-    notes: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AddSymptomInput {
-    organ_key: String,
-    name: String,
-    severity: i64,
-    observed_at: String,
-    notes: String,
-}
-
-#[derive(Serialize)]
 pub struct Recommendation {
     pub title: String,
     pub body: String,
@@ -105,14 +94,15 @@ pub fn add_lab_result(
     input: AddLabResultInput,
     state: tauri::State<'_, AppState>,
 ) -> Result<LabResult, String> {
-    validate_required("marker", &input.marker)?;
-    validate_required("value", &input.value)?;
-    validate_required("measuredAt", &input.measured_at)?;
-    validate_iso_date("measuredAt", &input.measured_at)?;
-    validate_status(&input.status)?;
+    validate_lab_input(
+        &input.organ_key,
+        &input.marker,
+        &input.value,
+        &input.status,
+        &input.measured_at,
+    )?;
 
     database::with_connection(&state, |conn| {
-        ensure_organ(conn, &input.organ_key)?;
         let report_id = insert_lab_report(conn, input.report.as_ref())?;
         let id = insert_lab_result(
             conn,
@@ -143,11 +133,14 @@ pub fn add_lab_results(
     }
     for (index, seed) in input.results.iter().enumerate() {
         let label = format!("Result {}", index + 1);
-        validate_required("marker", &seed.marker).map_err(|m| format!("{label}: {m}"))?;
-        validate_required("value", &seed.value).map_err(|m| format!("{label}: {m}"))?;
-        validate_required("measuredAt", &seed.measured_at).map_err(|m| format!("{label}: {m}"))?;
-        validate_iso_date("measuredAt", &seed.measured_at).map_err(|m| format!("{label}: {m}"))?;
-        validate_status(&seed.status).map_err(|m| format!("{label}: {m}"))?;
+        validate_lab_input(
+            &seed.organ_key,
+            &seed.marker,
+            &seed.value,
+            &seed.status,
+            &seed.measured_at,
+        )
+        .map_err(|message| format!("{label}: {message}"))?;
     }
 
     database::with_connection(&state, |conn| {
@@ -156,7 +149,6 @@ pub fn add_lab_results(
             let report_id = insert_lab_report(conn, input.report.as_ref())?;
             let mut saved = Vec::with_capacity(input.results.len());
             for seed in &input.results {
-                ensure_organ(conn, &seed.organ_key)?;
                 let id = insert_lab_result(
                     conn,
                     report_id,
@@ -187,33 +179,29 @@ pub fn add_lab_results(
 }
 
 #[tauri::command]
-pub fn add_symptom(
-    input: AddSymptomInput,
+pub fn update_lab_result(
+    input: UpdateLabResultInput,
     state: tauri::State<'_, AppState>,
-) -> Result<SymptomEntry, String> {
-    validate_required("symptom", &input.name)?;
-    validate_required("observedAt", &input.observed_at)?;
-    validate_iso_date("observedAt", &input.observed_at)?;
-    if !(1..=5).contains(&input.severity) {
-        return Err("severity must be between 1 and 5".into());
+) -> Result<LabResult, String> {
+    if input.id <= 0 {
+        return Err("id is required".into());
     }
+    validate_lab_input(
+        &input.organ_key,
+        &input.marker,
+        &input.value,
+        &input.status,
+        &input.measured_at,
+    )?;
 
-    database::with_connection(&state, |conn| {
-        conn.execute(
-            "INSERT INTO symptoms (organ_key, name, severity, observed_at, notes)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![
-                input.organ_key.trim(),
-                input.name.trim(),
-                input.severity,
-                input.observed_at.trim(),
-                input.notes.trim()
-            ],
-        )
-        .map_err(|error| error.to_string())?;
-        get_symptom(conn, conn.last_insert_rowid()).map_err(|error| error.to_string())
-    })
+    database::with_connection(&state, |conn| update_lab_result_in_conn(conn, &input))
 }
+
+#[tauri::command]
+pub fn delete_lab_result(id: i64, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    database::with_connection(&state, |conn| soft_delete_row(conn, "lab_results", id, "Lab result"))
+}
+
 
 pub fn list_latest_lab_results(conn: &Connection) -> rusqlite::Result<Vec<LabResult>> {
     let mut stmt = conn.prepare(
@@ -222,33 +210,31 @@ pub fn list_latest_lab_results(conn: &Connection) -> rusqlite::Result<Vec<LabRes
            l.value_number, l.unit, l.status, l.flag, l.measured_at, l.notes,
            l.reference_range, l.reference_low, l.reference_high
          FROM lab_results l
-         LEFT JOIN lab_reports r ON r.id = l.report_id
+         LEFT JOIN lab_reports r ON r.id = l.report_id AND r.deleted_at = ''
+         WHERE l.deleted_at = ''
          ORDER BY l.measured_at DESC, l.id DESC",
     )?;
     let rows = stmt.query_map([], map_lab_result)?;
     rows.collect()
 }
 
-pub fn list_recent_symptoms(conn: &Connection) -> rusqlite::Result<Vec<SymptomEntry>> {
-    let mut stmt = conn.prepare(
-        "SELECT id, organ_key, name, severity, observed_at, notes
-         FROM symptoms
-         ORDER BY observed_at DESC, id DESC",
-    )?;
-    let rows = stmt.query_map([], map_symptom)?;
-    rows.collect()
-}
 
 pub fn build_recommendations(conn: &Connection) -> rusqlite::Result<Vec<Recommendation>> {
-    let lab_count: i64 =
-        conn.query_row("SELECT COUNT(*) FROM lab_results", [], |row| row.get(0))?;
-    let attention_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM lab_results WHERE status = 'attention'",
+    let lab_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM lab_results WHERE deleted_at = ''",
         [],
         |row| row.get(0),
     )?;
-    let symptom_count: i64 =
-        conn.query_row("SELECT COUNT(*) FROM symptoms", [], |row| row.get(0))?;
+    let attention_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM lab_results WHERE status = 'attention' AND deleted_at = ''",
+        [],
+        |row| row.get(0),
+    )?;
+    let symptom_count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM symptoms WHERE deleted_at = ''",
+        [],
+        |row| row.get(0),
+    )?;
 
     let mut items = Vec::new();
     if attention_count > 0 {
@@ -275,32 +261,27 @@ pub fn build_recommendations(conn: &Connection) -> rusqlite::Result<Vec<Recommen
     }
     items.push(Recommendation {
         title: "Keep data local".into(),
-        body: "Store sensitive health details in this local database unless you explicitly enable sync.".into(),
+        body: "Store sensitive health details in this local database and use encrypted exports for backups.".into(),
         priority: "normal".into(),
     });
     Ok(items)
 }
 
-fn insert_lab_report(conn: &Connection, report: Option<&LabReportInput>) -> Result<Option<i64>, String> {
-    let Some(report) = report else {
-        return Ok(None);
-    };
-    if report.source_name.trim().is_empty() {
-        return Ok(None);
-    }
-    conn.execute(
-        "INSERT INTO lab_reports (source_name, file_type, size_label, local_copy_path)
-         VALUES (?1, ?2, ?3, ?4)",
-        params![
-            report.source_name.trim(),
-            report.file_type.trim(),
-            report.size_label.trim(),
-            report.local_copy_path.as_deref().unwrap_or("").trim()
-        ],
-    )
-    .map_err(|error| error.to_string())?;
-    Ok(Some(conn.last_insert_rowid()))
+fn validate_lab_input(
+    _organ_key: &str,
+    marker: &str,
+    value: &str,
+    status: &str,
+    measured_at: &str,
+) -> Result<(), String> {
+    validate_required("marker", marker)?;
+    validate_required("value", value)?;
+    validate_required("measuredAt", measured_at)?;
+    validate_iso_date("measuredAt", measured_at)?;
+    validate_status(status)?;
+    Ok(())
 }
+
 
 #[allow(clippy::too_many_arguments)]
 fn insert_lab_result(
@@ -315,6 +296,7 @@ fn insert_lab_result(
     notes: &str,
     reference_range: &str,
 ) -> Result<i64, String> {
+    ensure_organ(conn, organ_key)?;
     let value_number = parse_lab_number(value);
     let (reference_low, reference_high) = parse_reference_range(reference_range);
     let flag = derive_flag(value_number, reference_low, reference_high);
@@ -344,7 +326,56 @@ fn insert_lab_result(
     Ok(conn.last_insert_rowid())
 }
 
+
+fn update_lab_result_in_conn(conn: &Connection, input: &UpdateLabResultInput) -> Result<LabResult, String> {
+    ensure_organ(conn, &input.organ_key)?;
+    let value_number = parse_lab_number(&input.value);
+    let (reference_low, reference_high) = parse_reference_range(&input.reference_range);
+    let flag = derive_flag(value_number, reference_low, reference_high);
+
+    let changed = conn
+        .execute(
+            "UPDATE lab_results
+             SET organ_key = ?1,
+                 marker = ?2,
+                 value = ?3,
+                 value_number = ?4,
+                 unit = ?5,
+                 status = ?6,
+                 flag = ?7,
+                 measured_at = ?8,
+                 notes = ?9,
+                 reference_range = ?10,
+                 reference_low = ?11,
+                 reference_high = ?12,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = ?13 AND deleted_at = ''",
+            params![
+                input.organ_key.trim(),
+                input.marker.trim(),
+                input.value.trim(),
+                value_number,
+                input.unit.trim(),
+                input.status.trim(),
+                flag,
+                input.measured_at.trim(),
+                input.notes.trim(),
+                input.reference_range.trim(),
+                reference_low,
+                reference_high,
+                input.id
+            ],
+        )
+        .map_err(|error| error.to_string())?;
+    if changed == 0 {
+        return Err("Lab result not found".into());
+    }
+    get_lab_result(conn, input.id).map_err(|error| error.to_string())
+}
+
+
 pub(crate) fn ensure_organ(conn: &Connection, organ_key: &str) -> Result<(), String> {
+    ensure_organ_name_hint(organ_key)?;
     let found: Option<i64> = conn
         .query_row(
             "SELECT 1 FROM organs WHERE key = ?1",
@@ -356,6 +387,34 @@ pub(crate) fn ensure_organ(conn: &Connection, organ_key: &str) -> Result<(), Str
     found.map(|_| ()).ok_or_else(|| "organKey is not valid".into())
 }
 
+fn ensure_organ_name_hint(organ_key: &str) -> Result<(), String> {
+    if organ_key.trim().is_empty() {
+        Err("organKey is required".into())
+    } else {
+        Ok(())
+    }
+}
+
+pub(crate) fn soft_delete_row(
+    conn: &Connection,
+    table: &str,
+    id: i64,
+    label: &str,
+) -> Result<(), String> {
+    if id <= 0 {
+        return Err("id is required".into());
+    }
+    let sql = format!(
+        "UPDATE {table} SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND deleted_at = ''"
+    );
+    let changed = conn.execute(&sql, params![id]).map_err(|error| error.to_string())?;
+    if changed == 0 {
+        return Err(format!("{label} not found"));
+    }
+    Ok(())
+}
+
+
 fn get_lab_result(conn: &Connection, id: i64) -> rusqlite::Result<LabResult> {
     conn.query_row(
         "SELECT
@@ -363,22 +422,13 @@ fn get_lab_result(conn: &Connection, id: i64) -> rusqlite::Result<LabResult> {
            l.value_number, l.unit, l.status, l.flag, l.measured_at, l.notes,
            l.reference_range, l.reference_low, l.reference_high
          FROM lab_results l
-         LEFT JOIN lab_reports r ON r.id = l.report_id
-         WHERE l.id = ?1",
+         LEFT JOIN lab_reports r ON r.id = l.report_id AND r.deleted_at = ''
+         WHERE l.id = ?1 AND l.deleted_at = ''",
         params![id],
         map_lab_result,
     )
 }
 
-fn get_symptom(conn: &Connection, id: i64) -> rusqlite::Result<SymptomEntry> {
-    conn.query_row(
-        "SELECT id, organ_key, name, severity, observed_at, notes
-         FROM symptoms
-         WHERE id = ?1",
-        params![id],
-        map_symptom,
-    )
-}
 
 fn map_lab_result(row: &Row<'_>) -> rusqlite::Result<LabResult> {
     Ok(LabResult {
@@ -401,95 +451,9 @@ fn map_lab_result(row: &Row<'_>) -> rusqlite::Result<LabResult> {
     })
 }
 
-fn map_symptom(row: &Row<'_>) -> rusqlite::Result<SymptomEntry> {
-    Ok(SymptomEntry {
-        id: row.get(0)?,
-        organ_key: row.get(1)?,
-        name: row.get(2)?,
-        severity: row.get(3)?,
-        observed_at: row.get(4)?,
-        notes: row.get(5)?,
-    })
-}
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn lists_all_lab_results_for_research_context() {
-        let conn = test_connection();
-        for index in 0..13 {
-            conn.execute(
-                "INSERT INTO lab_results (
-                   organ_key, marker, value, value_number, unit, status, flag,
-                   measured_at, notes, reference_range, reference_low, reference_high
-                 )
-                 VALUES ('heart', ?1, '1', 1.0, 'mg/dL', 'normal', 'unknown', '2026-07-01', '', '', NULL, NULL)",
-                params![format!("Marker {index}")],
-            )
-            .unwrap();
-        }
-
-        let results = list_latest_lab_results(&conn).unwrap();
-
-        assert_eq!(results.len(), 13);
-    }
-
-    #[test]
-    fn lists_all_symptoms_for_research_context() {
-        let conn = test_connection();
-        for index in 0..13 {
-            conn.execute(
-                "INSERT INTO symptoms (organ_key, name, severity, observed_at, notes)
-                 VALUES ('heart', ?1, 2, '2026-07-01', '')",
-                params![format!("Symptom {index}")],
-            )
-            .unwrap();
-        }
-
-        let symptoms = list_recent_symptoms(&conn).unwrap();
-
-        assert_eq!(symptoms.len(), 13);
-    }
-
-    fn test_connection() -> Connection {
-        let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch(
-            "CREATE TABLE lab_reports (
-               id INTEGER PRIMARY KEY,
-               source_name TEXT NOT NULL DEFAULT '',
-               local_copy_path TEXT NOT NULL DEFAULT ''
-             );
-             CREATE TABLE lab_results (
-               id INTEGER PRIMARY KEY,
-               report_id INTEGER,
-               organ_key TEXT NOT NULL,
-               marker TEXT NOT NULL,
-               value TEXT NOT NULL,
-               value_number REAL,
-               unit TEXT NOT NULL DEFAULT '',
-               status TEXT NOT NULL,
-               flag TEXT NOT NULL DEFAULT 'unknown',
-               measured_at TEXT NOT NULL,
-               notes TEXT NOT NULL DEFAULT '',
-               reference_range TEXT NOT NULL DEFAULT '',
-               reference_low REAL,
-               reference_high REAL
-             );
-             CREATE TABLE symptoms (
-               id INTEGER PRIMARY KEY,
-               organ_key TEXT NOT NULL,
-               name TEXT NOT NULL,
-               severity INTEGER NOT NULL,
-               observed_at TEXT NOT NULL,
-               notes TEXT NOT NULL DEFAULT ''
-             );",
-        )
-        .unwrap();
-        conn
-    }
-}
+mod tests;
 
 #[cfg(test)]
 mod storage_tests;

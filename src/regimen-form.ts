@@ -1,3 +1,4 @@
+import { todayString } from "./dashboard-format";
 import type { RegimenInput } from "./dashboard-model";
 
 export function regimenInputFromForm(form: FormData): RegimenInput {
@@ -12,7 +13,7 @@ export function regimenInputFromForm(form: FormData): RegimenInput {
     stopDate,
     reason: formString(form, "reason"),
     notes: formString(form, "notes"),
-    active: !stopDate,
+    active: !stopDate || stopDate >= todayString(),
   };
 }
 

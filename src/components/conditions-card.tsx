@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -9,6 +11,7 @@ import type { ConditionEntry, ConditionStatus } from "../dashboard-model";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { Plus } from "./health-icons";
+import { OrganSelect } from "./organ-select";
 import { EmptyMessage, StatusBadge } from "./health-status";
 
 const conditionLabels: Record<ConditionStatus, string> = {
@@ -28,7 +31,7 @@ export function ConditionsCard({ controller }: { controller: DashboardController
         <ConditionForm controller={controller} />
         {controller.organConditions.length ? (
           <div className="grid gap-2">
-            {controller.organConditions.slice(0, 4).map((condition) => <ConditionRow condition={condition} key={condition.id} />)}
+            {controller.organConditions.slice(0, 4).map((condition) => <ConditionRow condition={condition} controller={controller} key={condition.id} />)}
           </div>
         ) : <EmptyMessage>{t("conditions.empty")}</EmptyMessage>}
       </CardContent>
@@ -43,6 +46,7 @@ function ConditionForm({ controller }: { controller: DashboardController }) {
       const form = event.currentTarget;
       const data = new FormData(form);
       void controller.addCondition({
+        organKey: String(data.get("organKey") || controller.selectedOrganKey),
         name: String(data.get("name") || ""),
         status: String(data.get("status") || "current") as ConditionStatus,
         diagnosedAt: String(data.get("diagnosedAt") || ""),
@@ -50,6 +54,7 @@ function ConditionForm({ controller }: { controller: DashboardController }) {
       }).then((saved) => { if (saved) form.reset(); });
     }}>
       <div className="grid gap-2">
+        <OrganSelect organs={controller.display.organs} defaultValue={controller.selectedOrganKey} description={t("intake.organDescription")} />
         <Field>
           <FieldLabel className="sr-only" htmlFor="condition-name">{t("conditions.condition")}</FieldLabel>
           <Input id="condition-name" name="name" placeholder={t("conditions.placeholder.name")} required />
@@ -85,7 +90,47 @@ function ConditionForm({ controller }: { controller: DashboardController }) {
   );
 }
 
-function ConditionRow({ condition }: { condition: ConditionEntry }) {
+function ConditionRow({ condition, controller }: { condition: ConditionEntry; controller: DashboardController }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <form className="grid gap-2 rounded-md border border-border px-3 py-2 text-sm" onSubmit={(event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const data = new FormData(form);
+        void controller.updateCondition({
+          id: condition.id,
+          organKey: String(data.get("organKey") || condition.organKey),
+          name: String(data.get("name") || ""),
+          status: String(data.get("status") || "current") as ConditionStatus,
+          diagnosedAt: String(data.get("diagnosedAt") || ""),
+          notes: String(data.get("notes") || ""),
+        }).then((saved) => { if (saved) setEditing(false); });
+      }}>
+        <OrganSelect organs={controller.display.organs} defaultValue={condition.organKey} />
+        <Field>
+          <FieldLabel htmlFor={`condition-edit-name-${condition.id}`}>{t("conditions.condition")}</FieldLabel>
+          <Input id={`condition-edit-name-${condition.id}`} name="name" defaultValue={condition.name} required />
+        </Field>
+        <Select name="status" defaultValue={condition.status}>
+          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="current">{t("conditions.current")}</SelectItem>
+              <SelectItem value="managed">{t("conditions.managed")}</SelectItem>
+              <SelectItem value="past">{t("conditions.past")}</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Input name="diagnosedAt" type="date" defaultValue={condition.diagnosedAt} aria-label={t("common.date")} />
+        <Textarea name="notes" defaultValue={condition.notes} placeholder={t("conditions.placeholder.notes")} />
+        <div className="flex justify-end gap-2">
+          <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>{t("common.cancel")}</Button>
+          <Button type="submit" size="sm">{t("common.save")}</Button>
+        </div>
+      </form>
+    );
+  }
   return (
     <div className="grid gap-1 rounded-md border border-border px-3 py-2 text-sm">
       <div className="flex items-center justify-between gap-2">
@@ -94,6 +139,10 @@ function ConditionRow({ condition }: { condition: ConditionEntry }) {
       </div>
       {condition.diagnosedAt ? <small className="text-muted-foreground">{formatDate(condition.diagnosedAt)}</small> : null}
       {condition.notes ? <p className="text-xs text-muted-foreground">{condition.notes}</p> : null}
+      <div className="flex justify-end gap-1">
+        <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditing(true)}><Pencil className="size-3.5" />{t("common.edit")}</Button>
+        <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-destructive" onClick={() => { if (window.confirm(t("conditions.deleteConfirm"))) void controller.deleteCondition(condition.id); }}><Trash2 className="size-3.5" />{t("common.delete")}</Button>
+      </div>
     </div>
   );
 }

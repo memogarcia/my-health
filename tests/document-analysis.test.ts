@@ -30,12 +30,14 @@ test("parseExtractedResults strips markdown fences and surrounding prose", () =>
   assert.equal(results[0].marker, "HDL");
 });
 
-test("parseExtractedResults coerces dates and defaults unknown organs to blood", () => {
-  const raw = `[{"marker":"LDL","value":"160","measuredAt":"07/04/2026","organKey":"plasma"}]`;
-  const [result] = parseExtractedResults(raw);
-  assert.equal(result.organKey, "blood");
-  assert.equal(result.measuredAt, "2026-07-04");
-  assert.equal(result.status, "normal");
+test("parseExtractedResults blanks uncertain dates and statuses", () => {
+  const raw = `[{"marker":"LDL","value":"160","measuredAt":"07/04/2026","organKey":"plasma"},{"marker":"TSH","value":"2.1","measuredAt":"not sure","status":"fine"}]`;
+  const [first, second] = parseExtractedResults(raw);
+  assert.equal(first.organKey, "blood");
+  assert.equal(first.measuredAt, "2026-07-04");
+  assert.equal(first.status, "");
+  assert.equal(second.measuredAt, "");
+  assert.equal(second.status, "");
 });
 
 test("parseExtractedResults ignores entries without a marker and caps the count", () => {

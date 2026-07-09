@@ -1,5 +1,5 @@
 import { todayString } from "./dashboard-format";
-import { defaultOrgans, type ExtractedResult, type HealthStatus } from "./dashboard-model";
+import { defaultOrgans, type ExtractedResult, type ExtractedResultStatus, type HealthStatus } from "./dashboard-model";
 
 const VALID_ORGANS = new Set(defaultOrgans.map((organ) => organ.key));
 const VALID_STATUSES = new Set<HealthStatus>(["normal", "monitor", "attention"]);
@@ -104,25 +104,21 @@ function normalizeOrgan(value: unknown, fallback: string): string {
   return key && VALID_ORGANS.has(key) ? key : fallback;
 }
 
-function normalizeStatus(value: unknown): HealthStatus {
+function normalizeStatus(value: unknown): ExtractedResultStatus {
   const key = str(value).toLowerCase();
-  return key && VALID_STATUSES.has(key as HealthStatus) ? (key as HealthStatus) : "normal";
+  return key && VALID_STATUSES.has(key as HealthStatus) ? (key as HealthStatus) : "";
 }
 
 function normalizeDate(value: unknown): string {
   const raw = str(value);
-  if (!raw) return todayString();
+  if (!raw) return "";
   if (/^\d{4}-\d{2}-\d{2}$/u.test(raw)) return raw;
   const slash = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (slash) {
     const [, month, day, year] = slash;
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
-  const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime())) {
-    return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
-  }
-  return todayString();
+  return "";
 }
 
 function str(value: unknown): string {

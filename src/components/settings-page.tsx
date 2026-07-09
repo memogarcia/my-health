@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AI_PROVIDERS, CODEX_REASONING_EFFORT_OPTIONS, DEFAULT_CODEX_REASONING_EFFORT, getAiProvider, type CodexModelOption } from "../ai-sdk-config";
+import { AI_PROVIDERS, CODEX_REASONING_EFFORT_OPTIONS, DEFAULT_CODEX_REASONING_EFFORT, getAiProvider } from "../ai-sdk-config";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { Download } from "./health-icons";
@@ -71,8 +70,6 @@ function AiSettings({ controller }: { controller: DashboardController }) {
   const [baseUrl, setBaseUrl] = useState(controller.aiSettings.baseUrl);
   const [apiKeyEnvVar, setApiKeyEnvVar] = useState(controller.aiSettings.apiKeyEnvVar);
   const [allowRemote, setAllowRemote] = useState(controller.aiSettings.allowRemoteHealthContext);
-  const [codexModels, setCodexModels] = useState<CodexModelOption[]>([]);
-  const [codexOptionsError, setCodexOptionsError] = useState("");
   const provider = getAiProvider(providerId);
   const isCodex = provider.id === "codex";
   const fallbackCodexModels = provider.models.map((item) => ({
@@ -80,7 +77,7 @@ function AiSettings({ controller }: { controller: DashboardController }) {
     defaultReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
     reasoningEfforts: CODEX_REASONING_EFFORT_OPTIONS,
   }));
-  const codexModelOptions = codexModels.length ? codexModels : fallbackCodexModels;
+  const codexModelOptions = controller.codexModels.length ? controller.codexModels : fallbackCodexModels;
   const selectedCodexModel = codexModelOptions.find((item) => item.id === modelId) || codexModelOptions[0];
   const reasoningOptions = selectedCodexModel?.reasoningEfforts.length ? selectedCodexModel.reasoningEfforts : CODEX_REASONING_EFFORT_OPTIONS;
 
@@ -95,28 +92,13 @@ function AiSettings({ controller }: { controller: DashboardController }) {
 
   useEffect(() => {
     if (providerId !== "codex") return;
-    let alive = true;
-    invoke<{ models: CodexModelOption[] }>("get_codex_options")
-      .then((result) => {
-        if (!alive) return;
-        const models = result.models || [];
-        const selected = models.find((item) => item.id === modelId) || models[0];
-        setCodexModels(models);
-        setCodexOptionsError("");
-        if (selected && !models.some((item) => item.id === modelId)) setModelId(selected.id);
-        if (selected && !selected.reasoningEfforts.some((item) => item.id === reasoningEffort)) {
-          setReasoningEffort(selected.defaultReasoningEffort || selected.reasoningEfforts[0]?.id || DEFAULT_CODEX_REASONING_EFFORT);
-        }
-      })
-      .catch(() => {
-        if (!alive) return;
-        setCodexModels([]);
-        setCodexOptionsError(t("settings.ai.codexModelsUnavailable"));
-      });
-    return () => {
-      alive = false;
-    };
-  }, [providerId]);
+    const models = controller.codexModels;
+    const selected = models.find((item) => item.id === modelId) || models[0];
+    if (selected && !models.some((item) => item.id === modelId)) setModelId(selected.id);
+    if (selected && !selected.reasoningEfforts.some((item) => item.id === reasoningEffort)) {
+      setReasoningEffort(selected.defaultReasoningEffort || selected.reasoningEfforts[0]?.id || DEFAULT_CODEX_REASONING_EFFORT);
+    }
+  }, [providerId, controller.codexModels, modelId, reasoningEffort]);
 
   function selectCodexModel(value: string): void {
     setModelId(value);
@@ -130,7 +112,7 @@ function AiSettings({ controller }: { controller: DashboardController }) {
     <Card>
       <CardHeader>
         <CardTitle>{t("settings.ai.title")}</CardTitle>
-        <CardDescription>{provider.kind}</CardDescription>
+        <CardDescription>{provider.statusLabel}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={(event) => {
@@ -151,9 +133,10 @@ function AiSettings({ controller }: { controller: DashboardController }) {
               }}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectGroup>{AI_PROVIDERS.map((item) => <SelectItem value={item.id} key={item.id}>{item.label}</SelectItem>)}</SelectGroup>
+                  <SelectGroup>{AI_PROVIDERS.map((item) => <SelectItem value={item.id} key={item.id}>{item.label} · {item.statusLabel}</SelectItem>)}</SelectGroup>
                 </SelectContent>
               </Select>
+              {provider.executionStatus === "planned" ? <FieldDescription>{t("settings.ai.notLiveWarning")}</FieldDescription> : null}
             </Field>
             <Field>
               <FieldLabel htmlFor="modelId">{t("settings.ai.model")}</FieldLabel>
@@ -165,7 +148,7 @@ function AiSettings({ controller }: { controller: DashboardController }) {
                       <SelectGroup>{codexModelOptions.map((item) => <SelectItem value={item.id} key={item.id}>{item.label}</SelectItem>)}</SelectGroup>
                     </SelectContent>
                   </Select>
-                  {codexOptionsError ? <FieldDescription>{codexOptionsError}</FieldDescription> : null}
+                  {controller.codexOptionsError ? <FieldDescription>{controller.codexOptionsError}</FieldDescription> : null}
                 </>
               ) : (
                 <>

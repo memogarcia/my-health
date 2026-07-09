@@ -1,4 +1,5 @@
-export type AiProviderKind = "anthropic" | "openai" | "google" | "openai-compatible" | "codex-cli";
+export type AiProviderKind = "none" | "anthropic" | "openai" | "google" | "openai-compatible" | "codex-cli";
+export type AiProviderExecutionStatus = "disabled" | "live" | "planned";
 
 export type AiModelOption = {
   id: string;
@@ -19,6 +20,8 @@ export type AiProviderConfig = {
   label: string;
   kind: AiProviderKind;
   local: boolean;
+  executionStatus: AiProviderExecutionStatus;
+  statusLabel: string;
   baseUrl: string;
   apiKeyEnvVar: string;
   models: AiModelOption[];
@@ -41,7 +44,7 @@ export type AiSdkTarget = {
   apiKeyEnvVar?: string;
 };
 
-export const DEFAULT_AI_PROVIDER_ID = "anthropic";
+export const DEFAULT_AI_PROVIDER_ID = "none";
 export const DEFAULT_CODEX_REASONING_EFFORT = "medium";
 export const CODEX_REASONING_EFFORT_OPTIONS: CodexReasoningEffortOption[] = [
   { id: "minimal", label: "Minimal", description: "Shortest thinking time" },
@@ -53,10 +56,37 @@ export const CODEX_REASONING_EFFORT_OPTIONS: CodexReasoningEffortOption[] = [
 
 export const AI_PROVIDERS: AiProviderConfig[] = [
   {
+    id: "none",
+    label: "Not configured",
+    kind: "none",
+    local: true,
+    executionStatus: "disabled",
+    statusLabel: "Setup required",
+    baseUrl: "",
+    apiKeyEnvVar: "",
+    models: [{ id: "", label: "No model selected" }],
+  },
+  {
+    id: "codex",
+    label: "Codex CLI",
+    kind: "codex-cli",
+    local: false,
+    executionStatus: "live",
+    statusLabel: "Live via Codex CLI",
+    baseUrl: "",
+    apiKeyEnvVar: "",
+    models: [
+      { id: "gpt-5.5", label: "GPT-5.5" },
+      { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
+    ],
+  },
+  {
     id: "anthropic",
     label: "Anthropic",
     kind: "anthropic",
     local: false,
+    executionStatus: "planned",
+    statusLabel: "Planned, not live",
     baseUrl: "",
     apiKeyEnvVar: "ANTHROPIC_API_KEY",
     models: [
@@ -69,6 +99,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: "OpenAI",
     kind: "openai",
     local: false,
+    executionStatus: "planned",
+    statusLabel: "Planned, not live",
     baseUrl: "",
     apiKeyEnvVar: "OPENAI_API_KEY",
     models: [
@@ -81,6 +113,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: "Gemini",
     kind: "google",
     local: false,
+    executionStatus: "planned",
+    statusLabel: "Planned, not live",
     baseUrl: "",
     apiKeyEnvVar: "GOOGLE_GENERATIVE_AI_API_KEY",
     models: [
@@ -93,6 +127,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: "LM Studio",
     kind: "openai-compatible",
     local: true,
+    executionStatus: "planned",
+    statusLabel: "Planned local provider",
     baseUrl: "http://localhost:1234/v1",
     apiKeyEnvVar: "",
     models: [{ id: "local-model", label: "Local model" }],
@@ -102,6 +138,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: "Ollama",
     kind: "openai-compatible",
     local: true,
+    executionStatus: "planned",
+    statusLabel: "Planned local provider",
     baseUrl: "http://localhost:11434/v1",
     apiKeyEnvVar: "",
     models: [
@@ -114,23 +152,15 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: "Custom",
     kind: "openai-compatible",
     local: false,
+    executionStatus: "planned",
+    statusLabel: "Planned, not live",
     baseUrl: "",
     apiKeyEnvVar: "",
     models: [{ id: "model-id", label: "Custom model" }],
   },
-  {
-    id: "codex",
-    label: "Codex CLI",
-    kind: "codex-cli",
-    local: false,
-    baseUrl: "",
-    apiKeyEnvVar: "",
-    models: [
-      { id: "gpt-5.5", label: "GPT-5.5" },
-      { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
-    ],
-  },
 ];
+
+export const LIVE_AI_PROVIDERS = AI_PROVIDERS.filter((provider) => provider.executionStatus === "live");
 
 export function getAiProvider(providerId: string): AiProviderConfig {
   return AI_PROVIDERS.find((provider) => provider.id === providerId) || AI_PROVIDERS[0];
@@ -149,6 +179,7 @@ export function normalizeAiSettings(input: Partial<AiSettings> = {}): AiSettings
   };
 }
 
+/** Planned adapter mapping. No user-facing path executes this until providers are live. */
 export function toAiSdkTarget(settings: AiSettings): AiSdkTarget {
   const provider = getAiProvider(settings.providerId);
   return {
@@ -158,6 +189,10 @@ export function toAiSdkTarget(settings: AiSettings): AiSdkTarget {
     baseURL: settings.baseUrl || undefined,
     apiKeyEnvVar: settings.apiKeyEnvVar || undefined,
   };
+}
+
+export function isAiProviderLive(providerId: string): boolean {
+  return getAiProvider(providerId).executionStatus === "live";
 }
 
 export function hasEnabledCodexModel(settings: Pick<AiSettings, "providerId" | "modelId" | "allowRemoteHealthContext">): boolean {

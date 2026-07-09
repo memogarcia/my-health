@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Pencil, RotateCcw, Square, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +14,7 @@ import type { RegimenItem } from "../dashboard-model";
 import { t } from "../i18n";
 import { regimenInputFromForm } from "../regimen-form";
 import type { DashboardController } from "../use-dashboard-controller";
+import { RegimenTimeline } from "./charts/regimen-timeline";
 import { Pill, Plus } from "./health-icons";
 
 export function MedicationsPage({ controller }: { controller: DashboardController }) {
@@ -24,6 +27,7 @@ export function MedicationsPage({ controller }: { controller: DashboardControlle
       <AddRegimenForm controller={controller} />
       <section className="grid gap-4" aria-label={t("medications.listLabel")}>
         <RegimenSummary activeCount={active.length} stoppedCount={stopped.length} />
+        <RegimenTimeline items={items} />
         {items.length === 0 ? (
           <Empty className="min-h-48 border border-dashed bg-muted/20">
             <EmptyMedia variant="icon"><Pill /></EmptyMedia>
@@ -34,8 +38,8 @@ export function MedicationsPage({ controller }: { controller: DashboardControlle
           </Empty>
         ) : (
           <>
-            {active.length ? <RegimenList items={active} title={t("medications.activeRegimen")} /> : null}
-            {stopped.length ? <RegimenList items={stopped} title={t("medications.stopped")} muted /> : null}
+            {active.length ? <RegimenList controller={controller} items={active} title={t("medications.activeRegimen")} /> : null}
+            {stopped.length ? <RegimenList controller={controller} items={stopped} title={t("medications.stopped")} muted /> : null}
           </>
         )}
       </section>
@@ -149,7 +153,7 @@ function RegimenSummary({ activeCount, stoppedCount }: { activeCount: number; st
   );
 }
 
-function RegimenList({ items, title, muted }: { items: RegimenItem[]; title: string; muted?: boolean }) {
+function RegimenList({ controller, items, title, muted }: { controller: DashboardController; items: RegimenItem[]; title: string; muted?: boolean }) {
   return (
     <Card size="sm">
       <CardHeader>
@@ -157,19 +161,23 @@ function RegimenList({ items, title, muted }: { items: RegimenItem[]; title: str
         <CardDescription>{t("medications.savedLocally", { count: formatCount(items.length) })}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-2">
-        {items.map((item) => <RegimenItemRow item={item} key={item.id} muted={muted} />)}
+        {items.map((item) => <RegimenItemRow controller={controller} item={item} key={item.id} muted={muted} />)}
       </CardContent>
     </Card>
   );
 }
 
-function RegimenItemRow({ item, muted }: { item: RegimenItem; muted?: boolean }) {
+function RegimenItemRow({ controller, item, muted }: { controller: DashboardController; item: RegimenItem; muted?: boolean }) {
+  const [editing, setEditing] = useState(false);
   const dose = [item.dose, item.unit].filter(Boolean).join(" ");
   const dateRange = formatDateRange(item);
   const facts: Array<[string, string]> = [];
   if (dose) facts.push([t("medications.fact.dose"), dose]);
   if (item.frequency) facts.push([t("medications.fact.when"), item.frequency]);
   if (dateRange) facts.push([t("medications.fact.dates"), dateRange]);
+  if (editing) {
+    return <RegimenEditForm controller={controller} item={item} onCancel={() => setEditing(false)} />;
+  }
   return (
     <div className={cn("grid gap-3 rounded-lg border border-border bg-card px-3 py-3", muted && "bg-muted/30 opacity-75")}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -196,7 +204,57 @@ function RegimenItemRow({ item, muted }: { item: RegimenItem; muted?: boolean })
       ) : null}
       {item.reason ? <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">{t("medications.reasonLabel")}</span> {item.reason}</p> : null}
       {item.notes ? <p className="text-xs leading-relaxed text-muted-foreground">{item.notes}</p> : null}
+      <div className="flex flex-wrap justify-end gap-1 border-t border-border pt-2">
+        <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditing(true)}><Pencil className="size-3.5" />{t("common.edit")}</Button>
+        <Button type="button" size="sm" variant="ghost" className="h-7 px-2" onClick={() => void controller.setRegimenItemActive(item.id, !item.active)}>
+          {item.active ? <Square className="size-3.5" /> : <RotateCcw className="size-3.5" />}{item.active ? t("medications.stop") : t("medications.reactivate")}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-destructive" onClick={() => { if (window.confirm(t("medications.deleteConfirm"))) void controller.deleteRegimenItem(item.id); }}><Trash2 className="size-3.5" />{t("common.delete")}</Button>
+      </div>
     </div>
+  );
+}
+
+function RegimenEditForm({ controller, item, onCancel }: { controller: DashboardController; item: RegimenItem; onCancel: () => void }) {
+  return (
+    <form className="grid gap-3 rounded-lg border border-border bg-card px-3 py-3" onSubmit={(event) => {
+      event.preventDefault();
+      void controller.updateRegimenItem({ id: item.id, ...regimenInputFromForm(new FormData(event.currentTarget)) }).then((saved) => { if (saved) onCancel(); });
+    }}>
+      <div className="grid gap-4 sm:grid-cols-[0.8fr_1.2fr]">
+        <Field>
+          <FieldLabel>{t("medications.kind")}</FieldLabel>
+          <Select name="kind" defaultValue={item.kind}>
+            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="medication">{t("medications.kind.medication")}</SelectItem>
+                <SelectItem value="supplement">{t("medications.kind.supplement")}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`regimen-edit-name-${item.id}`}>{t("medications.name")}</FieldLabel>
+          <Input id={`regimen-edit-name-${item.id}`} name="name" defaultValue={item.name} required />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field><FieldLabel>{t("medications.dose")}</FieldLabel><Input name="dose" defaultValue={item.dose} /></Field>
+        <Field><FieldLabel>{t("medications.unit")}</FieldLabel><Input name="unit" defaultValue={item.unit} /></Field>
+        <Field><FieldLabel>{t("medications.frequency")}</FieldLabel><Input name="frequency" defaultValue={item.frequency} /></Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field><FieldLabel>{t("medications.startDate")}</FieldLabel><Input name="startDate" type="date" defaultValue={item.startDate} /></Field>
+        <Field><FieldLabel>{t("medications.stopDate")}</FieldLabel><Input name="stopDate" type="date" defaultValue={item.stopDate} /></Field>
+      </div>
+      <Field><FieldLabel>{t("medications.reason")}</FieldLabel><Input name="reason" defaultValue={item.reason} /></Field>
+      <Field><FieldLabel>{t("common.notes")}</FieldLabel><Textarea name="notes" defaultValue={item.notes} /></Field>
+      <div className="flex justify-end gap-2">
+        <Button type="button" size="sm" variant="ghost" onClick={onCancel}>{t("common.cancel")}</Button>
+        <Button type="submit" size="sm">{t("common.save")}</Button>
+      </div>
+    </form>
   );
 }
 

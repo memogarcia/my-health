@@ -5,7 +5,7 @@ import { promptIntakeFromText } from "../src/prompt-intake";
 const base = { today: "2026-07-09", organKey: "thyroid" };
 
 test("promptIntakeFromText drafts a 30 day medication", () => {
-  const action = promptIntakeFromText("I'm going to take Metformin 500 mg daily for the next 30 days", base);
+  const action = promptIntakeFromText("Start Metformin 500 mg daily for the next 30 days", base);
 
   assert.equal(action.kind, "regimen");
   if (action.kind !== "regimen") return;
@@ -18,8 +18,8 @@ test("promptIntakeFromText drafts a 30 day medication", () => {
     startDate: "2026-07-09",
     stopDate: "2026-08-08",
     reason: "",
-    notes: "I'm going to take Metformin 500 mg daily for the next 30 days",
-    active: false,
+    notes: "Start Metformin 500 mg daily for the next 30 days",
+    active: true,
   });
 });
 
@@ -34,7 +34,7 @@ test("promptIntakeFromText leaves indefinite medication active", () => {
 });
 
 test("promptIntakeFromText drafts lab results from short text", () => {
-  const action = promptIntakeFromText("LDL 140 mg/dL today", base);
+  const action = promptIntakeFromText("Log LDL 140 mg/dL today", base);
 
   assert.equal(action.kind, "result");
   if (action.kind !== "result") return;
@@ -59,5 +59,12 @@ test("promptIntakeFromText drafts blood pressure with default unit", () => {
 
 test("promptIntakeFromText keeps questions in chat", () => {
   assert.deepEqual(promptIntakeFromText("What does LDL mean?", base), { kind: "chat" });
-  assert.deepEqual(promptIntakeFromText("Should I take Metformin 500 mg?", base), { kind: "chat" });
+  assert.deepEqual(promptIntakeFromText("Is LDL 120 bad?", base), { kind: "chat" });
+  assert.deepEqual(promptIntakeFromText("Should I take magnesium 200 mg?", base), { kind: "chat" });
+});
+
+test("promptIntakeFromText only drafts records for explicit save intent", () => {
+  assert.equal(promptIntakeFromText("Add magnesium 200 mg daily", base).kind, "regimen");
+  assert.equal(promptIntakeFromText("Medication: magnesium 200 mg daily", base).kind, "regimen");
+  assert.deepEqual(promptIntakeFromText("LDL 140 mg/dL today", base), { kind: "chat" });
 });

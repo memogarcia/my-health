@@ -34,8 +34,10 @@ export function parseLabNumber(value: string): number | null {
 }
 
 export type LabSeries = {
+  key: string;
   marker: string;
   unit: string;
+  organKey: string;
   status: HealthStatus;
   points: LabResult[];
 };
@@ -44,25 +46,30 @@ export type LabSeries = {
 export function groupByMarker(labs: LabResult[]): LabSeries[] {
   const map = new Map<string, LabResult[]>();
   for (const lab of labs) {
-    const list = map.get(lab.marker);
+    const key = seriesKey(lab);
+    const list = map.get(key);
     if (list) {
       list.push(lab);
     } else {
-      map.set(lab.marker, [lab]);
+      map.set(key, [lab]);
     }
   }
 
   const series: LabSeries[] = [];
-  for (const [marker, points] of map) {
+  for (const [key, points] of map) {
     const sorted = [...points].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
     const latest = sorted[sorted.length - 1];
-    series.push({ marker, unit: latest.unit, status: latest.status, points: sorted });
+    series.push({ key, marker: latest.marker, unit: latest.unit, organKey: latest.organKey, status: latest.status, points: sorted });
   }
   return series.sort((a, b) => {
     const aLast = a.points[a.points.length - 1].measuredAt;
     const bLast = b.points[b.points.length - 1].measuredAt;
     return bLast.localeCompare(aLast);
   });
+}
+
+function seriesKey(lab: LabResult): string {
+  return [lab.marker.trim().toLowerCase(), lab.unit.trim().toLowerCase(), lab.organKey].join("|");
 }
 
 let gradientSeed = 0;

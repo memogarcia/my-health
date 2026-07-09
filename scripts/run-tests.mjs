@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import ts from 'typescript';
@@ -51,11 +51,14 @@ process.exit(result.status ?? 1);
 function compileTypeScriptTests() {
   const outDir = path.join(tmpdir(), `me-health-dashboard-tests-${process.pid}`);
   rmSync(outDir, { recursive: true, force: true });
-  for (const file of files.filter((item) => item.endsWith('.ts') && !item.endsWith('.d.ts'))) {
-    const output = path.join(outDir, file).replace(/\.ts$/u, '.js');
+  mkdirSync(outDir, { recursive: true });
+  if (existsSync('node_modules')) symlinkSync(path.resolve('node_modules'), path.join(outDir, 'node_modules'), 'dir');
+  const sourceFiles = files.filter((item) => /\.(ts|tsx)$/u.test(item) && !item.endsWith('.d.ts'));
+  for (const file of sourceFiles) {
+    const output = compiledPath(outDir, file);
     mkdirSync(path.dirname(output), { recursive: true });
     const result = ts.transpileModule(readFileSync(file, 'utf8'), {
-      compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
+      compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
       fileName: file,
     });
     writeFileSync(output, addJsExtensions(result.outputText));
@@ -65,7 +68,11 @@ function compileTypeScriptTests() {
     mkdirSync(path.dirname(output), { recursive: true });
     writeFileSync(output, readFileSync(file));
   }
-  return tsTests.map((file) => path.join(outDir, file).replace(/\.ts$/u, '.js'));
+  return tsTests.map((file) => compiledPath(outDir, file));
+}
+
+function compiledPath(outDir, file) {
+  return path.join(outDir, file).replace(/\.(ts|tsx)$/u, '.js');
 }
 
 function addJsExtensions(code) {

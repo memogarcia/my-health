@@ -14,7 +14,7 @@
     "tauri:dev": "npm run tauri -- dev",
     "tauri:build": "npm run tauri -- build",
     "typecheck": "tsc --noEmit",
-    "test": "npm run test:js && npm run test:rust",
+    "test": "npm run typecheck && npm run test:js && npm run test:rust",
     "test:js": "node scripts/run-tests.mjs",
     "test:rust": "node scripts/run-rust-tests.mjs",
     "check": "npm run check:console && npm run check:size && npm run check:i18n-locales && npm run check:i18n",

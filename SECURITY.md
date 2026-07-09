@@ -28,23 +28,24 @@ backend rejects raw `apiKey` fields and raw-looking key values in settings.
 ## AI Privacy
 
 Local LLM providers are recommended first. Remote providers require explicit
-opt-in before health context is sent outside the machine. AI responses are
-advisory only and must not be treated as diagnosis, treatment, or emergency
-triage.
+opt-in before health context is sent outside the machine. User-entered health
+records in prompts are delimited as untrusted data. AI responses are advisory
+only and must not be treated as diagnosis, treatment, or emergency triage.
 
 See `AI.md` for provider details.
 
 ## Documents
 
-Attached document copies are stored in the app data directory. On Unix systems,
-the app writes these copies with owner-only permissions. Document-analysis
-files used by Codex are temporary and removed after the run.
+Attached document copies are stored in the app data directory after backend
+size/type validation. On Unix systems, the app writes these copies with
+owner-only permissions. Document-analysis files used by Codex are temporary and
+removed after success, failure, or timeout.
 
 ## Known Limits
 
 - Local document copies are protected by filesystem permissions, not by the
   SQLCipher database.
-- Security work targets the current app state; there is no long-term supported
-  version policy yet.
+- Security work targets the current app state; use the release checklist before
+  storing real records.
 - The app does not replace full-device disk encryption, operating-system
   account security, or safe backup handling.

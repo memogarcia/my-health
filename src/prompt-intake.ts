@@ -13,25 +13,27 @@ type PromptIntakeOptions = {
 const DATE_RE = /\b(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4})\b/u;
 const DOSE_RE = /\b(\d+(?:\.\d+)?)\s*(mg|mcg|g|ml|iu|units?|tablets?|capsules?)\b/iu;
 const RESULT_HINT_RE = /\b(result|lab|marker|level|blood pressure|bp|ldl|hdl|glucose|a1c|cholesterol|triglycerides|tsh|crp|hemoglobin|pulse|heart rate)\b/iu;
-const REGIMEN_HINT_RE = /\b(take|taking|start|starting|begin|began|medication|medicine|prescription|pill|dose)\b/iu;
+const REGIMEN_HINT_RE = /\b(add|log|record|save|take|taking|start|starting|begin|began|medication|medicine|prescription|pill|dose|supplement)\b/iu;
+const RECORD_INTENT_RE = /^(?:please\s+)?(?:add|log|record|save|track|start|starting|begin|began)\b|^(?:medication|medicine|supplement|lab|result|marker)\s*:/iu;
+const QUESTION_RE = /^(?:what|why|how|should|do i|does|can i|could i|is|are|will|would)\b|\?\s*$/iu;
 const UNIT_RE = /^(%|mg\/dl|mg\/dL|mmol\/l|ng\/ml|u\/l|iu\/l|mmhg|bpm|kg|lb|lbs)$/iu;
 
 export function promptIntakeFromText(prompt: string, options: PromptIntakeOptions): PromptIntakeAction {
   const text = prompt.trim();
   if (!text) return { kind: "chat" };
 
-  const regimen = parseRegimen(text, options.today);
-  if (regimen) return { kind: "regimen", input: regimen };
-
   const result = parseResult(text, options);
   if (result) return { kind: "result", result };
+
+  const regimen = parseRegimen(text, options.today);
+  if (regimen) return { kind: "regimen", input: regimen };
 
   return { kind: "chat" };
 }
 
 function parseRegimen(text: string, today: string): RegimenInput | null {
   if (!REGIMEN_HINT_RE.test(text)) return null;
-  if (/^(what|why|how|should|do i|does|can i|could i)\b/iu.test(text)) return null;
+  if (QUESTION_RE.test(text) || !RECORD_INTENT_RE.test(text)) return null;
 
   const duration = durationDays(text);
   const dose = text.match(DOSE_RE);
@@ -39,6 +41,7 @@ function parseRegimen(text: string, today: string): RegimenInput | null {
   let name = text
     .replace(/^i(?:'m| am)?\s+(?:going to|gonna|will|plan to)\s+/iu, "")
     .replace(/^(?:please\s+)?(?:add|record|log|start|starting|begin|take|taking)\s+/iu, "")
+    .replace(/^(?:medication|medicine|supplement)\s*:\s*/iu, "")
     .replace(/\bfor\s+(?:the\s+)?(?:next\s+)?\d+\s*(?:days?|weeks?|months?)\b.*$/iu, "")
     .replace(/\b(indefinitely|indefinite|ongoing|with no end|without end)\b.*$/iu, "");
   if (dose) name = name.replace(dose[0], "");
@@ -60,12 +63,12 @@ function parseRegimen(text: string, today: string): RegimenInput | null {
     stopDate,
     reason: "",
     notes: text,
-    active: !stopDate,
+    active: !stopDate || stopDate >= today,
   };
 }
 
 function parseResult(text: string, options: PromptIntakeOptions): ExtractedResult | null {
-  if (!RESULT_HINT_RE.test(text)) return null;
+  if (!RESULT_HINT_RE.test(text) || QUESTION_RE.test(text) || !RECORD_INTENT_RE.test(text)) return null;
   const normalized = text.replace(/\b(?:is|was|at|=|:)\b/giu, " ");
   const match = normalized.match(/\b([a-z][a-z0-9 /().-]{1,48}?)\s+(\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?)\s*([a-z/%]+(?:\/[a-z]+)?)?\b/iu);
   if (!match) return null;

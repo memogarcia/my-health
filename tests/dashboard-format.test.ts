@@ -4,6 +4,7 @@ import { escapeHtml, formatDate } from "../src/dashboard-format";
 
 test("formatDate renders valid ISO dates", () => {
   assert.match(formatDate("2026-07-08"), /2026/);
+  assert.match(formatDate("2026-07-08 10:15:00"), /2026/);
 });
 
 test("formatDate does not echo invalid raw input into HTML", () => {

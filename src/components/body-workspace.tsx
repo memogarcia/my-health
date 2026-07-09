@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Section, SectionAction, SectionContent, SectionHeader, SectionTitle } from "@/components/ui/section";
 import { Separator } from "@/components/ui/separator";
-import { getOrganVisual, statusLabel, wholeBodySystems, type HealthStatus, type OrganSummary, type SymptomEntry } from "../dashboard-model";
+import { getOrganVisual, statusLabel, wholeBodySystems, type ActivityEntry, type HealthStatus, type OrganSummary, type SymptomEntry } from "../dashboard-model";
 import { formatDate } from "../dashboard-format";
 import { t } from "../i18n";
 import { groupByMarker } from "../sparkline";
 import type { DashboardController } from "../use-dashboard-controller";
 import { AddResultDropdown } from "./add-result-dropdown";
 import { ConditionsCard } from "./conditions-card";
+import { OrganTrendPreview } from "./charts/organ-trend-preview";
 import { Check, NotebookPen, organIcons } from "./health-icons";
 import { EmptyMessage, StatTile, StatusBadge, StatusDot } from "./health-status";
 import { SparklineView } from "./sparkline-view";
@@ -173,6 +174,7 @@ function DetailRail({ controller }: { controller: DashboardController }) {
         </CardFooter>
       </Card>
       <ConditionsCard controller={controller} />
+      <OrganTrendPreview labs={controller.organLabs} onViewAll={() => controller.setSelectedNav("labs")} />
       <RecentCard controller={controller} />
     </div>
   );
@@ -202,7 +204,7 @@ function RecentCard({ controller }: { controller: DashboardController }) {
             {labSeries.length ? labSeries.map((item) => {
               const latest = item.points[item.points.length - 1];
               return (
-                <div className="lab-summary-row text-sm" key={item.marker}>
+                <div className="lab-summary-row text-sm" key={item.key}>
                   <div className="min-w-0"><strong className="block truncate">{item.marker}</strong><small className="text-muted-foreground">{item.unit || t("body.recent.valueUnit")}</small></div>
                   <SparklineView series={item} />
                   <strong className="text-right text-lg font-semibold">{latest.value}</strong>
@@ -232,7 +234,11 @@ function RecentCard({ controller }: { controller: DashboardController }) {
             {recentActivity.map((entry) => (
               <div className="grid grid-cols-[90px_1fr] gap-2 text-sm" key={entry.id}>
                 <span className="text-muted-foreground">{formatDate(entry.loggedAt)}</span>
-                <div><strong>{entry.activityName || t("body.recent.dailyEntry")}</strong><p className="text-muted-foreground">{entry.notes || t("body.recent.promptEntry")}</p></div>
+                <div>
+                  <strong>{entry.activityName || t("body.recent.dailyEntry")}</strong>
+                  <p className="text-muted-foreground">{activitySummary(entry)}</p>
+                  {entry.notes ? <p className="text-muted-foreground">{entry.notes}</p> : null}
+                </div>
               </div>
             ))}
             {recentActivity.length === 0 ? <EmptyMessage>{t("body.recent.noDailyEntries")}</EmptyMessage> : null}
@@ -241,6 +247,14 @@ function RecentCard({ controller }: { controller: DashboardController }) {
       </CardContent>
     </Card>
   );
+}
+
+function activitySummary(entry: ActivityEntry): string {
+  const parts = [];
+  if (entry.durationMinutes) parts.push(t("body.recent.activityMinutes", { count: entry.durationMinutes }));
+  if (entry.cigarettes) parts.push(t("body.recent.cigarettes", { count: entry.cigarettes }));
+  if (entry.drinks) parts.push(t("body.recent.drinks", { count: entry.drinks }));
+  return parts.join(" · ") || t("body.recent.promptEntry");
 }
 
 function symptomStatus(symptom: SymptomEntry): HealthStatus {

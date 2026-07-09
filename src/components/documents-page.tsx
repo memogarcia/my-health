@@ -1,4 +1,5 @@
 import type React from "react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -7,6 +8,7 @@ import { formatDate } from "../dashboard-format";
 import { resultDocumentAccept } from "../document-intake";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
+import { ImportCoverageTimeline } from "./charts/import-coverage-timeline";
 import { FileText, Sparkles } from "./health-icons";
 
 export function DocumentsPage({ controller }: { controller: DashboardController }) {
@@ -33,6 +35,8 @@ export function DocumentsPage({ controller }: { controller: DashboardController 
             onFile={(file) => void controller.importAppleHealthFile(file)}
           />
         </div>
+        <ImportCoverageTimeline imports={controller.userState.appleHealthImports} reports={controller.display.labReports} />
+        <LabReports controller={controller} />
         <AppleHealthImports controller={controller} />
       </CardContent>
     </Card>
@@ -82,6 +86,45 @@ function DocumentDrop({
         }}
       />
     </Field>
+  );
+}
+
+function LabReports({ controller }: { controller: DashboardController }) {
+  const reports = controller.display.labReports;
+  if (reports.length === 0) {
+    return (
+      <Empty className="min-h-40">
+        <EmptyHeader>
+          <EmptyTitle>{t("documents.emptyReportsTitle")}</EmptyTitle>
+          <EmptyDescription>{t("documents.emptyReportsDescription")}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+  return (
+    <div className="grid gap-2">
+      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("documents.savedReports")}</h3>
+      {reports.map((report) => (
+        <div className="grid gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={report.id}>
+          <div className="flex items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-primary"><FileText /></span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-3">
+                <strong className="truncate text-sm">{report.sourceName}</strong>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatDate(report.createdAt)}</span>
+              </div>
+              <p className="text-sm text-muted-foreground">{t("documents.reportStats", { count: report.resultCount, type: report.fileType || t("documents.unknownType"), size: report.sizeLabel || t("documents.unknownSize") })}</p>
+              {report.localCopyPath ? <p className="truncate text-xs text-muted-foreground" title={report.localCopyPath}>{report.localCopyPath}</p> : null}
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => void controller.unlinkLabReport(report.id)}>{t("documents.unlink")}</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(t("documents.deleteReportConfirm"))) void controller.deleteLabReport(report.id, false); }}>{t("documents.deleteReport")}</Button>
+            <Button type="button" size="sm" variant="destructive" onClick={() => { if (window.confirm(t("documents.deleteReportResultsConfirm"))) void controller.deleteLabReport(report.id, true); }}>{t("documents.deleteReportResults")}</Button>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

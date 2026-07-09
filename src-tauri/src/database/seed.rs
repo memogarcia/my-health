@@ -3,6 +3,7 @@ use rusqlite::{params, Connection};
 pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
     let organs = [
         (
+            10,
             "brain",
             "Brain",
             "Nervous",
@@ -10,6 +11,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Sleep, cognition, mood",
         ),
         (
+            20,
             "thyroid",
             "Thyroid",
             "Endocrine",
@@ -17,13 +19,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Metabolism, energy, and temperature",
         ),
         (
-            "heart",
-            "Heart",
-            "Cardiovascular",
-            "normal",
-            "Blood pressure and lipids",
-        ),
-        (
+            30,
             "lungs",
             "Lungs",
             "Respiratory",
@@ -31,6 +27,15 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Breathing and oxygenation",
         ),
         (
+            40,
+            "heart",
+            "Heart",
+            "Cardiovascular",
+            "normal",
+            "Blood pressure and lipids",
+        ),
+        (
+            50,
             "liver",
             "Liver",
             "Digestive",
@@ -38,6 +43,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Liver enzymes and metabolism",
         ),
         (
+            60,
             "spleen",
             "Spleen",
             "Lymphatic",
@@ -45,6 +51,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Immune function and blood filtering",
         ),
         (
+            70,
             "stomach",
             "Stomach",
             "Digestive",
@@ -52,6 +59,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Digestion and appetite",
         ),
         (
+            80,
             "pancreas",
             "Pancreas",
             "Endocrine",
@@ -59,6 +67,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Blood sugar and digestion",
         ),
         (
+            90,
             "kidneys",
             "Kidneys",
             "Renal",
@@ -66,6 +75,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Kidney function and hydration",
         ),
         (
+            100,
             "intestines",
             "Intestines",
             "Digestive",
@@ -73,6 +83,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Gut symptoms and nutrition",
         ),
         (
+            110,
             "bladder",
             "Bladder",
             "Urinary",
@@ -80,6 +91,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Urinary storage and voiding",
         ),
         (
+            200,
             "blood",
             "Blood",
             "Circulatory",
@@ -87,6 +99,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Complete blood count, iron, and clotting",
         ),
         (
+            210,
             "bones",
             "Bones & Joints",
             "Musculoskeletal",
@@ -94,6 +107,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Bone density, joints, and vitamin D",
         ),
         (
+            220,
             "skin",
             "Skin",
             "Integumentary",
@@ -101,6 +115,7 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "Skin, hair, nails, and moles",
         ),
         (
+            230,
             "reproductive",
             "Reproductive",
             "Reproductive",
@@ -109,11 +124,15 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
         ),
     ];
 
-    for (key, name, system, status, notes) in organs {
+    for (display_order, key, name, system, status, notes) in organs {
         conn.execute(
-            "INSERT OR IGNORE INTO organs (key, name, system, status, notes)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![key, name, system, status, notes],
+            "INSERT OR IGNORE INTO organs (key, name, system, status, notes, display_order)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![key, name, system, status, notes, display_order],
+        )?;
+        conn.execute(
+            "UPDATE organs SET display_order = ?1 WHERE key = ?2 AND display_order = 0",
+            params![display_order, key],
         )?;
     }
     Ok(())

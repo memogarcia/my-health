@@ -8,21 +8,18 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::Manager;
-
 mod seed;
 use seed::seed_organs;
-
 const SCHEMA: &str = r#"
 PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS organs (
   key TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   system TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'normal' CHECK (status IN ('normal', 'monitor', 'attention')),
-  notes TEXT NOT NULL DEFAULT ''
+  notes TEXT NOT NULL DEFAULT '',
+  display_order INTEGER NOT NULL DEFAULT 0
 );
-
 CREATE TABLE IF NOT EXISTS lab_reports (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   source_name TEXT NOT NULL,
@@ -33,9 +30,10 @@ CREATE TABLE IF NOT EXISTS lab_reports (
   report_date TEXT NOT NULL DEFAULT '',
   lab_name TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TEXT NOT NULL DEFAULT ''
 );
-
 CREATE TABLE IF NOT EXISTS lab_results (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   report_id INTEGER REFERENCES lab_reports(id) ON DELETE SET NULL,
@@ -51,9 +49,10 @@ CREATE TABLE IF NOT EXISTS lab_results (
   reference_range TEXT NOT NULL DEFAULT '',
   reference_low REAL,
   reference_high REAL,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TEXT NOT NULL DEFAULT ''
 );
-
 CREATE TABLE IF NOT EXISTS symptoms (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   organ_key TEXT NOT NULL REFERENCES organs(key) ON DELETE CASCADE,
@@ -61,9 +60,10 @@ CREATE TABLE IF NOT EXISTS symptoms (
   severity INTEGER NOT NULL CHECK (severity BETWEEN 1 AND 5),
   observed_at TEXT NOT NULL,
   notes TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TEXT NOT NULL DEFAULT ''
 );
-
 CREATE TABLE IF NOT EXISTS conditions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   organ_key TEXT NOT NULL REFERENCES organs(key) ON DELETE CASCADE,
@@ -71,22 +71,21 @@ CREATE TABLE IF NOT EXISTS conditions (
   status TEXT NOT NULL CHECK (status IN ('current', 'managed', 'past')),
   diagnosed_at TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TEXT NOT NULL DEFAULT ''
 );
-
 CREATE TABLE IF NOT EXISTS ai_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   settings TEXT NOT NULL DEFAULT '{}',
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
 -- ponytail: one JSON row is enough for early profile, daily log, and import summaries; split tables when querying them matters.
 CREATE TABLE IF NOT EXISTS user_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   state TEXT NOT NULL DEFAULT '{}',
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE TABLE IF NOT EXISTS regimen_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   kind TEXT NOT NULL CHECK (kind IN ('medication', 'supplement')),
@@ -99,22 +98,21 @@ CREATE TABLE IF NOT EXISTS regimen_items (
   reason TEXT NOT NULL DEFAULT '',
   notes TEXT NOT NULL DEFAULT '',
   active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TEXT NOT NULL DEFAULT ''
 );
 "#;
 #[cfg(any(debug_assertions, test))]
 const DEV_MOCK_DATABASE_NAME: &str = "mock-health-dashboard.sqlite3";
-
 pub struct AppState {
     inner: Mutex<DatabaseSession>,
 }
-
 struct DatabaseSession {
     conn: Option<Connection>,
     db_path: PathBuf,
     requires_encryption: bool,
 }
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatabaseStatus {
@@ -124,7 +122,6 @@ pub struct DatabaseStatus {
     unlocked: bool,
     has_legacy_plaintext: bool,
 }
-
 impl AppState {
     #[cfg_attr(debug_assertions, allow(dead_code))]
     pub fn new(db_path: PathBuf) -> Self {
@@ -136,7 +133,6 @@ impl AppState {
             }),
         }
     }
-
     #[cfg(any(debug_assertions, test))]
     fn unlocked_plaintext(db_path: PathBuf, conn: Connection) -> Self {
         Self {
@@ -147,14 +143,12 @@ impl AppState {
             }),
         }
     }
-
     pub fn db_path_display(&self) -> String {
         self.inner
             .lock()
             .map(|inner| inner.db_path.display().to_string())
             .unwrap_or_else(|_| "database unavailable".into())
     }
-
     pub fn status(&self) -> DatabaseStatus {
         let Ok(inner) = self.inner.lock() else {
             return DatabaseStatus {
@@ -172,7 +166,6 @@ impl AppState {
         )
     }
 }
-
 fn database_status(db_path: &Path, unlocked: bool, requires_encryption: bool) -> DatabaseStatus {
     if requires_encryption {
         let _ = recover_plaintext_migration(db_path);
@@ -189,7 +182,6 @@ fn database_status(db_path: &Path, unlocked: bool, requires_encryption: bool) ->
     } else {
         "needsSetup"
     };
-
     DatabaseStatus {
         db_path: db_path.display().to_string(),
         state: state.into(),
@@ -198,7 +190,6 @@ fn database_status(db_path: &Path, unlocked: bool, requires_encryption: bool) ->
         has_legacy_plaintext,
     }
 }
-
 pub fn init_database_state(app: &mut tauri::App) -> Result<AppState, Box<dyn std::error::Error>> {
     let app_data_dir = app.path().app_data_dir()?;
     fs::create_dir_all(&app_data_dir)?;
@@ -213,26 +204,26 @@ pub fn init_database_state(app: &mut tauri::App) -> Result<AppState, Box<dyn std
         Ok(AppState::new(document_dir.join("health-dashboard.sqlite3")))
     }
 }
-
 #[cfg(any(debug_assertions, test))]
 fn init_dev_database_state(app_data_dir: &Path) -> Result<AppState, Box<dyn std::error::Error>> {
-    let db_path = app_data_dir.join(DEV_MOCK_DATABASE_NAME);
-    if !db_path.exists() {
-        // ponytail: copy once; delete the app-data mock DB when the fixture needs a clean refresh.
-        fs::copy(dev_mock_database_path(), &db_path)?;
+    if std::env::var("ME_HEALTH_USE_MOCK_DB").ok().as_deref() == Some("1") {
+        let db_path = app_data_dir.join(DEV_MOCK_DATABASE_NAME);
+        if !db_path.exists() {
+            // ponytail: copy once; delete the app-data mock DB when the fixture needs a clean refresh.
+            fs::copy(dev_mock_database_path(), &db_path)?;
+        }
+        let conn = open_plaintext_database(&db_path)?;
+        install_schema(&conn)?;
+        return Ok(AppState::unlocked_plaintext(db_path, conn));
     }
-    let conn = open_plaintext_database(&db_path)?;
-    install_schema(&conn)?;
-    Ok(AppState::unlocked_plaintext(db_path, conn))
+    Ok(AppState::new(app_data_dir.join("health-dashboard-dev.sqlite3")))
 }
-
 #[cfg(any(debug_assertions, test))]
 fn dev_mock_database_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("dev")
         .join(DEV_MOCK_DATABASE_NAME)
 }
-
 fn normalize_database_path(path: &str) -> Result<PathBuf, String> {
     let path = path.trim();
     if path.is_empty() {
@@ -250,7 +241,6 @@ fn normalize_database_path(path: &str) -> Result<PathBuf, String> {
     }
     Ok(path)
 }
-
 #[tauri::command]
 pub fn select_database(
     path: String,
@@ -258,7 +248,6 @@ pub fn select_database(
 ) -> Result<DatabaseStatus, String> {
     select_database_path(&state, &path)
 }
-
 pub fn select_database_path(state: &AppState, path: &str) -> Result<DatabaseStatus, String> {
     let path = normalize_database_path(path)?;
     let mut inner = state.inner.lock().map_err(|error| error.to_string())?;
@@ -268,7 +257,6 @@ pub fn select_database_path(state: &AppState, path: &str) -> Result<DatabaseStat
     drop(inner);
     Ok(state.status())
 }
-
 pub fn unlock_database(state: &AppState, passphrase: &str) -> Result<DatabaseStatus, String> {
     let passphrase = validate_passphrase(passphrase)?;
     let mut inner = state.inner.lock().map_err(|error| error.to_string())?;
@@ -276,12 +264,10 @@ pub fn unlock_database(state: &AppState, passphrase: &str) -> Result<DatabaseSta
         drop(inner);
         return Ok(state.status());
     }
-
     recover_plaintext_migration(&inner.db_path)?;
     if is_plaintext_sqlite(&inner.db_path) {
         migrate_plaintext_database(&inner.db_path, passphrase)?;
     }
-
     let conn = open_encrypted_database(&inner.db_path, passphrase).map_err(|_| {
         "Could not unlock the database. Check the passphrase and try again.".to_string()
     })?;
@@ -290,7 +276,6 @@ pub fn unlock_database(state: &AppState, passphrase: &str) -> Result<DatabaseSta
     drop(inner);
     Ok(state.status())
 }
-
 pub fn with_connection<T>(
     state: &AppState,
     action: impl FnOnce(&Connection) -> Result<T, String>,
@@ -302,7 +287,6 @@ pub fn with_connection<T>(
         .ok_or_else(|| "Database locked. Unlock it first.".to_string())?;
     action(conn)
 }
-
 pub fn export_encrypted_database(state: &AppState, passphrase: &str) -> Result<String, String> {
     let passphrase = validate_passphrase(passphrase)?;
     let inner = state.inner.lock().map_err(|error| error.to_string())?;
@@ -406,16 +390,27 @@ fn install_schema(conn: &Connection) -> rusqlite::Result<()> {
 
 fn migrate_schema(conn: &Connection) -> rusqlite::Result<()> {
     for (table, name, sql) in [
+        ("organs", "display_order", "ALTER TABLE organs ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0"),
         ("lab_reports", "source_name", "ALTER TABLE lab_reports ADD COLUMN source_name TEXT NOT NULL DEFAULT ''"),
         ("lab_reports", "file_type", "ALTER TABLE lab_reports ADD COLUMN file_type TEXT NOT NULL DEFAULT ''"),
         ("lab_reports", "size_label", "ALTER TABLE lab_reports ADD COLUMN size_label TEXT NOT NULL DEFAULT ''"),
         ("lab_reports", "local_copy_path", "ALTER TABLE lab_reports ADD COLUMN local_copy_path TEXT NOT NULL DEFAULT ''"),
+        ("lab_reports", "updated_at", "ALTER TABLE lab_reports ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("lab_reports", "deleted_at", "ALTER TABLE lab_reports ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
         ("lab_results", "report_id", "ALTER TABLE lab_results ADD COLUMN report_id INTEGER REFERENCES lab_reports(id) ON DELETE SET NULL"),
         ("lab_results", "value_number", "ALTER TABLE lab_results ADD COLUMN value_number REAL"),
         ("lab_results", "flag", "ALTER TABLE lab_results ADD COLUMN flag TEXT NOT NULL DEFAULT 'unknown' CHECK (flag IN ('low', 'normal', 'high', 'unknown'))"),
         ("lab_results", "reference_range", "ALTER TABLE lab_results ADD COLUMN reference_range TEXT NOT NULL DEFAULT ''"),
         ("lab_results", "reference_low", "ALTER TABLE lab_results ADD COLUMN reference_low REAL"),
         ("lab_results", "reference_high", "ALTER TABLE lab_results ADD COLUMN reference_high REAL"),
+        ("lab_results", "updated_at", "ALTER TABLE lab_results ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("lab_results", "deleted_at", "ALTER TABLE lab_results ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
+        ("symptoms", "updated_at", "ALTER TABLE symptoms ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("symptoms", "deleted_at", "ALTER TABLE symptoms ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
+        ("conditions", "updated_at", "ALTER TABLE conditions ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("conditions", "deleted_at", "ALTER TABLE conditions ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
+        ("regimen_items", "updated_at", "ALTER TABLE regimen_items ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("regimen_items", "deleted_at", "ALTER TABLE regimen_items ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
     ] {
         add_column_if_missing(conn, table, name, sql)?;
     }
@@ -429,11 +424,14 @@ fn add_column_if_missing(
     sql: &str,
 ) -> rusqlite::Result<()> {
     let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
-    let exists = stmt
+    let columns = stmt
         .query_map([], |row| row.get::<_, String>(1))?
-        .any(|name| name.map(|n| n.eq_ignore_ascii_case(column)).unwrap_or(false));
+        .collect::<rusqlite::Result<Vec<_>>>()?;
     drop(stmt);
-    if !exists {
+    if columns.is_empty() {
+        return Ok(());
+    }
+    if !columns.iter().any(|name| name.eq_ignore_ascii_case(column)) {
         conn.execute(sql, [])?;
     }
     Ok(())

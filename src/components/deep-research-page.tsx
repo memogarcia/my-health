@@ -7,6 +7,7 @@ import { getAiProvider } from "../ai-sdk-config";
 import { t } from "../i18n";
 import { buildDeepResearchBrief, type CoverageItem } from "../lifestyle-insights";
 import type { DashboardController } from "../use-dashboard-controller";
+import { DataCoverageBars } from "./charts/data-coverage-bars";
 import { LifestyleTab } from "./lifestyle-page";
 import { LoaderCircle, Send } from "./health-icons";
 
@@ -52,6 +53,7 @@ function DeepResearchTab({ controller }: { controller: DashboardController }) {
         </div>
         <CoverageLine items={brief.coverage} />
       </div>
+      <DataCoverageBars items={brief.coverage.map((item) => ({ key: item.label, label: item.label, count: Number(item.value) || 0 }))} />
       <details className="group rounded-lg border border-border bg-card">
         <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">
           {t("research.reviewPrompt")}

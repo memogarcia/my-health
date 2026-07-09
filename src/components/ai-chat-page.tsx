@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { AI_PROVIDERS } from "../ai-sdk-config";
+import { hasEnabledCodexModel, LIVE_AI_PROVIDERS } from "../ai-sdk-config";
 import { getActiveAiConversation } from "../ai-conversation";
 import { formatDate } from "../dashboard-format";
 import type { AiConversation, AiConversationMessage } from "../dashboard-model";
@@ -94,7 +94,7 @@ function ConversationPanel({ controller, activeConversation }: { controller: Das
           <Select value={controller.aiSettings.providerId} onValueChange={(value) => void controller.updateAiProvider(value, "plan")}>
             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectGroup>{AI_PROVIDERS.map((provider) => <SelectItem value={provider.id} key={provider.id}>{provider.label}</SelectItem>)}</SelectGroup>
+              <SelectGroup>{LIVE_AI_PROVIDERS.map((provider) => <SelectItem value={provider.id} key={provider.id}>{provider.label}</SelectItem>)}</SelectGroup>
             </SelectContent>
           </Select>
         </CardAction>
@@ -142,7 +142,8 @@ function ConversationComposer({ controller }: { controller: DashboardController 
   const [prompt, setPrompt] = useState("");
   const [file, setFile] = useState(null as File | null);
   const fileInputRef = useRef(null as HTMLInputElement | null);
-  const disabled = Boolean(controller.aiPendingConversationId);
+  const configured = hasEnabledCodexModel(controller.aiSettings);
+  const disabled = Boolean(controller.aiPendingConversationId) || !configured;
   return (
     <form onSubmit={(event) => {
       event.preventDefault();
@@ -157,7 +158,7 @@ function ConversationComposer({ controller }: { controller: DashboardController 
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) event.currentTarget.form?.requestSubmit();
         }}
-        placeholder={t("chat.placeholder")}
+        placeholder={configured ? t("chat.placeholder") : t("chat.setupPlaceholder")}
         rows={2}
         value={prompt}
       />
@@ -171,7 +172,7 @@ function ConversationComposer({ controller }: { controller: DashboardController 
       <Button type="button" variant={file ? "secondary" : "outline"} size="icon" disabled={disabled} onClick={() => fileInputRef.current?.click()} title={file?.name || t("appShell.attachResultFile")} aria-label={file?.name || t("appShell.attachResultFile")}>
         <FileText />
       </Button>
-      <Button type="submit" disabled={disabled}>
+      <Button type="submit" disabled={disabled} title={!configured ? t("chat.setupRequired") : undefined}>
         {disabled ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Send data-icon="inline-start" />}
         {disabled ? t("common.sending") : t("common.send")}
       </Button>

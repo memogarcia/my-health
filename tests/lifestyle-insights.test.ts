@@ -40,6 +40,7 @@ const display: DisplaySnapshot = {
     active: true,
   }],
   aiRecommendations: [],
+  labReports: [],
 };
 
 const userState: UserState = {
@@ -56,10 +57,13 @@ test("buildLifestylePlan turns saved health data into actionable categories", ()
   assert.deepEqual(plan.recommendations.map((item) => item.category), ["Breathing", "Exercise", "Activity", "Routine"]);
   assert.ok(plan.signals.some((signal) => signal.includes("marker")));
   assert.match(plan.prompt, /LDL cholesterol/u);
-  assert.match(plan.prompt, /Age: 40/u);
+  assert.match(plan.prompt, /"age": 40/u);
   assert.match(plan.prompt, /Hypertension/u);
   assert.match(plan.prompt, /Example medication/u);
   assert.match(plan.prompt, /Apple Health/u);
+  assert.match(plan.prompt, /untrusted user-entered data/u);
+  const json = plan.prompt.match(/<untrusted_health_data_json>\n([\s\S]+)\n<\/untrusted_health_data_json>/u)?.[1] || "";
+  assert.doesNotThrow(() => JSON.parse(json));
 });
 
 test("buildDeepResearchPrompt includes all saved data sections", () => {
@@ -70,4 +74,7 @@ test("buildDeepResearchPrompt includes all saved data sections", () => {
   assert.match(prompt, /Hypertension/u);
   assert.match(prompt, /Example medication/u);
   assert.match(prompt, /Apple Health/u);
+  assert.match(prompt, /untrusted user-entered data/u);
+  const json = prompt.match(/<untrusted_health_data_json>\n([\s\S]+)\n<\/untrusted_health_data_json>/u)?.[1] || "";
+  assert.doesNotThrow(() => JSON.parse(json));
 });

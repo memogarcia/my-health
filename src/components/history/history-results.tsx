@@ -3,15 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Pencil, Trash2 } from "lucide-react";
 import { formatDate } from "../../dashboard-format";
 import type { LabResult, OrganSummary } from "../../dashboard-model";
 import { t } from "../../i18n";
 import { groupByMarker, parseLabNumber, type LabSeries } from "../../sparkline";
+import type { DashboardController } from "../../use-dashboard-controller";
 import { FileText } from "../health-icons";
 import { StatusBadge } from "../health-status";
+import { ReferenceRangeStrip } from "../charts/reference-range-strip";
 import { SparklineView } from "../sparkline-view";
 import { defaultLabSort, formatDelta, nextLabSort, organName, sortLabResults, type LabSort, type LabSortKey } from "./history-helpers";
+import { EditLabDialog } from "./history-result-edit-dialog";
 
 export function MarkerCards({
   labs,
@@ -32,7 +35,7 @@ export function MarkerCards({
   }
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {series.map((item) => <MarkerCard key={item.marker} series={item} organs={organs} onSelectOrgan={onSelectOrgan} />)}
+      {series.map((item) => <MarkerCard key={item.key} series={item} organs={organs} onSelectOrgan={onSelectOrgan} />)}
     </div>
   );
 }
@@ -74,6 +77,7 @@ function MarkerCard({
             <span className="text-2xl font-semibold">{latest.value}</span>
             {series.unit ? <span className="ml-1 text-sm text-muted-foreground">{series.unit}</span> : null}
             {latest.referenceRange ? <p className="mt-0.5 text-xs text-muted-foreground">{t("history.card.referenceRange", { range: latest.referenceRange })}</p> : null}
+            <ReferenceRangeStrip compact value={latest.valueNumber ?? parseLabNumber(latest.value)} low={latest.referenceLow} high={latest.referenceHigh} status={latest.status} />
             <Delta latest={latest} previous={previous} />
           </div>
           <SparklineView series={series} className="mini-spark w-28" />
@@ -106,20 +110,23 @@ function Delta({ latest, previous }: { latest: LabResult; previous?: LabResult }
 }
 
 export function LabTable({
+  controller,
   labs,
   allLabs,
   hasUnfiltered,
   onClear,
 }: {
+  controller: DashboardController;
   labs: LabResult[];
   allLabs: LabResult[];
   hasUnfiltered: boolean;
   onClear: () => void;
 }) {
+  const [editingLab, setEditingLab] = useState<LabResult | null>(null);
   const [sort, setSort] = useState<LabSort>(defaultLabSort);
   const byMarker = useMemo(() => {
     const map = new Map<string, LabSeries>();
-    for (const item of groupByMarker(allLabs)) map.set(item.marker, item);
+    for (const item of groupByMarker(allLabs)) map.set(item.key, item);
     return map;
   }, [allLabs]);
 
@@ -128,9 +135,10 @@ export function LabTable({
   const latestIdPerMarker = useMemo(() => {
     const latest = new Map<string, LabResult>();
     for (const lab of labs) {
-      const current = latest.get(lab.marker);
+      const key = labSeriesKey(lab);
+      const current = latest.get(key);
       if (!current || lab.measuredAt > current.measuredAt || (lab.measuredAt === current.measuredAt && lab.id > current.id)) {
-        latest.set(lab.marker, lab);
+        latest.set(key, lab);
       }
     }
     return new Set([...latest.values()].map((lab) => lab.id));
@@ -142,6 +150,7 @@ export function LabTable({
   }
 
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow>
@@ -153,6 +162,7 @@ export function LabTable({
           <SortableHead label={t("common.status")} column="status" sort={sort} onSort={(key) => setSort((current) => nextLabSort(current, key))} />
           <TableHead>{t("history.table.trend")}</TableHead>
           <SortableHead label={t("history.table.notes")} column="notes" sort={sort} onSort={(key) => setSort((current) => nextLabSort(current, key))} />
+          <TableHead>{t("common.actions")}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -165,18 +175,30 @@ export function LabTable({
             <TableCell className="tnum">{lab.referenceRange || "-"}</TableCell>
             <TableCell><StatusBadge status={lab.status} /></TableCell>
             <TableCell>
-              {latestIdPerMarker.has(lab.id) && byMarker.has(lab.marker) ? (
-                <SparklineView className="table-spark w-28" series={byMarker.get(lab.marker) as LabSeries} />
+              {latestIdPerMarker.has(lab.id) && byMarker.has(labSeriesKey(lab)) ? (
+                <SparklineView className="table-spark w-28" series={byMarker.get(labSeriesKey(lab)) as LabSeries} />
               ) : (
                 <span className="text-muted-foreground">·</span>
               )}
             </TableCell>
             <TableCell className="max-w-60 truncate" title={lab.notes || undefined}>{lab.notes || "-"}</TableCell>
+            <TableCell>
+              <div className="flex justify-end gap-1">
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-2" onClick={() => setEditingLab(lab)} aria-label={t("history.result.edit")}> <Pencil className="size-3.5" /></Button>
+                <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-destructive" onClick={() => { if (window.confirm(t("history.result.deleteConfirm"))) void controller.deleteLabResult(lab.id); }} aria-label={t("history.result.delete")}> <Trash2 className="size-3.5" /></Button>
+              </div>
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
+    <EditLabDialog controller={controller} lab={editingLab} onClose={() => setEditingLab(null)} />
+    </>
   );
+}
+
+function labSeriesKey(lab: LabResult): string {
+  return [lab.marker.trim().toLowerCase(), lab.unit.trim().toLowerCase(), lab.organKey].join("|");
 }
 
 function SortableHead({

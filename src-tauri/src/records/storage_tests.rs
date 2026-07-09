@@ -1,4 +1,5 @@
 use super::*;
+use super::reports::{insert_lab_report, LabReportInput};
 
 #[test]
 fn stores_report_local_copy_path() {

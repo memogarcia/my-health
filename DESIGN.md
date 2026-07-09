@@ -123,6 +123,12 @@ Rules:
 - Toasts go through `sonner` (`toast.success`/`error`/`warning`), with copy
   from the i18n catalog.
 
+Charts live in `src/components/charts/` and use compact inline SVG, not a chart
+library. Use neutral trend lines, muted grid lines, and status color only for
+the current state or high-severity bars. Reference ranges should be visible as a
+soft band or normalized strip. Every chart needs a text summary, empty state,
+and accessible title/label.
+
 ## Motion
 
 Easing tokens (`:root`): `--ease-out-quart`, `--ease-out-quint`, `--ease-out-expo`.

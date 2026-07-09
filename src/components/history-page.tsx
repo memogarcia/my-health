@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { AddResultDropdown } from "./add-result-dropdown";
+import { LabAnalyticsPanel } from "./charts/lab-analytics-panel";
+import { SymptomSeverityChart } from "./charts/symptom-severity-chart";
 import { Plus } from "./health-icons";
 import { filterLabs, filterSymptoms, organOptions, type LabView, type OrganFilter } from "./history/history-helpers";
 import { HistorySummary } from "./history/history-summary";
@@ -141,10 +143,11 @@ function ResultsPage({
             <ViewToggle view={view} onChange={onViewChange} />
           </div>
           <OrganChips options={organOptions} value={organFilter} onChange={onOrganChange} />
+          <LabAnalyticsPanel labs={labs} allLabs={allLabs} organs={organs} />
           {view === "grouped" ? (
             <MarkerCards labs={labs} organs={organs} hasUnfiltered={hasUnfiltered} onSelectOrgan={onOrganChange} onClear={onClear} />
           ) : (
-            <LabTable labs={labs} allLabs={allLabs} hasUnfiltered={hasUnfiltered} onClear={onClear} />
+            <LabTable controller={controller} labs={labs} allLabs={allLabs} hasUnfiltered={hasUnfiltered} onClear={onClear} />
           )}
         </CardContent>
       </Card>
@@ -200,7 +203,8 @@ function SymptomsPage({
             <SearchInput value={search} onChange={onSearchChange} placeholder={t("history.symptoms.search")} />
           </div>
           <OrganChips options={organOptions} value={organFilter} onChange={onOrganChange} />
-          <SymptomTimeline symptoms={symptoms} organs={organs} hasUnfiltered={hasUnfiltered} onSelectOrgan={onOrganChange} onClear={onClear} />
+          <SymptomSeverityChart symptoms={symptoms} />
+          <SymptomTimeline controller={controller} symptoms={symptoms} organs={organs} hasUnfiltered={hasUnfiltered} onSelectOrgan={onOrganChange} onClear={onClear} />
         </CardContent>
       </Card>
     </div>

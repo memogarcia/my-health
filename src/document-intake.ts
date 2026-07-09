@@ -2,12 +2,12 @@ import type { PendingDocument } from "./dashboard-model";
 
 import { t } from "./i18n";
 
-export const resultDocumentAccept = "application/pdf,image/*";
+export const resultDocumentAccept = "application/pdf,image/png,image/jpeg,image/gif,image/webp,image/bmp";
 
 export function pendingDocumentFromFile(file: File): { document: PendingDocument } | { error: string } {
   const fileName = file.name.toLowerCase();
   const isPdf = file.type === "application/pdf" || fileName.endsWith(".pdf");
-  const isImage = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|heic|heif|tiff?)$/u.test(fileName);
+  const isImage = /\.(png|jpe?g|webp|gif|bmp)$/u.test(fileName) || ["image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp"].includes(file.type);
   if (!isPdf && !isImage) return { error: t("document.choosePdfImage") };
 
   return {

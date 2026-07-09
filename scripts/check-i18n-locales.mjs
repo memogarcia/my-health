@@ -109,14 +109,23 @@ if (!localeRoot) {
 const catalogs = loadLocaleCatalogs(localeRoot);
 const base = catalogs.find((catalog) => catalog.locale === BASE_LOCALE);
 
-if (!base || catalogs.length <= 1) {
-  console.log(`Locale catalog found at ${localeRoot}, but no secondary locales to compare`);
+if (!base) {
+  console.log(`Locale catalog found at ${localeRoot}, but no ${BASE_LOCALE} base locale to compare`);
   process.exit(0);
 }
 
 const baseTypes = flattenTypes(base.catalog);
 const baseStrings = flattenStrings(base.catalog);
 const failures = [];
+
+for (const catalog of catalogs) {
+  const strings = flattenStrings(catalog.catalog);
+  for (const [key, value] of Object.entries(strings)) {
+    if (/\{\{|\}\}/u.test(value)) {
+      failures.push(`${catalog.locale}: ${key} uses double-brace placeholders; use {name}`);
+    }
+  }
+}
 
 for (const candidate of catalogs.filter((catalog) => catalog.locale !== BASE_LOCALE)) {
   const candidateTypes = flattenTypes(candidate.catalog);
@@ -150,6 +159,11 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   console.error('');
   process.exit(1);
+}
+
+if (catalogs.length <= 1) {
+  console.log(`Locale catalog found at ${localeRoot}, but no secondary locales to compare`);
+  process.exit(0);
 }
 
 console.log('Locale shape check passed');

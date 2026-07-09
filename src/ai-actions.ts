@@ -32,6 +32,19 @@ export async function runAiPrompt(input: {
   });
   let userState = userMessage.userState;
 
+  if (provider.id === "none") {
+    userState = addAiConversationMessage({
+      userState,
+      conversationId: userMessage.conversationId,
+      role: "assistant",
+      content: t("ai.notConfigured"),
+      providerId: provider.id,
+      modelId: input.aiSettings.modelId,
+      isError: true,
+    }).userState;
+    return { userState, toastMessage: t("toast.aiNotConfigured"), toastKind: "error" };
+  }
+
   if (provider.id !== "codex") {
     userState = addAiConversationMessage({
       userState,

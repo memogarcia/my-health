@@ -21,6 +21,7 @@ clinician.
 - [Architecture](ARCHITECTURE.md)
 - [Agent Guide](AGENTS.md)
 - [Common Commands](#common-commands)
+- [Release Checklist](RELEASE_CHECKLIST.md)
 
 ## Run Locally
 
@@ -39,21 +40,28 @@ npm run tauri:dev
 The app opens as a native desktop window. On first launch, choose a database
 passphrase. Keep it safe; the app uses it to unlock your local encrypted data.
 
+Development starts with the encrypted setup flow. To use the bundled synthetic
+mock database instead, run:
+
+```sh
+ME_HEALTH_USE_MOCK_DB=1 npm run tauri:dev
+```
+
 ## Common Commands
 
 ```sh
 npm run tauri:dev     # run the app locally
 npm run tauri:build   # build the desktop app
-npm test              # run tests
+npm run typecheck     # run TypeScript checks
+npm test              # run typecheck, JS/TS/TSX tests, and Rust tests
 npm run check         # run project checks
 ```
 
 ## Optional AI Features
 
-AI features are optional. Local LLM providers are the recommended first choice
-because they keep health context on your machine. The provider setup includes
-local providers such as LM Studio and Ollama, plus other options such as Codex,
-Claude, Gemini, OpenAI-compatible endpoints, and custom providers.
+AI features are optional. Codex CLI is the live provider today. Local providers
+such as LM Studio and Ollama are shown as planned/configuration-only until a
+Rust execution path is added.
 
 Configure AI in Settings after the app is running. API keys are referenced by
 environment variable name and are not stored in the database.

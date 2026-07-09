@@ -1,6 +1,9 @@
 import { t } from "./i18n";
 
+const MAX_USER_TEXT_CHARS = 2_000;
+
 export type HealthStatus = "normal" | "monitor" | "attention";
+export type ExtractedResultStatus = HealthStatus | "";
 export type LabFlag = "low" | "normal" | "high" | "unknown";
 export type RegimenKind = "medication" | "supplement";
 export type ConditionStatus = "current" | "managed" | "past";
@@ -88,10 +91,22 @@ export type ConditionEntry = {
 };
 
 export type ConditionInput = {
+  organKey: string;
   name: string;
   status: ConditionStatus;
   diagnosedAt: string;
   notes: string;
+};
+
+export type LabReport = {
+  id: number;
+  sourceName: string;
+  fileType: string;
+  sizeLabel: string;
+  localCopyPath: string;
+  resultCount: number;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type DashboardSnapshot = {
@@ -102,6 +117,7 @@ export type DashboardSnapshot = {
   conditions: ConditionEntry[];
   regimenItems: RegimenItem[];
   aiRecommendations: Recommendation[];
+  labReports: LabReport[];
 };
 
 export type DisplaySnapshot = DashboardSnapshot;
@@ -147,7 +163,7 @@ export type ExtractedResult = {
   value: string;
   unit: string;
   referenceRange: string;
-  status: HealthStatus;
+  status: ExtractedResultStatus;
   measuredAt: string;
   notes: string;
 };
@@ -216,6 +232,8 @@ export const statusLabel: Record<HealthStatus, string> = {
   attention: t("status.attention"),
 };
 
+export const organOrder = ["brain", "thyroid", "lungs", "heart", "liver", "spleen", "stomach", "pancreas", "kidneys", "intestines", "bladder", "blood", "bones", "skin", "reproductive"] as const;
+
 const statusRank: Record<HealthStatus, number> = {
   normal: 0,
   monitor: 1,
@@ -268,15 +286,26 @@ function highestStatus(statuses: HealthStatus[]): HealthStatus {
   return statuses.reduce((highest, status) => (statusRank[status] > statusRank[highest] ? status : highest), "normal");
 }
 
+export function deriveOrganStatus(input: { labs: LabResult[]; symptoms: SymptomEntry[]; conditions: ConditionEntry[] }): HealthStatus {
+  if (input.labs.some((lab) => lab.status === "attention") || input.symptoms.some((symptom) => symptom.severity >= 4)) return "attention";
+  if (
+    input.labs.some((lab) => lab.status === "monitor") ||
+    input.symptoms.some((symptom) => symptom.severity >= 2) ||
+    input.conditions.some((condition) => condition.status === "current")
+  ) return "monitor";
+  return "normal";
+}
+
 export function buildDisplaySnapshot(snapshot: DashboardSnapshot | null): DisplaySnapshot {
   const latestLabResults = snapshot?.latestLabResults || [];
   const recentSymptoms = snapshot?.recentSymptoms || [];
+  const conditions = snapshot?.conditions || [];
   const baseOrgans = snapshot?.organs.length ? snapshot.organs : defaultOrgans;
   const organs = baseOrgans.map((organ) => {
     const labs = latestLabResults.filter((lab) => lab.organKey === organ.key);
     const symptoms = recentSymptoms.filter((symptom) => symptom.organKey === organ.key);
-    const statuses = [organ.status, ...labs.map((lab) => lab.status), ...(symptoms.length ? (["monitor"] as HealthStatus[]) : [])];
-    return { ...organ, status: highestStatus(statuses), labCount: labs.length, symptomCount: symptoms.length };
+    const organConditions = conditions.filter((condition) => condition.organKey === organ.key);
+    return { ...organ, status: highestStatus([organ.status, deriveOrganStatus({ labs, symptoms, conditions: organConditions })]), labCount: labs.length, symptomCount: symptoms.length };
   });
 
   return {
@@ -284,9 +313,10 @@ export function buildDisplaySnapshot(snapshot: DashboardSnapshot | null): Displa
     organs,
     latestLabResults,
     recentSymptoms,
-    conditions: snapshot?.conditions || [],
+    conditions,
     regimenItems: snapshot?.regimenItems || [],
     aiRecommendations: snapshot?.aiRecommendations || [],
+    labReports: snapshot?.labReports || [],
   };
 }
 
@@ -326,7 +356,7 @@ function normalizeActivityEntry(entry: Partial<ActivityEntry>): ActivityEntry {
     drinks: numberOrZero(entry.drinks),
     activityName: typeof entry.activityName === "string" ? entry.activityName : "",
     durationMinutes: numberOrZero(entry.durationMinutes),
-    notes: typeof entry.notes === "string" ? entry.notes : "",
+    notes: typeof entry.notes === "string" ? limitText(entry.notes, MAX_USER_TEXT_CHARS) : "",
   };
 }
 
@@ -345,7 +375,7 @@ function normalizeAppleHealthImport(entry: Partial<AppleHealthImport>): AppleHea
 function normalizeAiConversation(entry: Partial<AiConversation>): AiConversation {
   return {
     id: typeof entry.id === "string" ? entry.id : "",
-    title: typeof entry.title === "string" ? entry.title : "",
+    title: typeof entry.title === "string" ? limitText(entry.title, 120) : "",
     createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
     updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : "",
     messages: Array.isArray(entry.messages)
@@ -358,7 +388,7 @@ function normalizeAiConversationMessage(entry: Partial<AiConversationMessage>): 
   return {
     id: typeof entry.id === "string" ? entry.id : "",
     role: entry.role === "assistant" ? "assistant" : "user",
-    content: typeof entry.content === "string" ? entry.content : "",
+    content: typeof entry.content === "string" ? limitText(entry.content, MAX_USER_TEXT_CHARS) : "",
     createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
     providerId: typeof entry.providerId === "string" ? entry.providerId : "",
     modelId: typeof entry.modelId === "string" ? entry.modelId : "",
@@ -372,4 +402,8 @@ function numberOrNull(value: unknown): number | null {
 
 function numberOrZero(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+}
+
+function limitText(value: string, limit: number): string {
+  return value.length > limit ? value.slice(0, limit) : value;
 }

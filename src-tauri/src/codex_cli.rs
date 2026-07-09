@@ -1,15 +1,18 @@
-use crate::document_files::unique_document_file_name;
+use crate::document_files::{unique_document_file_name, validate_document_upload};
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Output, Stdio},
+    thread,
+    time::{Duration, Instant},
 };
 use tauri::Manager;
-
 const MAX_PROMPT_CHARS: usize = 32_000;
 const MAX_OUTPUT_CHARS: usize = 8_000;
-
+const CODEX_TIMEOUT: Duration = Duration::from_secs(120);
+const CODEX_MODEL_CATALOG_TIMEOUT: Duration = Duration::from_secs(20);
+const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(50);
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnalyzeDocumentInput {
@@ -18,7 +21,6 @@ pub struct AnalyzeDocumentInput {
     model_id: Option<String>,
     reasoning_effort: Option<String>,
 }
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AskLlmInput {
@@ -26,13 +28,11 @@ pub struct AskLlmInput {
     model_id: Option<String>,
     reasoning_effort: Option<String>,
 }
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodexOptions {
     models: Vec<CodexModelOption>,
 }
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodexModelOption {
@@ -41,7 +41,6 @@ pub struct CodexModelOption {
     default_reasoning_effort: String,
     reasoning_efforts: Vec<CodexReasoningEffortOption>,
 }
-
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CodexReasoningEffortOption {
@@ -49,13 +48,11 @@ pub struct CodexReasoningEffortOption {
     label: String,
     description: String,
 }
-
 #[derive(Default)]
 struct CodexRunOptions {
     model_id: Option<String>,
     reasoning_effort: Option<String>,
 }
-
 impl CodexRunOptions {
     fn from_parts(model_id: Option<String>, reasoning_effort: Option<String>) -> Self {
         Self {
@@ -64,7 +61,6 @@ impl CodexRunOptions {
         }
     }
 }
-
 /// Writes a dropped result file into the Codex workspace, asks Codex to extract
 /// every measurement as JSON, then removes the file so health data is not left
 /// in the cache. The raw Codex output is parsed by the renderer.
@@ -77,7 +73,6 @@ pub async fn analyze_document(
         .await
         .map_err(|error| error.to_string())?
 }
-
 #[tauri::command]
 pub async fn ask_llm(input: AskLlmInput, app: tauri::AppHandle) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -90,14 +85,12 @@ pub async fn ask_llm(input: AskLlmInput, app: tauri::AppHandle) -> Result<String
     .await
     .map_err(|error| error.to_string())?
 }
-
 #[tauri::command]
 pub async fn get_codex_options() -> Result<CodexOptions, String> {
     tauri::async_runtime::spawn_blocking(load_codex_options)
         .await
         .map_err(|error| error.to_string())?
 }
-
 fn run_codex(
     prompt: String,
     app: &tauri::AppHandle,
@@ -105,22 +98,18 @@ fn run_codex(
 ) -> Result<String, String> {
     let prompt = normalize_prompt(&prompt)?;
     let workspace = codex_workspace(app)?;
-    let output = codex_exec_command(&workspace, prompt, &options)
-        .output()
+    let output = run_command_with_timeout(codex_exec_command(&workspace, prompt, &options), CODEX_TIMEOUT)
         .map_err(|error| format!("Could not run Codex CLI: {error}"))?;
-
     let stdout = String::from_utf8_lossy(&output.stdout);
     if output.status.success() {
         return Ok(truncate(stdout.trim(), MAX_OUTPUT_CHARS));
     }
-
     let stderr = String::from_utf8_lossy(&output.stderr);
     Err(truncate(
         format!("Codex CLI failed. {}", stderr.trim()).trim(),
         MAX_OUTPUT_CHARS,
     ))
 }
-
 fn run_document_analysis(
     input: AnalyzeDocumentInput,
     app: &tauri::AppHandle,
@@ -131,32 +120,28 @@ fn run_document_analysis(
         model_id,
         reasoning_effort,
     } = input;
+    validate_document_upload(&file_name, &file_bytes)?;
     let workspace = codex_workspace(app)?;
     let safe_name = unique_document_file_name(&file_name);
     let file_path = workspace.join(&safe_name);
     fs::write(&file_path, &file_bytes)
         .map_err(|error| format!("Could not save uploaded file: {error}"))?;
-
+    let _cleanup = TempFileGuard::new(file_path.clone());
     let prompt = format!(
         "Read the file `{safe_name}` in this workspace. It is a medical lab result or health report. \
 Extract every discrete measurement as a JSON array. Each element must be an object with these string fields: \
 organKey (one of: brain,thyroid,lungs,heart,liver,spleen,stomach,pancreas,kidneys,intestines,bladder,blood,bones,skin,reproductive), \
 marker, value, unit, referenceRange, status (normal, monitor, or attention), measuredAt (YYYY-MM-DD), notes. \
-Use 'blood' for general bloodwork when the organ is unclear. Set status to 'normal' when the value is inside the reference range, \
-'monitor' when slightly off, and 'attention' when clearly abnormal. Use the report or collection date for measuredAt. \
-Return ONLY the JSON array. No prose, no markdown fences."
+Use 'blood' for general bloodwork when the organ is unclear. Set status to 'normal' only when the value is clearly inside the reference range, \
+'monitor' when slightly off, and 'attention' when clearly abnormal. If status is uncertain, use an empty string. Use the report or collection date for measuredAt. \
+If the date is missing or uncertain, use an empty string. Return ONLY the JSON array. No prose, no markdown fences."
     );
-
-    let result = run_codex(
+    run_codex(
         prompt,
         app,
         CodexRunOptions::from_parts(model_id, reasoning_effort),
-    );
-    // Always remove the uploaded file so sensitive health data is not left on disk.
-    let _ = fs::remove_file(&file_path);
-    result
+    )
 }
-
 fn codex_exec_command(workspace: &Path, prompt: String, options: &CodexRunOptions) -> Command {
     let mut command = Command::new(codex_bin());
     command
@@ -179,20 +164,17 @@ fn codex_exec_command(workspace: &Path, prompt: String, options: &CodexRunOption
     command.arg(prompt).env("NO_COLOR", "1");
     command
 }
-
 fn load_codex_options() -> Result<CodexOptions, String> {
     run_codex_models(false).or_else(|_| run_codex_models(true))
 }
-
 fn run_codex_models(bundled: bool) -> Result<CodexOptions, String> {
     let mut command = Command::new(codex_bin());
     command.arg("debug").arg("models");
     if bundled {
         command.arg("--bundled");
     }
-    let output = command
-        .env("NO_COLOR", "1")
-        .output()
+    command.env("NO_COLOR", "1");
+    let output = run_command_with_timeout(command, CODEX_MODEL_CATALOG_TIMEOUT)
         .map_err(|error| format!("Could not read Codex model catalog: {error}"))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -203,12 +185,10 @@ fn run_codex_models(bundled: bool) -> Result<CodexOptions, String> {
     }
     parse_codex_models(&String::from_utf8_lossy(&output.stdout))
 }
-
 #[derive(Deserialize)]
 struct CodexCatalog {
     models: Vec<CodexCatalogModel>,
 }
-
 #[derive(Deserialize)]
 struct CodexCatalogModel {
     slug: String,
@@ -217,13 +197,11 @@ struct CodexCatalogModel {
     supported_reasoning_levels: Option<Vec<CodexCatalogReasoningLevel>>,
     visibility: Option<String>,
 }
-
 #[derive(Deserialize)]
 struct CodexCatalogReasoningLevel {
     effort: String,
     description: Option<String>,
 }
-
 fn parse_codex_models(raw: &str) -> Result<CodexOptions, String> {
     let catalog = serde_json::from_str::<CodexCatalog>(raw)
         .map_err(|error| format!("Codex model catalog is not valid JSON: {error}"))?;
@@ -272,7 +250,6 @@ fn parse_codex_models(raw: &str) -> Result<CodexOptions, String> {
     }
     Ok(CodexOptions { models })
 }
-
 fn fallback_reasoning_efforts() -> Vec<CodexReasoningEffortOption> {
     ["low", "medium", "high", "xhigh"]
         .into_iter()
@@ -283,7 +260,6 @@ fn fallback_reasoning_efforts() -> Vec<CodexReasoningEffortOption> {
         })
         .collect()
 }
-
 fn reasoning_effort_label(effort: &str) -> String {
     match effort {
         "minimal" => "Minimal",
@@ -295,7 +271,6 @@ fn reasoning_effort_label(effort: &str) -> String {
     }
     .to_string()
 }
-
 fn reasoning_effort_description(effort: &str) -> String {
     match effort {
         "minimal" => "Shortest thinking time",
@@ -307,7 +282,6 @@ fn reasoning_effort_description(effort: &str) -> String {
     }
     .to_string()
 }
-
 fn clean_model_id(value: Option<String>) -> Option<String> {
     let value = value?.trim().to_string();
     if value.is_empty() || value == "codex-cli" {
@@ -316,7 +290,6 @@ fn clean_model_id(value: Option<String>) -> Option<String> {
         Some(value)
     }
 }
-
 fn clean_reasoning_effort(value: Option<String>) -> Option<String> {
     let value = value?.trim().to_ascii_lowercase();
     match value.as_str() {
@@ -324,7 +297,6 @@ fn clean_reasoning_effort(value: Option<String>) -> Option<String> {
         _ => None,
     }
 }
-
 fn normalize_prompt(prompt: &str) -> Result<String, String> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
@@ -374,13 +346,46 @@ fn truncate(value: impl AsRef<str>, limit: usize) -> String {
     truncated
 }
 
+fn run_command_with_timeout(mut command: Command, timeout: Duration) -> Result<Output, String> {
+    command.stdout(Stdio::piped()).stderr(Stdio::piped());
+    let mut child = command.spawn().map_err(|error| error.to_string())?;
+    let started = Instant::now();
+    loop {
+        if child.try_wait().map_err(|error| error.to_string())?.is_some() {
+            return child.wait_with_output().map_err(|error| error.to_string());
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(format!("Timed out after {} seconds", timeout.as_secs()));
+        }
+        thread::sleep(PROCESS_POLL_INTERVAL);
+    }
+}
+
+struct TempFileGuard {
+    path: PathBuf,
+}
+
+impl TempFileGuard {
+    fn new(path: PathBuf) -> Self {
+        Self { path }
+    }
+}
+
+impl Drop for TempFileGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        codex_exec_command, normalize_prompt, parse_codex_models, truncate, CodexRunOptions,
-        MAX_OUTPUT_CHARS, MAX_PROMPT_CHARS,
+        codex_exec_command, normalize_prompt, parse_codex_models, run_command_with_timeout, truncate,
+        CodexRunOptions, TempFileGuard, MAX_OUTPUT_CHARS, MAX_PROMPT_CHARS,
     };
-    use std::path::Path;
+    use std::{path::Path, process::Command, time::Duration};
 
     #[test]
     fn rejects_empty_prompt() {
@@ -437,5 +442,33 @@ mod tests {
             .windows(2)
             .any(|pair| pair[0] == "--model" && pair[1] == "gpt-5.5"));
         assert!(args.contains(&"model_reasoning_effort=\"xhigh\"".to_string()));
+    }
+
+    #[test]
+    fn run_command_with_timeout_succeeds_for_short_command() {
+        let mut command = Command::new("sh");
+        command.arg("-c").arg("printf ok");
+        let output = run_command_with_timeout(command, Duration::from_secs(2)).unwrap();
+        assert!(output.status.success());
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "ok");
+    }
+
+    #[test]
+    fn run_command_with_timeout_fails_for_long_command() {
+        let mut command = Command::new("sh");
+        command.arg("-c").arg("sleep 2");
+        let error = run_command_with_timeout(command, Duration::from_millis(100)).unwrap_err();
+        assert!(error.contains("Timed out"));
+    }
+
+    #[test]
+    fn temp_file_guard_removes_file_on_drop() {
+        let path = std::env::temp_dir().join(format!("me-codex-guard-{}", std::process::id()));
+        std::fs::write(&path, b"private").unwrap();
+        {
+            let _guard = TempFileGuard::new(path.clone());
+            assert!(path.exists());
+        }
+        assert!(!path.exists());
     }
 }

@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { summarizeAppleHealthFile } from "../src/apple-health-import";
-import { hasEnabledCodexModel } from "../src/ai-sdk-config";
-import { aiSettingsFromForm } from "../src/user-state";
+import { hasEnabledCodexModel, normalizeAiSettings } from "../src/ai-sdk-config";
+import { activityFromForm, aiSettingsFromForm } from "../src/user-state";
 import type { AppleHealthImport } from "../src/dashboard-model";
 
 test("aiSettingsFromForm rejects raw API key-looking text", () => {
@@ -14,11 +14,34 @@ test("aiSettingsFromForm rejects raw API key-looking text", () => {
   assert.throws(() => aiSettingsFromForm(form), /environment variable name/);
 });
 
+test("normalizeAiSettings defaults to an explicit unconfigured provider", () => {
+  assert.equal(normalizeAiSettings().providerId, "none");
+});
+
 test("hasEnabledCodexModel requires Codex, consent, and a model", () => {
   assert.equal(hasEnabledCodexModel({ providerId: "openai", modelId: "gpt-4o", allowRemoteHealthContext: true }), false);
   assert.equal(hasEnabledCodexModel({ providerId: "codex", modelId: "gpt-5.5", allowRemoteHealthContext: false }), false);
   assert.equal(hasEnabledCodexModel({ providerId: "codex", modelId: " ", allowRemoteHealthContext: true }), false);
   assert.equal(hasEnabledCodexModel({ providerId: "codex", modelId: "gpt-5.5", allowRemoteHealthContext: true }), true);
+});
+
+test("activityFromForm maps structured fields and clamps negatives", () => {
+  const form = new FormData();
+  form.set("loggedAt", "2026-07-09");
+  form.set("activityName", "Walk");
+  form.set("durationMinutes", "30");
+  form.set("cigarettes", "-2");
+  form.set("drinks", "1");
+  form.set("notes", "synthetic note");
+
+  const activity = activityFromForm(form);
+
+  assert.equal(activity.loggedAt, "2026-07-09");
+  assert.equal(activity.activityName, "Walk");
+  assert.equal(activity.durationMinutes, 30);
+  assert.equal(activity.cigarettes, 0);
+  assert.equal(activity.drinks, 1);
+  assert.equal(activity.notes, "synthetic note");
 });
 
 test("summarizeAppleHealthFile rejects oversized XML before parsing", async () => {

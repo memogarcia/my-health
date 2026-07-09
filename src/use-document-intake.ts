@@ -114,9 +114,9 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
   }
 
   async function acceptDocumentResults(): Promise<void> {
-    const valid = documentAnalysis.results.filter((result) => result.marker.trim() && result.value.trim() && result.measuredAt);
-    if (valid.length === 0) {
-      toast.error(t("toast.fillResultFields"));
+    const valid = documentAnalysis.results.filter((result) => result.marker.trim() && result.value.trim() && result.measuredAt && result.status);
+    if (valid.length === 0 || valid.length !== documentAnalysis.results.length) {
+      toast.error(t("toast.resolveDocumentFields"));
       return;
     }
     try {
@@ -128,7 +128,7 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
             marker: result.marker,
             value: result.value,
             unit: result.unit,
-            status: result.status,
+            status: result.status || "normal",
             measuredAt: result.measuredAt,
             notes: result.notes,
             referenceRange: result.referenceRange,

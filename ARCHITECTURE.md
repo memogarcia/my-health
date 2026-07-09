@@ -43,12 +43,12 @@ All writes require an unlocked connection.
 
 Tables:
 
-- `organs`
-- `lab_reports`
-- `lab_results`
-- `symptoms`
-- `conditions`
-- `regimen_items`
+- `organs` includes `display_order` for backend/frontend ordering.
+- `lab_reports` includes `updated_at` and `deleted_at` for report management.
+- `lab_results` includes derived numeric/range fields plus `updated_at` and `deleted_at`.
+- `symptoms` includes `updated_at` and `deleted_at`.
+- `conditions` includes `updated_at` and `deleted_at`.
+- `regimen_items` includes `updated_at`, `deleted_at`, and active/stop-date state.
 - `ai_settings`
 - `user_state`
 
@@ -79,10 +79,23 @@ Dashboard and records:
 
 - `get_dashboard_snapshot`
 - `add_lab_result`
+- `update_lab_result`
+- `delete_lab_result`
 - `add_lab_results`
+- `list_lab_reports`
+- `unlink_lab_report`
+- `delete_lab_report`
 - `add_symptom`
+- `update_symptom`
+- `delete_symptom`
 - `add_condition`
+- `update_condition`
+- `delete_condition`
 - `add_regimen_item`
+- `update_regimen_item`
+- `delete_regimen_item`
+- `stop_regimen_item`
+- `reactivate_regimen_item`
 
 Documents and AI:
 
@@ -107,8 +120,8 @@ Provider settings live in `src/ai-sdk-config.ts` and persist in `ai_settings`.
 API key values are never stored; settings store environment-variable names.
 
 The live execution path is Codex CLI through `src-tauri/src/codex_cli.rs`.
-Other providers are configured in the catalog but still need Rust-backed
-execution before they can run prompts.
+Other providers are visible as planned/configuration-only entries and cannot be
+selected from chat until Rust-backed execution exists.
 
 AI output is advisory only. Remote health context requires explicit opt-in.
 See `AI.md` for provider details.
@@ -119,22 +132,25 @@ Renderer:
 
 - `App.tsx` - root app shell and database gate.
 - `use-dashboard-controller.ts` - state, navigation, dialogs, settings, and all Tauri calls.
+- `use-dashboard-record-actions.ts` - record mutation command wrappers.
 - `dashboard-model.ts` - shared types, organ visuals, snapshot shaping.
 - `tauri-runtime.ts` - native-runtime guard.
 - `components/` - pages and UI primitives.
+- `components/charts/` - SVG chart components for labs, symptoms, regimen periods, document coverage, and AI context coverage.
+- `charts/` - pure chart data transforms and scale utilities.
 - `i18n.ts`, `i18n/locales/en.json` - typed UI copy catalog.
-- `document-intake.ts`, `use-document-intake.ts` - dropped-file review flow.
+- `document-intake.ts`, `use-document-intake.ts`, `components/document-review.tsx` - dropped-file review flow.
 - `ai-sdk-config.ts`, `ai-actions.ts`, `ai-conversation.ts` - AI settings and chat helpers.
 
 Backend:
 
 - `lib.rs` - app setup, command registration, snapshot commands.
 - `database.rs` - SQLCipher database setup, unlock, migration, export.
-- `records.rs`, `records/parse.rs` - lab and symptom validation/storage.
+- `records.rs`, `records/parse.rs`, `records/reports.rs`, `records/symptoms.rs` - lab, report, and symptom validation/storage.
 - `conditions.rs` - condition validation/storage.
 - `regimen.rs` - medication and supplement validation/storage.
-- `document_files.rs` - saved document copies.
-- `codex_cli.rs` - Codex prompt and document extraction path.
+- `document_files.rs` - saved document copies and shared upload validation.
+- `codex_cli.rs` - Codex prompt, timeout, cleanup, and document extraction path.
 - `ai_settings.rs` - AI settings validation.
 
 ## Invariants
@@ -143,7 +159,8 @@ Backend:
 - Browser-only storage is not used for health records.
 - Raw API keys never enter persisted settings.
 - Remote AI context is opt-in, never automatic.
-- PDF/image intake is review-first, then save.
+- PDF/image intake is review-first, then save; unknown extracted dates/statuses must be resolved first.
+- Charts use saved structured data only; they are record-review aids, not diagnostic quality scores.
 - Rust validates before every write.
 - New Tauri commands must be registered in `lib.rs`.
 - Schema migrations are additive only.

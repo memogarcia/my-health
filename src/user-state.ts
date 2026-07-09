@@ -28,16 +28,24 @@ export function aiSettingsFromForm(form: FormData): AiSettings {
 }
 
 export function activityFromForm(form: FormData): ActivityEntry {
-  const prompt = String(form.get("prompt") || "").trim();
+  const notes = String(form.get("notes") || form.get("prompt") || "").trim();
+  const activityName = String(form.get("activityName") || "").trim() || promptTitle(notes);
   return {
     id: makeId(),
-    loggedAt: todayString(),
-    cigarettes: 0,
-    drinks: 0,
-    activityName: promptTitle(prompt),
-    durationMinutes: 0,
-    notes: prompt,
+    loggedAt: String(form.get("loggedAt") || todayString()),
+    cigarettes: nonNegativeInteger(form, "cigarettes"),
+    drinks: nonNegativeInteger(form, "drinks"),
+    activityName,
+    durationMinutes: nonNegativeInteger(form, "durationMinutes"),
+    notes,
   };
+}
+
+function nonNegativeInteger(form: FormData, name: string): number {
+  const value = String(form.get(name) || "").trim();
+  if (!value) return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : 0;
 }
 
 function optionalNumber(form: FormData, name: string): number | null {

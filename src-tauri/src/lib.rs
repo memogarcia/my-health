@@ -12,8 +12,10 @@ mod regimen;
 use ai_settings::validate_ai_settings;
 use conditions::ConditionEntry;
 use database::{AppState, DatabaseStatus};
-use records::{LabResult, Recommendation, SymptomEntry};
+use records::{LabReportEntry, LabResult, Recommendation, SymptomEntry};
 use regimen::RegimenItem;
+
+const MAX_USER_STATE_BYTES: usize = 128 * 1024;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +27,7 @@ struct DashboardSnapshot {
     conditions: Vec<ConditionEntry>,
     regimen_items: Vec<RegimenItem>,
     ai_recommendations: Vec<Recommendation>,
+    lab_reports: Vec<LabReportEntry>,
 }
 
 #[derive(Serialize)]
@@ -52,6 +55,8 @@ fn get_dashboard_snapshot(state: tauri::State<'_, AppState>) -> Result<Dashboard
             conditions: conditions::list_conditions(conn).map_err(|error| error.to_string())?,
             regimen_items: regimen::list_regimen_items(conn).map_err(|error| error.to_string())?,
             ai_recommendations: records::build_recommendations(conn)
+                .map_err(|error| error.to_string())?,
+            lab_reports: records::list_lab_reports_for_snapshot(conn)
                 .map_err(|error| error.to_string())?,
         })
     })
@@ -124,6 +129,9 @@ fn get_user_state(state: tauri::State<'_, AppState>) -> Result<String, String> {
 
 #[tauri::command]
 fn save_user_state(state: String, app_state: tauri::State<'_, AppState>) -> Result<(), String> {
+    if state.len() > MAX_USER_STATE_BYTES {
+        return Err(format!("User state must be {MAX_USER_STATE_BYTES} bytes or fewer"));
+    }
     parse_json_object("User state", &state)?;
     with_db(&app_state, |conn| {
         conn.execute(
@@ -170,10 +178,23 @@ pub fn run() {
             export_database,
             get_dashboard_snapshot,
             records::add_lab_result,
-            records::add_symptom,
+            records::update_lab_result,
+            records::delete_lab_result,
+            records::symptoms::add_symptom,
+            records::symptoms::update_symptom,
+            records::symptoms::delete_symptom,
             conditions::add_condition,
+            conditions::update_condition,
+            conditions::delete_condition,
             regimen::add_regimen_item,
+            regimen::update_regimen_item,
+            regimen::delete_regimen_item,
+            regimen::stop_regimen_item,
+            regimen::reactivate_regimen_item,
             records::add_lab_results,
+            records::reports::list_lab_reports,
+            records::reports::unlink_lab_report,
+            records::reports::delete_lab_report,
             document_files::save_document_copy,
             codex_cli::ask_llm,
             codex_cli::get_codex_options,
@@ -193,19 +214,20 @@ fn list_organs(conn: &Connection) -> rusqlite::Result<Vec<OrganSummary>> {
            o.key,
            o.name,
            o.system,
-           o.status,
-           (SELECT COUNT(*) FROM lab_results l WHERE l.organ_key = o.key) AS lab_count,
-           (SELECT COUNT(*) FROM symptoms s WHERE s.organ_key = o.key) AS symptom_count
+           CASE
+             WHEN EXISTS (SELECT 1 FROM lab_results l WHERE l.organ_key = o.key AND l.deleted_at = '' AND l.status = 'attention')
+               OR EXISTS (SELECT 1 FROM symptoms s WHERE s.organ_key = o.key AND s.deleted_at = '' AND s.severity >= 4)
+             THEN 'attention'
+             WHEN EXISTS (SELECT 1 FROM lab_results l WHERE l.organ_key = o.key AND l.deleted_at = '' AND l.status = 'monitor')
+               OR EXISTS (SELECT 1 FROM symptoms s WHERE s.organ_key = o.key AND s.deleted_at = '' AND s.severity >= 2)
+               OR EXISTS (SELECT 1 FROM conditions c WHERE c.organ_key = o.key AND c.deleted_at = '' AND c.status = 'current')
+             THEN 'monitor'
+             ELSE 'normal'
+           END AS status,
+           (SELECT COUNT(*) FROM lab_results l WHERE l.organ_key = o.key AND l.deleted_at = '') AS lab_count,
+           (SELECT COUNT(*) FROM symptoms s WHERE s.organ_key = o.key AND s.deleted_at = '') AS symptom_count
          FROM organs o
-         ORDER BY CASE o.key
-           WHEN 'brain' THEN 1
-           WHEN 'heart' THEN 2
-           WHEN 'lungs' THEN 3
-           WHEN 'liver' THEN 4
-           WHEN 'stomach' THEN 5
-           WHEN 'kidneys' THEN 6
-           ELSE 7
-         END",
+         ORDER BY o.display_order ASC, o.name COLLATE NOCASE ASC",
     )?;
     let rows = stmt.query_map([], |row| {
         Ok(OrganSummary {

@@ -1,48 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
-import { getAiProvider, normalizeAiSettings, type AiSettings } from "./ai-sdk-config";
+import { getAiProvider, isAiProviderLive, normalizeAiSettings, type AiSettings, type CodexModelOption } from "./ai-sdk-config";
 import { summarizeAppleHealthFile } from "./apple-health-import";
 import { type DatabaseStatus } from "./database-gate";
 import { newLocalDatabasePath, pickExistingDatabase } from "./database-picker";
 import {
   buildDisplaySnapshot,
   normalizeUserState,
-  type ConditionInput,
   type DashboardSnapshot,
   type DialogKey,
-  type HealthStatus,
   type HistoryTab,
   type NavKey,
   type OrganSummary,
-  type PendingDocument,
-  type RegimenInput,
   type UserState,
 } from "./dashboard-model";
 import { t } from "./i18n";
 import { makePromptActions, type RegimenDraft } from "./prompt-actions";
+import { makeRecordActions, type ResultInput, type SymptomInput } from "./use-dashboard-record-actions";
 import { isTauriRuntime, TAURI_ONLY_MESSAGE } from "./tauri-runtime";
 import { activityFromForm, aiSettingsFromForm, profileFromForm } from "./user-state";
 import { useDocumentIntake } from "./use-document-intake";
 
-export type ResultInput = {
-  organKey: string;
-  marker: string;
-  value: string;
-  unit: string;
-  status: HealthStatus;
-  measuredAt: string;
-  notes: string;
-  referenceRange: string;
-  report?: PendingDocument;
-};
-
-export type SymptomInput = {
-  name: string;
-  severity: number;
-  observedAt: string;
-  notes: string;
-};
+export type { ResultInput, SymptomInput };
 
 type DialogName = Exclude<DialogKey, null>;
 
@@ -60,6 +40,8 @@ export function useDashboardController() {
   const [regimenDraft, setRegimenDraft] = useState(null as RegimenDraft | null);
   const [databaseStatus, setDatabaseStatus] = useState(null as DatabaseStatus | null);
   const [aiPendingConversationId, setAiPendingConversationId] = useState("");
+  const [codexModels, setCodexModels] = useState<CodexModelOption[]>([]);
+  const [codexOptionsError, setCodexOptionsError] = useState("");
 
   const display = useMemo(() => buildDisplaySnapshot(snapshot), [snapshot]);
   const selectedOrgan = useMemo(
@@ -187,6 +169,21 @@ export function useDashboardController() {
     };
   }, [tauriRuntimeAvailable]);
 
+  useEffect(() => {
+    if (aiSettings.providerId === "codex") void loadCodexOptions();
+  }, [aiSettings.providerId]);
+
+  async function loadCodexOptions(): Promise<void> {
+    try {
+      const result = await invoke<{ models: CodexModelOption[] }>("get_codex_options");
+      setCodexModels(result.models || []);
+      setCodexOptionsError("");
+    } catch {
+      setCodexModels([]);
+      setCodexOptionsError(t("settings.ai.codexModelsUnavailable"));
+    }
+  }
+
   async function unlockDatabase(form: FormData): Promise<void> {
     const passphrase = String(form.get("passphrase") || "");
     const confirmPassphrase = String(form.get("confirmPassphrase") || "");
@@ -218,8 +215,11 @@ export function useDashboardController() {
       setAiSettings(normalizeAiSettings());
       setUserState(normalizeUserState());
       setLoadError("");
+      setSelectedOrganKey("heart");
       setSelectedNav("body");
+      setActiveHistoryTab("labs");
       setActiveDialog(null);
+      setRegimenDraft(null);
       documentIntake.clearDocumentIntake();
       setAiPendingConversationId("");
       toast.info(status.state === "needsSetup" ? t("toast.newDatabaseSelected") : t("toast.databaseSelected"));
@@ -263,6 +263,10 @@ export function useDashboardController() {
 
   async function updateAiProvider(providerId: string, navAfterChange: NavKey): Promise<void> {
     const provider = getAiProvider(providerId);
+    if (navAfterChange === "plan" && !isAiProviderLive(provider.id)) {
+      toast.warning(t("toast.providerPlanned", { provider: provider.label }));
+      return;
+    }
     const next = normalizeAiSettings({
       providerId: provider.id,
       modelId: provider.models[0]?.id || "",
@@ -271,55 +275,10 @@ export function useDashboardController() {
     });
     setAiSettings(next);
     setSelectedNav(navAfterChange);
+    if (provider.id === "codex") void loadCodexOptions();
     if (await persistAiSettings(next)) toast.success(t("toast.providerSwitched", { provider: provider.label }));
   }
 
-  async function addLabResult(input: ResultInput, isDocumentResult = false): Promise<void> {
-    try {
-      await invoke("add_lab_result", { input });
-      closeDialog();
-      toast.success(isDocumentResult ? t("toast.documentResultSaved") : t("toast.resultSaved"));
-      await loadDashboard();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    }
-  }
-
-  async function addSymptom(input: SymptomInput): Promise<void> {
-    try {
-      await invoke("add_symptom", { input: { organKey: selectedOrganKey, ...input } });
-      closeDialog();
-      toast.success(t("toast.symptomSaved"));
-      await loadDashboard();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    }
-  }
-
-  async function addCondition(input: ConditionInput): Promise<boolean> {
-    try {
-      await invoke("add_condition", { input: { organKey: selectedOrganKey, ...input } });
-      toast.success(t("toast.conditionSaved"));
-      await loadDashboard();
-      return true;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-      return false;
-    }
-  }
-
-  async function addRegimenItem(input: RegimenInput): Promise<boolean> {
-    try {
-      await invoke("add_regimen_item", { input });
-      toast.success(input.kind === "medication" ? t("toast.medicationSaved") : t("toast.supplementSaved"));
-      setRegimenDraft(null);
-      await loadDashboard();
-      return true;
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-      return false;
-    }
-  }
 
   async function addActivity(form: FormData): Promise<void> {
     const entry = activityFromForm(form);
@@ -345,6 +304,7 @@ export function useDashboardController() {
     }
   }
 
+
   async function exportDatabase(passphrase: string, confirmPassphrase: string): Promise<void> {
     if (passphrase !== confirmPassphrase) {
       toast.error(t("toast.exportPassphrasesMismatch"));
@@ -358,6 +318,12 @@ export function useDashboardController() {
       toast.error(error instanceof Error ? error.message : String(error));
     }
   }
+
+  const recordActions = makeRecordActions({
+    closeDialog,
+    loadDashboard,
+    setRegimenDraft,
+  });
 
   const promptActions = makePromptActions({
     aiPendingConversationId,
@@ -394,6 +360,8 @@ export function useDashboardController() {
     regimenDraft,
     databaseStatus,
     aiPendingConversationId,
+    codexModels,
+    codexOptionsError,
     attentionMarkers,
     monitorMarkers,
     attentionOrgans,
@@ -409,10 +377,8 @@ export function useDashboardController() {
     saveProfile,
     saveAiSettings,
     updateAiProvider,
-    addLabResult,
-    addSymptom,
-    addCondition,
-    addRegimenItem,
+    loadCodexOptions,
+    ...recordActions,
     addActivity,
     importAppleHealthFile,
     prepareDocumentResult: documentIntake.prepareDocumentResult,
