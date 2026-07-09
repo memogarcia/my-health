@@ -1,0 +1,120 @@
+import type React from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { formatDate } from "../dashboard-format";
+import { resultDocumentAccept } from "../document-intake";
+import { t } from "../i18n";
+import type { DashboardController } from "../use-dashboard-controller";
+import { FileText, Sparkles } from "./health-icons";
+
+export function DocumentsPage({ controller }: { controller: DashboardController }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("documents.title")}</CardTitle>
+        <CardDescription>{t("documents.description")}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5">
+        <div className="grid gap-4 md:grid-cols-2">
+          <DocumentDrop
+            accept={resultDocumentAccept}
+            description={t("documents.pdfDescription")}
+            icon={<FileText />}
+            label={t("documents.pdfLabel")}
+            onFile={controller.prepareDocumentResult}
+          />
+          <DocumentDrop
+            accept=".xml,application/xml,text/xml"
+            description={t("documents.appleDescription")}
+            icon={<Sparkles />}
+            label={t("documents.appleLabel")}
+            onFile={(file) => void controller.importAppleHealthFile(file)}
+          />
+        </div>
+        <AppleHealthImports controller={controller} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function DocumentDrop({
+  accept,
+  description,
+  icon,
+  label,
+  onFile,
+}: {
+  accept: string;
+  description: string;
+  icon: React.ReactNode;
+  label: string;
+  onFile: (file: File) => void;
+}) {
+  function handleFile(file: File | undefined): void {
+    if (file) onFile(file);
+  }
+  return (
+    <Field
+      className="document-drop"
+      data-document-drop
+      onDragOver={(event) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDrop={(event) => {
+        event.preventDefault();
+        handleFile(event.dataTransfer.files[0]);
+      }}
+    >
+      <div className="grid place-items-center gap-2 text-center">
+        <span className="grid size-12 place-items-center rounded-lg bg-muted text-primary">{icon}</span>
+        <FieldLabel>{label}</FieldLabel>
+        <FieldDescription>{description}</FieldDescription>
+      </div>
+      <Input
+        accept={accept}
+        type="file"
+        onChange={(event) => {
+          handleFile(event.currentTarget.files?.[0]);
+          event.currentTarget.value = "";
+        }}
+      />
+    </Field>
+  );
+}
+
+function AppleHealthImports({ controller }: { controller: DashboardController }) {
+  const imports = controller.userState.appleHealthImports.slice(0, 4);
+  if (imports.length === 0) {
+    return (
+      <Empty className="min-h-40">
+        <EmptyHeader>
+          <EmptyTitle>{t("documents.emptyAppleTitle")}</EmptyTitle>
+          <EmptyDescription>{t("documents.emptyAppleDescription")}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+  return (
+    <div className="grid gap-2">
+      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("documents.recentImports")}</h3>
+      {imports.map((item) => (
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={item.id || item.importedAt}>
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-primary"><Sparkles /></span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <strong className="truncate text-sm">{item.sourceName}</strong>
+              <span className="shrink-0 text-xs text-muted-foreground">{formatDate(item.importedAt)}</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t("documents.importStats", { records: item.recordCount, workouts: item.workoutCount })}
+              {item.startedAt ? <> · {formatDate(item.startedAt)} – {formatDate(item.endedAt)}</> : null}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.env.*
+dist/
+node_modules/
+src-tauri/gen/schemas/
+src-tauri/target/
+*.sqlite
+*.sqlite3
+*.db
+!src-tauri/dev/mock-health-dashboard.sqlite3
+.pi-subagents/
+
+assets/

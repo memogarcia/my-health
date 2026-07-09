@@ -1,0 +1,33 @@
+#!/usr/bin/env sh
+
+##############################################################################
+# PRE-PUSH HOOK
+#
+# Heavier validation before code leaves the machine.
+#
+# What runs here:
+#   - TypeScript typecheck
+#   - JavaScript and Rust tests
+#   - Production build
+#   - Full local guard suite: console, file size, locale shape, i18n baseline
+##############################################################################
+
+set -eu
+
+echo ""
+echo "Pre-push checks..."
+
+echo "  Running typecheck..."
+npm run typecheck
+
+echo "  Running tests..."
+npm test
+
+echo "  Running production build..."
+npm run build
+
+echo "  Running local guard suite..."
+npm run check
+
+echo ""
+echo "Pre-push checks passed"

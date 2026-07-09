@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+
+##############################################################################
+# PRE-COMMIT HOOK
+#
+# Fast local gates for issues that are cheap to catch before a commit exists.
+#
+# What runs here:
+#   - Console statement check
+#   - Full source file size check
+#   - Locale catalog shape check when locale files exist
+#   - Full hardcoded UI string check with zero allowed violations
+##############################################################################
+
+set -eu
+
+echo ""
+echo "Pre-commit checks..."
+
+npm run check:console
+npm run check:size
+npm run check:i18n-locales
+npm run check:i18n
+
+echo ""
+echo "Pre-commit checks passed"
