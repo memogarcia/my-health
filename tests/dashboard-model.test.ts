@@ -126,6 +126,7 @@ test("buildDisplaySnapshot replaces a stale backend status with the current mode
     recentSymptoms: [],
     conditions: [],
     regimenItems: [],
+    biologicalAgeReports: [],
     aiRecommendations: [],
     labReports: [],
   };
