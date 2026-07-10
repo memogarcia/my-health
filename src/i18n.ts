@@ -1,4 +1,7 @@
-import messages from "./i18n/locales/en.json" with { type: "json" };
+import baseMessages from "./i18n/locales/en.json" with { type: "json" };
+import { geneticsMessages } from "./i18n/genetics-messages";
+
+const messages = { ...baseMessages, ...geneticsMessages };
 
 export const defaultLocale = "en";
 export type TranslationKey = keyof typeof messages;

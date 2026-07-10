@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
@@ -19,6 +20,7 @@ export function DocumentsPage({ controller }: { controller: DashboardController 
         <CardDescription>{t("documents.description")}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-5">
+        <GeneticResultsArea controller={controller} />
         <div className="grid gap-4 md:grid-cols-2">
           <DocumentDrop
             accept={resultDocumentAccept}
@@ -42,6 +44,52 @@ export function DocumentsPage({ controller }: { controller: DashboardController 
         <AppleHealthImports controller={controller} />
       </CardContent>
     </Card>
+  );
+}
+
+function GeneticResultsArea({ controller }: { controller: DashboardController }) {
+  return (
+    <section className="grid gap-4 rounded-xl border border-border bg-muted/25 p-4" aria-labelledby="genetic-results-title">
+      <div className="grid gap-1">
+        <h2 className="text-base font-semibold" id="genetic-results-title">{t("genetics.title")}</h2>
+        <p className="text-sm text-muted-foreground">{t("genetics.description")}</p>
+      </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <DocumentDrop
+          accept={resultDocumentAccept}
+          description={t("genetics.uploadDescription")}
+          icon={<Sparkles />}
+          inputId="genetic-report-file"
+          label={t("genetics.uploadLabel")}
+          onFile={controller.prepareDocumentResult}
+        />
+        <div className="grid gap-3 rounded-lg border border-border bg-background p-4 text-sm">
+          <div>
+            <h3 className="font-medium">{t("genetics.supportedTitle")}</h3>
+            <ul className="mt-2 grid gap-1.5 text-muted-foreground">
+              <li>• {t("genetics.supportedReports")}</li>
+              <li>• {t("genetics.supportedReview")}</li>
+              <li>• {t("genetics.supportedLocal")}</li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="font-medium">{t("genetics.notSupportedTitle")}</h3>
+            <ul className="mt-2 grid gap-1.5 text-muted-foreground">
+              <li>• {t("genetics.notSupportedRaw")}</li>
+              <li>• {t("genetics.notSupportedRisk")}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <Alert>
+        <AlertTitle>{t("genetics.safetyTitle")}</AlertTitle>
+        <AlertDescription>{t("genetics.safetyDescription")}</AlertDescription>
+      </Alert>
+      <div className="rounded-lg border border-dashed border-border px-4 py-3">
+        <h3 className="text-sm font-medium">{t("genetics.futureTitle")}</h3>
+        <p className="mt-1 text-sm text-muted-foreground">{t("genetics.futureDescription")}</p>
+      </div>
+    </section>
   );
 }
 
