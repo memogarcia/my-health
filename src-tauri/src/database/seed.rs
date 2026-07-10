@@ -122,6 +122,14 @@ pub(super) fn seed_organs(conn: &Connection) -> rusqlite::Result<()> {
             "normal",
             "Hormonal and reproductive health",
         ),
+        (
+            999,
+            "other",
+            "Other",
+            "Other",
+            "normal",
+            "Symptoms that do not fit a listed organ or system",
+        ),
     ];
 
     for (display_order, key, name, system, status, notes) in organs {

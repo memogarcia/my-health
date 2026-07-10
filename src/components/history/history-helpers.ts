@@ -1,4 +1,5 @@
 import type { LabResult, OrganSummary, SymptomEntry } from "../../dashboard-model";
+import { t } from "../../i18n.js";
 
 export type OrganFilter = string;
 export type LabView = "grouped" | "list";
@@ -78,13 +79,15 @@ export function filterSymptoms(symptoms: SymptomEntry[], organFilter: OrganFilte
 export function organOptions(data: Array<{ organKey: string }>, organs: OrganSummary[]): OrganOption[] {
   const counts = new Map<string, number>();
   for (const entry of data) counts.set(entry.organKey, (counts.get(entry.organKey) || 0) + 1);
-  return organs
+  const options = organs
     .filter((organ) => counts.has(organ.key))
     .map((organ) => ({ key: organ.key, name: organ.name, count: counts.get(organ.key) as number }));
+  if (counts.has("other")) options.push({ key: "other", name: t("intake.symptom.otherSystem"), count: counts.get("other") as number });
+  return options;
 }
 
 export function organName(key: string, organs: OrganSummary[]): string {
-  return organs.find((organ) => organ.key === key)?.name || key;
+  return organs.find((organ) => organ.key === key)?.name || (key === "other" ? t("intake.symptom.otherSystem") : key);
 }
 
 export function severityRank(symptom: SymptomEntry): number {

@@ -117,6 +117,12 @@ fn unlock_database_creates_encrypted_state() {
             .query_row("SELECT COUNT(*) FROM organs", [], |row| row.get(0))
             .map_err(|error| error.to_string())?;
         assert!(count > 0);
+        let other: String = conn
+            .query_row("SELECT name FROM organs WHERE key = 'other'", [], |row| {
+                row.get(0)
+            })
+            .map_err(|error| error.to_string())?;
+        assert_eq!(other, "Other");
         Ok(())
     })
     .unwrap();

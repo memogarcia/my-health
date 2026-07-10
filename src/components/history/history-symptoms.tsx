@@ -71,7 +71,7 @@ function SymptomRow({ controller, symptom, organs, onSelectOrgan }: { controller
         }).then((saved) => { if (saved) setEditing(false); });
       }}>
         <FieldGroup className="grid gap-3 sm:grid-cols-2">
-          <OrganSelect organs={controller.display.organs} defaultValue={symptom.organKey} />
+          <OrganSelect organs={controller.display.organs} defaultValue={symptom.organKey} includeOther />
           <Field>
             <FieldLabel htmlFor={`symptom-edit-name-${symptom.id}`}>{t("intake.symptom.name")}</FieldLabel>
             <Input id={`symptom-edit-name-${symptom.id}`} name="name" defaultValue={symptom.name} required />

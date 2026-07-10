@@ -43,7 +43,9 @@ All writes require an unlocked connection.
 
 Tables:
 
-- `organs` includes `display_order` for backend/frontend ordering.
+- `organs` includes `display_order` for backend/frontend ordering. Its reserved
+  `other` record is available for symptoms that do not match a listed organ or
+  system and is omitted from the body workspace.
 - `lab_reports` includes the encrypted source document bytes plus `updated_at`
   and `deleted_at` for report management.
 - `lab_results` includes derived numeric/range fields plus `updated_at` and `deleted_at`.

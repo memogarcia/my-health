@@ -264,6 +264,7 @@ fn list_organs(conn: &Connection) -> rusqlite::Result<Vec<OrganSummary>> {
            (SELECT COUNT(*) FROM lab_results l WHERE l.organ_key = o.key AND l.deleted_at = '') AS lab_count,
            (SELECT COUNT(*) FROM symptoms s WHERE s.organ_key = o.key AND s.deleted_at = '') AS symptom_count
          FROM organs o
+         WHERE o.key <> 'other'
          ORDER BY o.display_order ASC, o.name COLLATE NOCASE ASC",
     )?;
     let lookback = format!("-{CURRENT_SYMPTOM_LOOKBACK_DAYS} days");

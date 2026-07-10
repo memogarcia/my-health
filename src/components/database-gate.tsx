@@ -142,12 +142,12 @@ export function DatabaseGate({ status, error, onNewDatabase, onOpenDatabase, onS
                 {validationMessage}
               </FieldDescription>
             ) : null}
-            <Button type="submit" className="w-full" disabled={!submitReady} aria-describedby={validationMessage ? "database-passphrase-validation" : undefined}>{button}</Button>
+            <Button type="submit" size="lg" className="w-full text-base" disabled={!submitReady} aria-describedby={validationMessage ? "database-passphrase-validation" : undefined}>{button}</Button>
             <div className="grid gap-2 sm:grid-cols-2">
-              <Button type="button" variant="outline" onClick={() => void onOpenDatabase()}>
+              <Button type="button" variant="outline" size="lg" className="text-base" onClick={() => void onOpenDatabase()}>
                 <Folder data-icon="inline-start" />{t("gate.openDatabase")}
               </Button>
-              <Button type="button" variant="outline" onClick={() => void onNewDatabase()}>
+              <Button type="button" variant="outline" size="lg" className="text-base" onClick={() => void onNewDatabase()}>
                 <Plus data-icon="inline-start" />{t("gate.newDatabase")}
               </Button>
             </div>

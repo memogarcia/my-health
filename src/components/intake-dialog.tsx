@@ -119,7 +119,7 @@ function SymptomForm({ controller }: { controller: DashboardController }) {
       void controller.addSymptom(input);
     }}>
       <FieldGroup>
-        <OrganSelect organs={controller.display.organs} defaultValue={controller.selectedOrganKey} description={t("intake.organDescription")} />
+        <OrganSelect organs={controller.display.organs} defaultValue={controller.selectedOrganKey} description={t("intake.organDescription")} includeOther />
         <Field><FieldLabel htmlFor="symptom-name">{t("intake.symptom.name")}</FieldLabel><Input id="symptom-name" name="name" placeholder={t("intake.symptom.placeholder")} required /></Field>
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <Field><FieldLabel htmlFor="severity">{t("intake.symptom.severity")}</FieldLabel><Input id="severity" name="severity" type="number" min={1} max={5} defaultValue={1} required /></Field>

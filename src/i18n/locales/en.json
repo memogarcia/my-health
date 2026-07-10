@@ -233,6 +233,7 @@
   "intake.symptom.name": "Symptom",
   "intake.symptom.placeholder": "Fatigue",
   "intake.symptom.severity": "Severity",
+  "intake.symptom.otherSystem": "Other",
   "intake.symptom.notesPlaceholder": "Duration, trigger, related context",
   "intake.symptom.save": "Save Symptom",
   "intake.activity.prompt": "Notes",

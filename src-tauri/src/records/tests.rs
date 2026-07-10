@@ -143,6 +143,15 @@ fn soft_deletes_lab_results_and_symptoms_from_lists() {
 }
 
 #[test]
+fn saves_symptoms_for_the_other_system() {
+    let conn = test_connection();
+
+    insert_symptom(&conn, "other", "Dizziness", 2, "2026-07-01", "").unwrap();
+
+    assert_eq!(list_recent_symptoms(&conn).unwrap().len(), 1);
+}
+
+#[test]
 fn delete_report_can_unlink_or_delete_linked_results() {
     let conn = test_connection();
     let report_id = insert_lab_report(
@@ -288,7 +297,8 @@ fn test_connection() -> Connection {
            deleted_at TEXT NOT NULL DEFAULT ''
          );
          INSERT INTO organs (key, name, system) VALUES ('heart', 'Heart', 'Cardiovascular');
-         INSERT INTO organs (key, name, system) VALUES ('blood', 'Blood', 'Circulatory');",
+         INSERT INTO organs (key, name, system) VALUES ('blood', 'Blood', 'Circulatory');
+         INSERT INTO organs (key, name, system) VALUES ('other', 'Other', 'Other');",
     )
     .unwrap();
     conn
