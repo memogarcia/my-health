@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { ImportCoverageTimeline } from "./charts/import-coverage-timeline";
 import { FileText, Sparkles } from "./health-icons";
+import { ReportResultsDialog } from "./report-results-dialog";
 
 export function DocumentsPage({ controller }: { controller: DashboardController }) {
   return (
@@ -147,6 +148,8 @@ function DocumentDrop({
 
 function LabReports({ controller }: { controller: DashboardController }) {
   const reports = controller.display.labReports;
+  const [selectedReportId, setSelectedReportId] = useState<number | null>(null);
+  const selectedReport = reports.find((report) => report.id === selectedReportId) || null;
   if (reports.length === 0) {
     return (
       <Empty className="min-h-40">
@@ -174,12 +177,14 @@ function LabReports({ controller }: { controller: DashboardController }) {
             </div>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" size="sm" onClick={() => setSelectedReportId(report.id)}>{t("documents.viewResults")}</Button>
             <Button type="button" size="sm" variant="outline" onClick={() => void controller.unlinkLabReport(report.id)}>{t("documents.unlink")}</Button>
             <Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(t("documents.deleteReportConfirm"))) void controller.deleteLabReport(report.id, false); }}>{t("documents.deleteReport")}</Button>
             <Button type="button" size="sm" variant="destructive" onClick={() => { if (window.confirm(t("documents.deleteReportResultsConfirm"))) void controller.deleteLabReport(report.id, true); }}>{t("documents.deleteReportResults")}</Button>
           </div>
         </div>
       ))}
+      <ReportResultsDialog controller={controller} report={selectedReport} onClose={() => setSelectedReportId(null)} />
     </div>
   );
 }

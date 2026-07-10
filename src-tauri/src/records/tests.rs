@@ -117,6 +117,53 @@ fn update_lab_rejects_invalid_organ() {
 }
 
 #[test]
+fn bulk_update_lab_results_changes_only_requested_fields() {
+    let conn = test_connection();
+    let first = insert_lab_result(
+        &conn,
+        None,
+        "heart",
+        "LDL",
+        "120",
+        "mg/dL",
+        "normal",
+        "2026-07-01",
+        "",
+        "",
+    )
+    .unwrap();
+    let second = insert_lab_result(
+        &conn,
+        None,
+        "heart",
+        "HDL",
+        "55",
+        "mg/dL",
+        "normal",
+        "2026-07-01",
+        "",
+        "",
+    )
+    .unwrap();
+
+    bulk::update_in_conn(
+        &conn,
+        &BulkUpdateLabResultsInput {
+            ids: vec![first, second],
+            organ_key: Some("blood".into()),
+            status: Some("monitor".into()),
+            measured_at: None,
+        },
+    )
+    .unwrap();
+
+    let updated = list_latest_lab_results(&conn).unwrap();
+    assert!(updated.iter().all(|result| result.organ_key == "blood"
+        && result.status == "monitor"
+        && result.measured_at == "2026-07-01"));
+}
+
+#[test]
 fn soft_deletes_lab_results_and_symptoms_from_lists() {
     let conn = test_connection();
     let lab_id = insert_lab_result(

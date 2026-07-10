@@ -24,17 +24,22 @@ else supports reading and adding data around it.
 
 ## Primary Flows
 
-- **Body workspace** — an interactive anatomical map with organ hotspots. Select
-  an organ to see its latest labs, symptoms, and conditions in a detail rail.
-  A true 3D body is a planned enhancement; today the map is a 2D image with
-  positioned hotspots.
+- **Body workspace** — a drag-controlled 3D anatomical scene. Select an organ to see its latest labs,
+  symptoms, and conditions in a detail rail, or click any exact surface area to
+  save a local body note. Selecting Female in Profile automatically shows the
+  women’s full-body model.
 - **Labs and history** — add a single result or a batch from a dropped report,
   review entered values, and read trends over time.
 - **Symptoms and conditions** — log severity and dates against an organ.
 - **Medications and supplements** — track active and stopped regimen items.
+- **Fasting and breathwork** — save a local fasting timer and recent sessions,
+  see conservative stage guidance, and use a short paced-breathing timer. The
+  high-intensity Wim Hof option requires an explicit safety acknowledgment and
+  never guides a breath hold.
 - **Documents** — drop a PDF or image, extract draft measurements with the
   configured opt-in AI, review them, then save the source bytes and accepted
-  structured results inside encrypted SQLite.
+  structured results inside encrypted SQLite. Saved reports open their linked
+  results for individual or selected-group edits.
 - **Assistant** — advisory AI chat and deep research, gated by an explicit
   remote-context opt-in.
 
@@ -61,6 +66,9 @@ Visual specifics (tokens, color, type, motion) live in `DESIGN.md`.
 - Do not present AI output as diagnosis, treatment, or emergency triage.
 - Frame recommendations as lifestyle, follow-up, or clinician-discussion suggestions.
 - Treat health data as sensitive by default. Do not hardcode real personal medical details.
+- Fasting stages and breathwork are general education, not individualized
+  recommendations. Surface contraindications and stop guidance before a fast
+  or an intense breathing practice.
 - Use obviously synthetic sample data only when needed for local UI work.
 - Health data stays local unless the user explicitly opts in to sending specific context to a remote provider; that opt-in is off by default.
 - The database is SQLCipher-encrypted from the first run; API keys are referenced by environment-variable name, never stored in the database.

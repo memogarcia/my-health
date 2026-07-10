@@ -2,8 +2,10 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "./components.css";
+@import "./body-anatomy.css";
 @import "./layout.css";
 @import "./redesign.css";
+@import "./fasting.css";
 @import "./animations.css";
 
 @custom-variant dark (&:is(.dark *));

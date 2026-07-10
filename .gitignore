@@ -13,4 +13,5 @@ src-tauri/target/
 
 assets/*
 !assets/anatomy-body-dashboard.jpg
+!assets/anatomy-body-women-dashboard.png
 !assets/health-dashboard-ui-concept.png

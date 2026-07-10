@@ -22,7 +22,6 @@ export function AppShell({ controller, children }: Props) {
   const pageTitleRef = useRef(null as HTMLHeadingElement | null);
   const workspaceRef = useRef(null as HTMLElement | null);
   const previousNavRef = useRef(controller.selectedNav);
-  const showHealthActions = controller.selectedNav === "body";
   const showCompactAiPrompt = controller.selectedNav !== "settings" && controller.selectedNav !== "plan" && controller.selectedNav !== "research" && controller.selectedNav !== "documents";
 
   useEffect(() => {
@@ -75,13 +74,11 @@ export function AppShell({ controller, children }: Props) {
           </div>
           <div className="app-bar-actions">
             <JobCenter controller={controller} />
-            {showHealthActions ? (
-              <Button type="button" variant="outline" size="sm" onClick={() => controller.openDialog("activity")}>
-                <NotebookPen data-icon="inline-start" />
-                {t("appShell.dailyLog")}
-              </Button>
-            ) : null}
-            {showHealthActions ? <AddResultDropdown controller={controller} /> : null}
+            <Button type="button" variant="outline" size="sm" onClick={() => controller.openDialog("activity")}>
+              <NotebookPen data-icon="inline-start" />
+              {t("appShell.dailyLog")}
+            </Button>
+            <AddResultDropdown controller={controller} />
           </div>
         </header>
 

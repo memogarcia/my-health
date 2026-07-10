@@ -87,7 +87,8 @@ kidneys `#b46a78`. Reuse these; do not invent organ colors per component.
 Sidebar + main grid (`app-shell`). The 200px sidebar holds brand, grouped nav,
 and an encrypted-records footer. Main is a three-row native shell: draggable
 page bar, scrollable workspace, then the persistent text-only AI dock. The dock
-participates in layout and must never cover records.
+participates in layout and must never cover records. The page bar always keeps
+Work, Daily log, and Add result together, regardless of the active page.
 
 - `body-workbench`: `204px minmax(320px, 1fr) 316px` - organ rail, stable
   anatomy plane, selected-organ inspector.
@@ -118,13 +119,13 @@ conflict with them.
 
 ### Anatomy stage
 
-The body map uses a centered 3:4 portrait coordinate plane cut from the 3:2
-source image. Hotspot X coordinates are remapped into that fixed crop, so the
-image and controls share the same geometry at every supported window size.
-Hotspots have a 40px keyboard and pointer target with an 18px visible dot using
-`--organ-color`, a white border, and a soft ring. Labels appear above the
-hotspot (`label-below` flips them). Keep hotspots keyboard-focusable; they are
-`<button>`s.
+The body stage restores the clinical anatomical image as a centered 3:4 crop.
+Its front and reverse faces form one CSS 3D scene: horizontal drag rotates the
+scene continuously around its Y axis, and vertical drag tilts it. Hotspots and
+saved note pins live on the same transformed face as the image, so they remain
+registered to anatomy rather than floating over a separate sliding sprite. The
+saved Profile sex value `female` selects a matching women’s clinical anatomy
+image; all other values retain the default model.
 
 ## Components
 
@@ -150,7 +151,8 @@ Rules:
   existing ISO string through a hidden form field.
 - Background work uses `JobCenter` in the app bar. Rows pair a text status,
   icon, and `Progress`; indeterminate progress is used when the native task
-  cannot provide an exact percentage.
+  cannot provide an exact percentage. Concurrent document requests keep their
+  own review tabs and job rows.
 - The Developer page is a compact diagnostic workspace: expandable LLM-call
   rows show request metadata and timing, while a chronological event list shows
   renderer stages and bounded errors. It is operational UI, not a second chat
@@ -166,6 +168,10 @@ Document review rows identify themselves as `RESULT {n}`. Their outer border and
 follow-up badge use the existing status mapping, while an unset priority remains
 visibly labeled as `Needs review`.
 
+Saved lab-report rows open a report-result dialog. It identifies every linked
+result, supports the existing single-result editor, and can apply a selected
+group's body area, follow-up priority, or measured date in one operation.
+
 ## Motion
 
 Easing tokens (`:root`): `--ease-out-quart`, `--ease-out-quint`, `--ease-out-expo`.
@@ -173,6 +179,12 @@ Duration tokens (`--dur-feedback`, `--dur-state`) drive hotspot and label
 transitions. Keep motion short and limited to state feedback. Do not animate
 page entry or pulse health indicators continuously. Respect
 `prefers-reduced-motion`.
+
+The fasting workspace uses a progress ring for elapsed time and a breathing orb
+that expands for inhale and contracts for exhale. It uses the same duration and
+easing tokens, does not animate page entry, and becomes static under reduced
+motion. The current fasting stage is also named in text; motion and color are
+supplementary feedback only.
 
 ## Accessibility
 

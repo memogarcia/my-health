@@ -46,6 +46,8 @@ const display: DisplaySnapshot = {
 const userState: UserState = {
   profile: { age: 40, sex: "not specified", heightCm: 170, weightKg: 70 },
   activityEntries: [{ id: "a1", loggedAt: "2026-07-03", cigarettes: 0, drinks: 1, activityName: "Walk", durationMinutes: 20, notes: "synthetic sample" }],
+  fasting: { activeStartedAt: "", targetHours: 16, sessions: [] },
+  bodyNotes: [],
   appleHealthImports: [{ id: "h1", sourceName: "Apple Health", importedAt: "2026-07-04", recordCount: 10, workoutCount: 2, startedAt: "2026-07-01", endedAt: "2026-07-04" }],
   aiConversations: [],
   activeAiConversationId: "",

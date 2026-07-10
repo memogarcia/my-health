@@ -5,7 +5,7 @@ import {
   buildAiConversationPrompt,
   getActiveAiConversation,
 } from "./ai-conversation";
-import type { DeveloperLogInput, LlmCallInput, LlmCallPatch, UserState } from "./dashboard-model";
+import type { DeveloperLogInput, DisplaySnapshot, LlmCallInput, LlmCallPatch, UserState } from "./dashboard-model";
 import { t } from "./i18n";
 
 export type AiPromptResult = {
@@ -19,6 +19,7 @@ type PendingHandler = (userState: UserState, conversationId: string, notice: str
 export async function runAiPrompt(input: {
   prompt: string;
   aiSettings: AiSettings;
+  display: DisplaySnapshot;
   userState: UserState;
   onPending: PendingHandler;
   onDeveloperLog: (input: DeveloperLogInput) => void;
@@ -66,7 +67,7 @@ export async function runAiPrompt(input: {
   let callId = "";
   try {
     const conversation = getActiveAiConversation(userState);
-    const conversationPrompt = conversation ? buildAiConversationPrompt(conversation) : input.prompt;
+    const conversationPrompt = conversation ? buildAiConversationPrompt(conversation, input.display, userState) : input.prompt;
     callId = input.onLlmCallStart({
       kind: "chat",
       command: "ask_llm",

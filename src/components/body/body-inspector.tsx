@@ -24,7 +24,7 @@ export function BodyInspector({ controller, collapsed, onToggle }: { controller:
     <aside id="selected-organ-details" className={collapsed ? "detail-rail detail-rail-collapsed" : "detail-rail"} aria-label={controller.selectedOrgan.name}>
       <p className="sr-only" aria-live="polite">{t("body.detail.announcement", { organ: controller.selectedOrgan.name, status })}</p>
       {collapsed ? <header className="inspector-collapsed-header">
-        <BodyCollapseToggle collapsed onToggle={onToggle} section={t("body.section.sidebar")} />
+        <BodyCollapseToggle collapsed direction="right" onToggle={onToggle} section={t("body.section.sidebar")} />
       </header> : <>
       <header className="inspector-header">
         <div className="flex items-start justify-between gap-3">
@@ -33,7 +33,7 @@ export function BodyInspector({ controller, collapsed, onToggle }: { controller:
             <h2>{controller.selectedOrgan.name}</h2>
           </div>
           <StatusBadge status={visualStatus} />
-          <BodyCollapseToggle collapsed={false} onToggle={onToggle} section={t("body.section.sidebar")} />
+          <BodyCollapseToggle collapsed={false} direction="right" onToggle={onToggle} section={t("body.section.sidebar")} />
         </div>
         <p className="text-sm text-muted-foreground">{organSummary(controller)}</p>
         <div className="flex flex-wrap gap-2">

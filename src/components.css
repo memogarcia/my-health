@@ -78,10 +78,10 @@
   color: var(--foreground);
 }
 .chart-svg { display: block; width: 100%; overflow: visible; }
-.chart-axis text, .chart-count-label { fill: var(--muted-foreground); font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.chart-axis text, .chart-count-label, .chart-y-label { fill: var(--muted-foreground); font-size: 0.68rem; font-variant-numeric: tabular-nums; }
 .chart-grid-line { stroke: color-mix(in srgb, var(--border) 72%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .chart-reference-band { fill: color-mix(in srgb, var(--status-normal) 14%, transparent); }
-.chart-trend-line { fill: none; stroke: var(--muted-foreground); stroke-width: 2.25; vector-effect: non-scaling-stroke; }
+.chart-trend-line { fill: none; stroke: var(--primary); stroke-width: 2.25; vector-effect: non-scaling-stroke; }
 .chart-point { fill: var(--card); stroke: var(--muted-foreground); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
 .chart-point.latest.status-normal, .chart-bar.status-normal { fill: var(--status-normal); stroke: var(--status-normal); }
 .chart-point.latest.status-monitor, .chart-bar.status-monitor { fill: var(--status-monitor); stroke: var(--status-monitor); }

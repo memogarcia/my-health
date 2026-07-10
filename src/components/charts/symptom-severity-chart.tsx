@@ -25,7 +25,7 @@ function SeverityBars({ points }: { points: ReturnType<typeof buildWeeklySymptom
   const yScale = linearScale([0, 5], [margin.top + innerHeight, margin.top]);
   return (
     <svg className="chart-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t("charts.symptoms.title")}>
-      {[0, 2.5, 5].map((tick) => <line className="chart-grid-line" key={tick} x1={margin.left} x2={width - margin.right} y1={yScale(tick)} y2={yScale(tick)} />)}
+      {[0, 2.5, 5].map((tick) => <g key={tick}><line className="chart-grid-line" x1={margin.left} x2={width - margin.right} y1={yScale(tick)} y2={yScale(tick)} /><text className="chart-y-label" textAnchor="end" x={margin.left - 8} y={yScale(tick) + 3}>{tick}</text></g>)}
       {points.map((point, index) => {
         const x = margin.left + index * xStep + xStep * 0.2;
         const barWidth = Math.max(6, xStep * 0.6);
@@ -34,7 +34,8 @@ function SeverityBars({ points }: { points: ReturnType<typeof buildWeeklySymptom
         return (
           <g key={point.week}>
             <rect className={`chart-bar status-${status}`} x={x} y={y} width={barWidth} height={margin.top + innerHeight - y} rx="5" />
-            <text className="chart-count-label" x={x + barWidth / 2} y={y - 5} textAnchor="middle">{point.count}</text>
+            <text className="chart-count-label" x={x + barWidth / 2} y={y - 5} textAnchor="middle">{t("charts.symptoms.severityValue", { severity: point.maxSeverity })}</text>
+            <title>{t("charts.symptoms.pointLabel", { date: formatDate(point.week), count: point.count, severity: point.maxSeverity })}</title>
           </g>
         );
       })}

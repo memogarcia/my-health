@@ -5,6 +5,7 @@ import {
   deriveOrganStatus,
   isCurrentSymptom,
   latestLabsByMarker,
+  normalizeUserState,
   type ConditionEntry,
   type DashboardSnapshot,
   type LabResult,
@@ -131,4 +132,18 @@ test("buildDisplaySnapshot replaces a stale backend status with the current mode
   };
 
   assert.equal(buildDisplaySnapshot(snapshot).organs[0].status, "normal");
+});
+
+test("normalizeUserState restores a bounded local fasting timer and history", () => {
+  const state = normalizeUserState({
+    fasting: {
+      activeStartedAt: "2026-07-10T00:00:00.000Z",
+      targetHours: 99,
+      sessions: [{ id: "fast-1", startedAt: "2026-07-09T00:00:00.000Z", endedAt: "2026-07-09T16:00:00.000Z", targetHours: 4 }],
+    },
+  });
+
+  assert.equal(state.fasting.activeStartedAt, "2026-07-10T00:00:00.000Z");
+  assert.equal(state.fasting.targetHours, 24);
+  assert.equal(state.fasting.sessions[0].targetHours, 12);
 });

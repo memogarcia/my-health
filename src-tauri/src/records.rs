@@ -5,10 +5,12 @@ use crate::{
     database::{self, AppState},
     document_files,
 };
+pub(crate) mod bulk;
 pub(crate) mod parse;
 mod recommendations;
 pub(crate) mod reports;
 pub(crate) mod symptoms;
+use bulk::BulkUpdateLabResultsInput;
 use parse::{
     derive_flag_from_reference, parse_lab_number, parse_reference_range, validate_iso_date,
     validate_reference_range, validate_required, validate_status,
@@ -256,6 +258,15 @@ pub fn update_lab_result(
     )?;
 
     database::with_connection(&state, |conn| update_lab_result_in_conn(conn, &input))
+}
+
+#[tauri::command]
+pub fn update_lab_results(
+    input: BulkUpdateLabResultsInput,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    bulk::validate(&input)?;
+    database::with_connection(&state, |conn| bulk::update_in_conn(conn, &input))
 }
 
 #[tauri::command]

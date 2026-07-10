@@ -1,5 +1,5 @@
 import { todayString } from "./dashboard-format";
-import { normalizeUserState, type ActivityEntry, type UserProfile, type UserState } from "./dashboard-model";
+import { normalizeUserState, type ActivityEntry, type BodyNote, type UserProfile, type UserState } from "./dashboard-model";
 import { isApiKeyEnvVarName, normalizeAiSettings, type AiSettings } from "./ai-sdk-config";
 import { t } from "./i18n";
 
@@ -38,6 +38,15 @@ export function activityFromForm(form: FormData): ActivityEntry {
     activityName,
     durationMinutes: nonNegativeInteger(form, "durationMinutes"),
     notes,
+  };
+}
+
+export function bodyNoteFromForm(form: FormData, draft: Omit<BodyNote, "id" | "note" | "createdAt">): BodyNote {
+  return {
+    ...draft,
+    id: makeId(),
+    note: String(form.get("note") || "").trim(),
+    createdAt: new Date().toISOString(),
   };
 }
 

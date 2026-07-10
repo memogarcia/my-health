@@ -28,8 +28,33 @@ export function IntakeDialog({ controller }: { controller: DashboardController }
         {controller.activeDialog === "document" ? <DocumentReview controller={controller} /> : null}
         {controller.activeDialog === "symptom" ? <SymptomForm controller={controller} /> : null}
         {controller.activeDialog === "activity" ? <ActivityForm controller={controller} /> : null}
+        {controller.activeDialog === "bodyNote" ? <BodyNoteForm controller={controller} /> : null}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function BodyNoteForm({ controller }: { controller: DashboardController }) {
+  const draft = controller.bodyNoteDraft;
+  if (!draft) return null;
+  return (
+    <form onSubmit={(event) => {
+      event.preventDefault();
+      void controller.addBodyNote(new FormData(event.currentTarget));
+    }}>
+      <FieldGroup>
+        <Field>
+          <FieldLabel>{t("body.notes.areaLabel")}</FieldLabel>
+          <p className="text-sm text-muted-foreground">{draft.area}</p>
+          <FieldDescription>{t("body.notes.areaDescription")}</FieldDescription>
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="body-note">{t("body.notes.note")}</FieldLabel>
+          <Textarea autoFocus id="body-note" name="note" placeholder={t("body.notes.placeholder")} required />
+        </Field>
+        <DialogFooter><Button type="submit">{t("body.notes.save")}</Button></DialogFooter>
+      </FieldGroup>
+    </form>
   );
 }
 
@@ -180,6 +205,7 @@ function dialogTitle(dialog: DialogKey): string {
   if (dialog === "activity") return t("intake.title.activity");
   if (dialog === "document") return t("intake.title.document");
   if (dialog === "symptom") return t("intake.title.symptom");
+  if (dialog === "bodyNote") return t("body.notes.title");
   return t("intake.title.result");
 }
 
@@ -187,5 +213,6 @@ function dialogDescription(dialog: DialogKey, organName: string): string {
   if (dialog === "activity") return t("intake.description.activity");
   if (dialog === "document") return t("intake.description.document");
   if (dialog === "symptom") return t("intake.description.symptom", { organ: organName });
+  if (dialog === "bodyNote") return t("body.notes.description");
   return t("intake.description.result", { organ: organName });
 }

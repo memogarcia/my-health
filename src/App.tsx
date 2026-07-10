@@ -20,6 +20,7 @@ const HistoryPage = lazy(() => import("./components/history-page").then((module)
 const MedicationsPage = lazy(() => import("./components/medications-page").then((module) => ({ default: module.MedicationsPage })));
 const SettingsPage = lazy(() => import("./components/settings-page").then((module) => ({ default: module.SettingsPage })));
 const DeveloperPage = lazy(() => import("./components/developer-page").then((module) => ({ default: module.DeveloperPage })));
+const FastingPage = lazy(() => import("./components/fasting-page").then((module) => ({ default: module.FastingPage })));
 
 export function App() {
   const controller = useDashboardController();
@@ -95,6 +96,7 @@ export function App() {
       {controller.selectedNav === "research" ? <LazyPage><ResearchPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "documents" ? <LazyPage><DocumentsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "medications" ? <LazyPage><MedicationsPage controller={controller} /></LazyPage> : null}
+      {controller.selectedNav === "fasting" ? <LazyPage><FastingPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "settings" ? <LazyPage><SettingsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "developer" ? <LazyPage><DeveloperPage controller={controller} /></LazyPage> : null}
       <IntakeDialog controller={controller} />

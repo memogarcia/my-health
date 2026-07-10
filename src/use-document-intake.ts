@@ -14,6 +14,7 @@ type DocumentIntakeOptions = {
   selectedOrganKey: string;
   loadDashboard: () => unknown;
   openDocumentDialog: () => void;
+  closeDocumentDialog: () => void;
   setSelectedNav: (nav: NavKey) => void;
   onJobStart: (input: BackgroundJobInput) => string;
   onJobUpdate: (jobId: string, patch: BackgroundJobPatch) => void;
@@ -22,25 +23,40 @@ type DocumentIntakeOptions = {
   onLlmCallUpdate: (callId: string, patch: LlmCallPatch) => void;
 };
 
+const readyAnalysis = (): DocumentAnalysis => ({ status: "ready", results: [], error: "" });
+type DocumentReviewSession = { id: string; document: PendingDocument | null; analysis: DocumentAnalysis };
+
 export function useDocumentIntake(options: DocumentIntakeOptions) {
-  const [pendingDocument, setPendingDocument] = useState(null as PendingDocument | null);
-  const [documentAnalysis, setDocumentAnalysis] = useState({ status: "ready", results: [], error: "" } as DocumentAnalysis);
-  const analysisTokenRef = useRef(0);
-  const pendingDocumentFileRef = useRef(null as File | null);
+  const [documentSessions, setDocumentSessions] = useState<DocumentReviewSession[]>([]);
+  const [activeDocumentSessionId, setActiveDocumentSessionId] = useState("");
+  const pendingDocumentFileRef = useRef(new Map<string, File>());
   const savingRef = useRef(false);
+  const activeSession = documentSessions.find((session) => session.id === activeDocumentSessionId) || null;
+
+  function updateSession(sessionId: string, update: (session: DocumentReviewSession) => DocumentReviewSession): void {
+    setDocumentSessions((current) => current.map((session) => session.id === sessionId ? update(session) : session));
+  }
+
+  function createSession(document: PendingDocument | null, analysis = readyAnalysis()): string {
+    const id = newDocumentSessionId();
+    setDocumentSessions((current) => [{ id, document, analysis }, ...current]);
+    setActiveDocumentSessionId(id);
+    return id;
+  }
+
+  function closeDocumentReview(): void {
+    setActiveDocumentSessionId("");
+  }
 
   function clearDocumentIntake(): void {
-    setPendingDocument(null);
-    pendingDocumentFileRef.current = null;
-    analysisTokenRef.current += 1;
-    setDocumentAnalysis({ status: "ready", results: [], error: "" });
+    if (!activeDocumentSessionId) return;
+    pendingDocumentFileRef.current.delete(activeDocumentSessionId);
+    setDocumentSessions((current) => current.filter((session) => session.id !== activeDocumentSessionId));
+    setActiveDocumentSessionId("");
   }
 
   function preparePromptResults(results: ExtractedResult[]): void {
-    analysisTokenRef.current += 1;
-    setPendingDocument(null);
-    pendingDocumentFileRef.current = null;
-    setDocumentAnalysis({ status: "ready", results, error: "" });
+    createSession(null, { status: "ready", results, error: "" });
     options.setSelectedNav("documents");
     options.openDocumentDialog();
   }
@@ -51,15 +67,14 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
       toast.error(result.error);
       return;
     }
-    pendingDocumentFileRef.current = file;
-    setPendingDocument(result.document);
+    const sessionId = createSession(result.document);
+    pendingDocumentFileRef.current.set(sessionId, file);
     options.setSelectedNav("documents");
     options.openDocumentDialog();
-    void analyzeDocumentResult(file);
+    void analyzeDocumentResult(sessionId, file);
   }
 
-  async function analyzeDocumentResult(file: File): Promise<void> {
-    const token = (analysisTokenRef.current += 1);
+  async function analyzeDocumentResult(sessionId: string, file: File): Promise<void> {
     const jobId = options.onJobStart({
       kind: "document-analysis",
       title: t("jobs.documentAnalysis"),
@@ -68,7 +83,7 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
     options.onDeveloperLog({ area: "document", level: "info", message: t("developer.log.documentSelected"), detail: file.name });
     if (!hasEnabledCodexModel(options.aiSettings)) {
       const message = t("document.noLlmEnabled");
-      setDocumentAnalysis({ status: "error", results: [], error: message });
+      updateSession(sessionId, (session) => ({ ...session, analysis: { status: "error", results: [], error: message } }));
       options.onJobUpdate(jobId, { status: "failed", error: message });
       options.onDeveloperLog({ area: "document", level: "error", message: t("developer.log.callSkipped"), detail: message });
       toast.error(message);
@@ -76,12 +91,12 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
     }
     if (file.size > MAX_DOCUMENT_BYTES) {
       const message = t("toast.fileTooLarge");
-      setDocumentAnalysis({ status: "error", results: [], error: message });
+      updateSession(sessionId, (session) => ({ ...session, analysis: { status: "error", results: [], error: message } }));
       options.onJobUpdate(jobId, { status: "failed", error: message });
       toast.error(message);
       return;
     }
-    setDocumentAnalysis({ status: "analyzing", results: [], error: "" });
+    updateSession(sessionId, (session) => ({ ...session, analysis: { status: "analyzing", results: [], error: "" } }));
     let callId = "";
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
@@ -90,53 +105,25 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
       const renderedPages = await renderDocumentPages(file);
       options.onJobUpdate(jobId, { progress: 40 });
       options.onDeveloperLog({ area: "document", level: "info", message: t("developer.log.pagesRendered"), detail: t("developer.log.pages", { count: renderedPages.length }) });
-      callId = options.onLlmCallStart({
-        kind: "document-analysis",
-        command: "analyze_document",
-        inputLabel: file.name,
-        modelId: options.aiSettings.modelId,
-        reasoningEffort: options.aiSettings.reasoningEffort,
-        promptChars: 0,
-        fileBytes: bytes.length,
-        renderedPages: renderedPages.length,
-      });
+      callId = options.onLlmCallStart({ kind: "document-analysis", command: "analyze_document", inputLabel: file.name, modelId: options.aiSettings.modelId, reasoningEffort: options.aiSettings.reasoningEffort, promptChars: 0, fileBytes: bytes.length, renderedPages: renderedPages.length });
       options.onDeveloperLog({ area: "document", level: "info", message: t("developer.log.callStarted"), detail: t("developer.log.command", { command: "analyze_document" }) });
-      const raw = await invoke<string>("analyze_document", {
-        input: {
-          fileName: file.name,
-          fileBytes: Array.from(bytes),
-          renderedPages,
-          modelId: options.aiSettings.modelId,
-          reasoningEffort: options.aiSettings.reasoningEffort,
-        },
-      });
+      const raw = await invoke<string>("analyze_document", { input: { fileName: file.name, fileBytes: Array.from(bytes), renderedPages, modelId: options.aiSettings.modelId, reasoningEffort: options.aiSettings.reasoningEffort } });
       options.onLlmCallUpdate(callId, { status: "completed", outputChars: raw.length });
       options.onDeveloperLog({ area: "document", level: "success", message: t("developer.log.callCompleted"), detail: t("developer.log.chars", { count: raw.length }) });
-      if (token !== analysisTokenRef.current) {
-        if (callId) options.onLlmCallUpdate(callId, { status: "failed", error: t("jobs.cancelled") });
-        options.onJobUpdate(jobId, { status: "failed", error: t("jobs.cancelled") });
-        return;
-      }
-      options.onJobUpdate(jobId, { progress: 80 });
       const results = parseExtractedResults(raw);
       if (results.length === 0) {
         const message = t("document.extractError");
-        setDocumentAnalysis({ status: "error", results: [], error: message });
+        updateSession(sessionId, (session) => ({ ...session, analysis: { status: "error", results: [], error: message } }));
         options.onJobUpdate(jobId, { status: "failed", error: message });
         toast.warning(t("toast.extractManual"));
         return;
       }
-      setDocumentAnalysis({ status: "ready", results, error: "" });
+      updateSession(sessionId, (session) => ({ ...session, analysis: { status: "ready", results, error: "" } }));
       options.onJobUpdate(jobId, { status: "completed", progress: 100 });
       toast.success(t(results.length === 1 ? "toast.extractedResult" : "toast.extractedResults", { count: results.length }));
     } catch (error) {
-      if (token !== analysisTokenRef.current) {
-        if (callId) options.onLlmCallUpdate(callId, { status: "failed", error: t("jobs.cancelled") });
-        options.onJobUpdate(jobId, { status: "failed", error: t("jobs.cancelled") });
-        return;
-      }
       const message = error instanceof Error ? error.message : String(error);
-      setDocumentAnalysis({ status: "error", results: [], error: message });
+      updateSession(sessionId, (session) => ({ ...session, analysis: { status: "error", results: [], error: message } }));
       options.onJobUpdate(jobId, { status: "failed", error: message });
       if (callId) options.onLlmCallUpdate(callId, { status: "failed", error: message });
       options.onDeveloperLog({ area: "document", level: "error", message: t("developer.log.callFailed"), detail: message });
@@ -145,70 +132,46 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
   }
 
   function updateDocumentResult(id: string, patch: Partial<ExtractedResult>): void {
-    setDocumentAnalysis((current) => ({
-      ...current,
-      results: current.results.map((result) => (result.id === id ? { ...result, ...patch } : result)),
-    }));
+    if (!activeSession) return;
+    updateSession(activeSession.id, (session) => ({ ...session, analysis: { ...session.analysis, results: session.analysis.results.map((result) => result.id === id ? { ...result, ...patch } : result) } }));
   }
 
   function removeDocumentResult(id: string): void {
-    setDocumentAnalysis((current) => ({
-      ...current,
-      results: current.results.filter((result) => result.id !== id),
-    }));
+    if (!activeSession) return;
+    updateSession(activeSession.id, (session) => ({ ...session, analysis: { ...session.analysis, results: session.analysis.results.filter((result) => result.id !== id) } }));
   }
 
   function addDocumentResultRow(): void {
-    setDocumentAnalysis((current) => ({
-      ...current,
-      results: [...current.results, createEmptyExtractedResult(options.selectedOrganKey)],
-    }));
+    if (!activeSession) return;
+    updateSession(activeSession.id, (session) => ({ ...session, analysis: { ...session.analysis, results: [...session.analysis.results, createEmptyExtractedResult(options.selectedOrganKey)] } }));
   }
 
   async function acceptDocumentResults(): Promise<void> {
-    if (savingRef.current) return;
-    const invalid = documentAnalysis.results
-      .map((result, index) => ({ fields: missingExtractedResultFields(result), index }))
-      .filter((entry) => entry.fields.length > 0);
+    if (savingRef.current || !activeSession) return;
+    const invalid = activeSession.analysis.results.map((result, index) => ({ fields: missingExtractedResultFields(result), index })).filter((entry) => entry.fields.length > 0);
     if (invalid.length > 0) {
       const first = invalid[0];
-      const fields = first.fields.map((field) => field === "marker"
-        ? t("intake.result.marker")
-        : field === "value"
-          ? t("common.value")
-          : field === "measuredAt"
-            ? t("common.date")
-            : t("lab.followUp.label")).join(", ");
+      const fields = first.fields.map((field) => field === "marker" ? t("intake.result.marker") : field === "value" ? t("common.value") : field === "measuredAt" ? t("common.date") : t("lab.followUp.label")).join(", ");
       toast.error(t("toast.resolveDocumentFields", { fields, row: first.index + 1 }));
       return;
     }
-    const valid = documentAnalysis.results;
+    const session = activeSession;
+    const valid = session.analysis.results;
     savingRef.current = true;
     try {
-      const input = {
-          results: valid.map((result) => ({
-            organKey: result.organKey,
-            marker: result.marker,
-            value: result.value,
-            unit: result.unit,
-            status: result.status || "normal",
-            measuredAt: result.measuredAt,
-            notes: result.notes,
-            referenceRange: result.referenceRange,
-          })),
-          report: pendingDocument,
-      };
-      const file = pendingDocumentFileRef.current;
-      if (pendingDocument && file) {
+      const input = { results: valid.map((result) => ({ organKey: result.organKey, marker: result.marker, value: result.value, unit: result.unit, status: result.status || "normal", measuredAt: result.measuredAt, notes: result.notes, referenceRange: result.referenceRange })), report: session.document };
+      const file = pendingDocumentFileRef.current.get(session.id);
+      if (session.document && file) {
         if (file.size > MAX_DOCUMENT_BYTES) throw new Error(t("toast.fileTooLarge"));
         const bytes = new Uint8Array(await file.arrayBuffer());
-        await invoke("import_lab_results_document", {
-          input: { ...input, fileName: file.name, fileBytes: Array.from(bytes), dbPath: options.databasePath },
-        });
+        await invoke("import_lab_results_document", { input: { ...input, fileName: file.name, fileBytes: Array.from(bytes), dbPath: options.databasePath } });
       } else {
         await invoke("add_lab_results", { input });
       }
-      clearDocumentIntake();
+      pendingDocumentFileRef.current.delete(session.id);
+      setDocumentSessions((current) => current.filter((entry) => entry.id !== session.id));
+      setActiveDocumentSessionId("");
+      options.closeDocumentDialog();
       toast.success(t(valid.length === 1 ? "toast.savedResult" : "toast.savedResults", { count: valid.length }));
       await options.loadDashboard();
     } catch (error) {
@@ -219,9 +182,13 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
   }
 
   return {
-    pendingDocument,
-    documentAnalysis,
+    documentSessions,
+    activeDocumentSessionId,
+    setActiveDocumentSessionId,
+    pendingDocument: activeSession?.document || null,
+    documentAnalysis: activeSession?.analysis || readyAnalysis(),
     clearDocumentIntake,
+    closeDocumentReview,
     preparePromptResults,
     prepareDocumentResult,
     updateDocumentResult,
@@ -229,4 +196,8 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
     addDocumentResultRow,
     acceptDocumentResults,
   };
+}
+
+function newDocumentSessionId(): string {
+  return globalThis.crypto?.randomUUID?.() || `document-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }

@@ -1,4 +1,5 @@
 import { isCurrentSymptom, latestLabsByMarker, type DisplaySnapshot, type HealthStatus, type LabResult, type SymptomEntry, type UserState } from "./dashboard-model";
+import { buildHealthContext } from "./health-context";
 import { t } from "./i18n";
 
 export type CoverageItem = { label: string; value: string };
@@ -215,14 +216,8 @@ function buildLifestylePrompt(display: DisplaySnapshot, userState: UserState, in
 
 function buildHealthPayload(display: DisplaySnapshot, userState: UserState) {
   return {
-    profile: userState.profile,
+    ...buildHealthContext(display, userState),
     coverage: buildCoverage(display, userState),
-    labs: display.latestLabResults,
-    symptoms: display.recentSymptoms,
-    conditions: display.conditions,
-    regimenItems: display.regimenItems,
-    activityEntries: userState.activityEntries,
-    appleHealthImports: userState.appleHealthImports,
   };
 }
 

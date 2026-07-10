@@ -75,12 +75,18 @@ Tables:
 - `ai_settings`
 - `user_state`
 
-`user_state` stores profile/activity/import/conversation data plus recent
+`user_state` stores profile/activity/import/conversation data, a fasting timer
+and its recent completed sessions, exact-area body notes, plus recent
 `backgroundJobs`, `developerLogs`, and `llmCalls` entries. Each job has a kind
 (`document-analysis`, `deep-research`, or `ai-chat`), status, created/finished
 timestamps, optional staged progress, and an error message. Developer entries
 are bounded metadata and truncated errors, not prompt or result payloads. This
 is JSON state, not a new SQLite table or a separate hosted queue.
+
+Body notes hold a local surface label, turntable angle, normalized X/Y
+coordinate, note text, and creation timestamp. They are encrypted with the
+rest of `user_state`; active chat includes them only when its provider is
+allowed to receive health context.
 
 Enums:
 
@@ -127,6 +133,7 @@ Dashboard and records:
 - `get_dashboard_snapshot`
 - `add_lab_result`
 - `update_lab_result`
+- `update_lab_results`
 - `delete_lab_result`
 - `add_lab_results`
 - `import_lab_results_document`
@@ -197,11 +204,15 @@ Provider settings live in `src/ai-sdk-config.ts` and persist in `ai_settings`.
 API key values are never stored; settings store environment-variable names.
 
 The live chat execution path is provider-aware through
-`src-tauri/src/codex_cli.rs`. Codex uses its CLI; Anthropic, Gemini, OpenAI, and
-OpenAI-compatible providers use Rust HTTP adapters. Local providers do not
-require remote-context consent. Remote providers require the saved opt-in, and
-Rust resolves API keys from environment-variable names without exposing key
-material to the renderer.
+`src-tauri/src/codex_cli.rs`. Each request includes its active conversation plus
+the complete dated local health history: lab results, symptoms, conditions,
+regimen, activity, fasting, body notes, Apple Health import coverage, report
+metadata, organ status, and saved recommendations. Raw report files, local
+paths, database paths, and developer diagnostics are excluded. Codex uses its
+CLI; Anthropic, Gemini, OpenAI, and OpenAI-compatible providers use Rust HTTP
+adapters. Local providers do not require remote-context consent. Remote
+providers require the saved opt-in, and Rust resolves API keys from
+environment-variable names without exposing key material to the renderer.
 
 Dropped PDFs and images are sent to Codex only after Rust validates the file,
 the saved provider and model, and the remote-health opt-in. Each request uses a
@@ -218,9 +229,9 @@ See `AI.md` for provider details.
 
 The renderer job center wraps the existing `analyze_document` and `ask_llm`
 commands. Document intake reports preparation, extraction, and review stages;
-AI work reports running/completed/failed state. A newer document request marks
-the older renderer job as replaced, while Rust remains the trust boundary for
-the actual request.
+AI work reports running/completed/failed state. Each document request owns its
+own review session, so concurrent work stays visible and a later request never
+replaces an earlier one.
 
 ## Module Map
 
@@ -237,6 +248,8 @@ Renderer:
 - `components/job-center.tsx` - persisted document-analysis and AI work queue
   shown in the native app bar.
 - `components/developer-page.tsx` - local Codex call metadata and event log.
+- `components/fasting-page.tsx` - local fasting timer, conservative stage
+  guidance, and reduced-motion-aware breathing practice.
 - `components/body/` - body source rail, stable anatomy coordinate plane,
   selected-organ inspector, and display-status helpers.
 - `components/charts/` - SVG chart components for labs, symptoms, regimen periods, document coverage, and AI context coverage.

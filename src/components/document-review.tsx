@@ -34,6 +34,15 @@ export function DocumentReview({ controller }: { controller: DashboardController
 
   return (
     <div className="grid gap-4">
+      {controller.documentSessions.length > 1 ? (
+        <div className="flex flex-wrap gap-1" role="tablist" aria-label={t("intake.document.queueLabel")}>
+          {controller.documentSessions.map((session) => (
+            <Button aria-selected={session.id === controller.activeDocumentSessionId} key={session.id} onClick={() => controller.setActiveDocumentSessionId(session.id)} role="tab" size="sm" type="button" variant={session.id === controller.activeDocumentSessionId ? "secondary" : "outline"}>
+              {session.document?.sourceName || t("intake.document.promptDraft")}
+            </Button>
+          ))}
+        </div>
+      ) : null}
       {document ? <DocumentSummary document={document} /> : <PromptDraftSummary />}
       {analysis.status === "analyzing" ? (
         <div aria-live="polite" className="flex items-center gap-2 text-sm text-muted-foreground">

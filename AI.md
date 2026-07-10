@@ -55,8 +55,12 @@ accept that Codex runs with the CLI's normal local read boundary.
 
 - Local LLM providers are preferred.
 - Remote health context is opt-in and off by default.
-- Enabling remote health context allows health context to be sent to the selected
-  remote provider. Selected documents are still sent to Codex for extraction.
+- Enabling remote health context allows the active chat to send its complete
+  dated health history to the selected remote provider: labs, symptoms,
+  conditions, regimen, activity, fasting, body notes, import coverage, report
+  metadata, organ status, and saved recommendations. Raw report files, local
+  paths, database paths, and developer diagnostics remain local. Selected
+  documents are still sent to Codex for extraction.
 - API keys are never stored directly.
 - Settings store API key environment variable names, such as `OPENAI_API_KEY`.
 - Raw API key fields and raw-looking key values are rejected by the Rust backend.

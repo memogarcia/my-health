@@ -193,6 +193,7 @@ pub fn run() {
             get_dashboard_snapshot,
             records::add_lab_result,
             records::update_lab_result,
+            records::update_lab_results,
             records::delete_lab_result,
             records::symptoms::add_symptom,
             records::symptoms::update_symptom,

@@ -1,7 +1,10 @@
 import { t } from "./i18n";
 import { normalizeDeveloperLog, normalizeLlmCall } from "./developer-diagnostics";
 import type { DeveloperLog, LlmCall } from "./developer-diagnostics";
-export type { DeveloperLog, DeveloperLogInput, LlmCall, LlmCallInput, LlmCallPatch } from "./developer-diagnostics";
+import { normalizeBodyNote, type BodyNote } from "./body-notes";
+import { normalizeFastingState, type FastingState } from "./fasting-state";
+export type { DeveloperLog, DeveloperLogInput, LlmCall, LlmCallInput, LlmCallPatch } from "./developer-diagnostics"; export type { BodyNote } from "./body-notes";
+export type { FastingSession, FastingState } from "./fasting-state";
 
 const MAX_USER_TEXT_CHARS = 32_000;
 
@@ -17,9 +20,9 @@ export type ExtractedResultStatus = HealthStatus | "";
 export type LabFlag = "low" | "normal" | "high" | "unknown";
 export type RegimenKind = "medication" | "supplement";
 export type ConditionStatus = "current" | "managed" | "past";
-export type NavKey = "body" | "labs" | "symptoms" | "medications" | "plan" | "research" | "documents" | "settings" | "developer";
+export type NavKey = "body" | "labs" | "symptoms" | "medications" | "fasting" | "plan" | "research" | "documents" | "settings" | "developer";
 export type HistoryTab = "labs" | "symptoms" | "files";
-export type DialogKey = "lab" | "symptom" | "activity" | "document" | null;
+export type DialogKey = "lab" | "symptom" | "activity" | "document" | "bodyNote" | null;
 
 export type OrganSummary = {
   key: string;
@@ -225,6 +228,8 @@ export type AiConversation = {
 export type UserState = {
   profile: UserProfile;
   activityEntries: ActivityEntry[];
+  fasting: FastingState;
+  bodyNotes: BodyNote[];
   appleHealthImports: AppleHealthImport[];
   aiConversations: AiConversation[];
   activeAiConversationId: string;
@@ -244,6 +249,7 @@ export const navItems: Array<{ key: NavKey; label: string; description: string }
   { key: "labs", label: t("nav.labs.label"), description: t("nav.labs.description") },
   { key: "symptoms", label: t("nav.symptoms.label"), description: t("nav.symptoms.description") },
   { key: "medications", label: t("nav.medications.label"), description: t("nav.medications.description") },
+  { key: "fasting", label: t("nav.fasting.label"), description: t("nav.fasting.description") },
   { key: "plan", label: t("nav.plan.label"), description: t("nav.plan.description") },
   { key: "research", label: t("nav.research.label"), description: t("nav.research.description") },
   { key: "documents", label: t("nav.documents.label"), description: t("nav.documents.description") },
@@ -253,7 +259,7 @@ export const navItems: Array<{ key: NavKey; label: string; description: string }
 
 // Sidebar grouping. Order follows navItems so digit shortcuts stay sequential.
 export const navGroups: Array<{ label: string; keys: NavKey[] }> = [
-  { label: t("nav.group.health"), keys: ["body", "labs", "symptoms", "medications"] },
+  { label: t("nav.group.health"), keys: ["body", "labs", "symptoms", "medications", "fasting"] },
   { label: t("nav.group.assistant"), keys: ["plan", "research"] },
   { label: t("nav.group.library"), keys: ["documents"] },
 ];
@@ -401,6 +407,8 @@ export function normalizeUserState(value: Partial<UserState> = {}): UserState {
     activityEntries: Array.isArray(value.activityEntries)
       ? value.activityEntries.map(normalizeActivityEntry).filter((entry) => entry.loggedAt)
       : [],
+    fasting: normalizeFastingState(value.fasting),
+    bodyNotes: Array.isArray(value.bodyNotes) ? value.bodyNotes.map(normalizeBodyNote).filter((entry) => entry.id && entry.area && entry.note) : [],
     appleHealthImports: Array.isArray(value.appleHealthImports)
       ? value.appleHealthImports.map(normalizeAppleHealthImport).filter((entry) => entry.sourceName)
       : [],
@@ -417,7 +425,6 @@ export function normalizeUserState(value: Partial<UserState> = {}): UserState {
       : [],
   };
 }
-
 function normalizeActivityEntry(entry: Partial<ActivityEntry>): ActivityEntry {
   return {
     id: typeof entry.id === "string" ? entry.id : "",
@@ -429,7 +436,6 @@ function normalizeActivityEntry(entry: Partial<ActivityEntry>): ActivityEntry {
     notes: typeof entry.notes === "string" ? limitText(entry.notes, MAX_USER_TEXT_CHARS) : "",
   };
 }
-
 function normalizeAppleHealthImport(entry: Partial<AppleHealthImport>): AppleHealthImport {
   return {
     id: typeof entry.id === "string" ? entry.id : "",
@@ -441,7 +447,6 @@ function normalizeAppleHealthImport(entry: Partial<AppleHealthImport>): AppleHea
     endedAt: typeof entry.endedAt === "string" ? entry.endedAt : "",
   };
 }
-
 function normalizeAiConversation(entry: Partial<AiConversation>): AiConversation {
   return {
     id: typeof entry.id === "string" ? entry.id : "",
@@ -453,7 +458,6 @@ function normalizeAiConversation(entry: Partial<AiConversation>): AiConversation
       : [],
   };
 }
-
 function normalizeAiConversationMessage(entry: Partial<AiConversationMessage>): AiConversationMessage {
   return {
     id: typeof entry.id === "string" ? entry.id : "",
@@ -465,7 +469,6 @@ function normalizeAiConversationMessage(entry: Partial<AiConversationMessage>): 
     isError: entry.isError === true,
   };
 }
-
 function normalizeBackgroundJob(entry: Partial<BackgroundJob>): BackgroundJob {
   const progress = typeof entry.progress === "number" && Number.isFinite(entry.progress)
     ? Math.min(100, Math.max(0, Math.round(entry.progress)))

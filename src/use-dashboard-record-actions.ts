@@ -17,6 +17,13 @@ export type ResultInput = {
   report?: PendingDocument;
 };
 
+export type BulkResultUpdateInput = {
+  ids: number[];
+  organKey?: string;
+  status?: HealthStatus;
+  measuredAt?: string;
+};
+
 export type SymptomInput = {
   organKey: string;
   name: string;
@@ -45,6 +52,10 @@ export function makeRecordActions(options: RecordActionOptions) {
 
   async function updateLabResult(input: ResultInput & { id: number }): Promise<boolean> {
     return mutate("update_lab_result", { input }, t("toast.resultUpdated"), options.loadDashboard);
+  }
+
+  async function updateLabResults(input: BulkResultUpdateInput): Promise<boolean> {
+    return mutate("update_lab_results", { input }, t("toast.resultsUpdated"), options.loadDashboard);
   }
 
   async function deleteLabResult(id: number): Promise<boolean> {
@@ -111,6 +122,7 @@ export function makeRecordActions(options: RecordActionOptions) {
   return {
     addLabResult,
     updateLabResult,
+    updateLabResults,
     deleteLabResult,
     addSymptom,
     updateSymptom,

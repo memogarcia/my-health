@@ -13,7 +13,7 @@ mod llm_http;
 mod process;
 use llm_http::{run_http_provider, AiRuntimeSettings};
 use process::{codex_bin, run_command_with_timeout, CodexWorkspace};
-const MAX_PROMPT_CHARS: usize = 32_000;
+const MAX_PROMPT_CHARS: usize = 240_000;
 const MAX_OUTPUT_CHARS: usize = 8_000;
 const CODEX_TIMEOUT: Duration = Duration::from_secs(300);
 const CODEX_MODEL_CATALOG_TIMEOUT: Duration = Duration::from_secs(20);

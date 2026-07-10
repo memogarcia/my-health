@@ -21,13 +21,15 @@ import {
 } from "./dashboard-model";
 import { t } from "./i18n";
 import { makePromptActions, type RegimenDraft } from "./prompt-actions";
-import { makeRecordActions, type ResultInput, type SymptomInput } from "./use-dashboard-record-actions";
+import { makeRecordActions, type BulkResultUpdateInput, type ResultInput, type SymptomInput } from "./use-dashboard-record-actions";
 import { isTauriRuntime, TAURI_ONLY_MESSAGE } from "./tauri-runtime";
 import { activityFromForm, aiSettingsFromForm, profileFromForm, restoreUserState } from "./user-state";
 import { useDocumentIntake } from "./use-document-intake";
 import { makeDeveloperDiagnostics } from "./use-developer-diagnostics";
+import { makeBodyNoteActions, type BodyNoteDraft } from "./use-body-notes";
+import { makeFastingActions } from "./use-fasting-actions";
 
-export type { ResultInput, SymptomInput };
+export type { BulkResultUpdateInput, ResultInput, SymptomInput };
 type DialogName = Exclude<DialogKey, null>;
 
 export function useDashboardController() {
@@ -42,6 +44,7 @@ export function useDashboardController() {
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [tauriRuntimeAvailable] = useState(isTauriRuntime);
   const [regimenDraft, setRegimenDraft] = useState(null as RegimenDraft | null);
+  const [bodyNoteDraft, setBodyNoteDraft] = useState(null as BodyNoteDraft | null);
   const [databaseStatus, setDatabaseStatus] = useState(null as DatabaseStatus | null);
   const [aiPendingConversationId, setAiPendingConversationId] = useState("");
   const [codexModels, setCodexModels] = useState<CodexModelOption[]>([]);
@@ -150,6 +153,7 @@ export function useDashboardController() {
     loadDashboard,
     setSelectedNav,
     openDocumentDialog: () => setActiveDialog("document"),
+    closeDocumentDialog: () => setActiveDialog(null),
     onJobStart: startBackgroundJob,
     onJobUpdate: updateBackgroundJob, onDeveloperLog: recordDeveloperLog, onLlmCallStart: startLlmCall, onLlmCallUpdate: updateLlmCall,
   });
@@ -160,7 +164,8 @@ export function useDashboardController() {
 
   function closeDialog(): void {
     setActiveDialog(null);
-    documentIntake.clearDocumentIntake();
+    setBodyNoteDraft(null);
+    documentIntake.closeDocumentReview();
   }
 
   async function persistAiSettings(next: AiSettings): Promise<boolean> {
@@ -377,8 +382,6 @@ export function useDashboardController() {
       toast.error(error instanceof Error ? error.message : String(error));
     }
   }
-
-
   async function exportDatabase(passphrase: string, confirmPassphrase: string): Promise<void> {
     const normalizedPassphrase = normalizeDatabasePassphrase(passphrase);
     const normalizedConfirmation = normalizeDatabasePassphrase(confirmPassphrase);
@@ -404,7 +407,8 @@ export function useDashboardController() {
     loadDashboard,
     setRegimenDraft,
   });
-
+  const bodyNoteActions = makeBodyNoteActions({ draft: bodyNoteDraft, setDraft: setBodyNoteDraft, setActiveDialog, getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
+  const fastingActions = makeFastingActions({ getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
   const promptActions = makePromptActions({
     aiPendingConversationId,
     aiSettings,
@@ -416,7 +420,7 @@ export function useDashboardController() {
     setSelectedNav,
     setUserState: setUserStateWithRef,
     userState,
-    databaseEpoch: databaseEpochRef.current,
+    databaseEpoch: databaseEpochRef.current, display,
     isDatabaseCurrent: (epoch) => databaseEpochRef.current === epoch,
     getUserState: () => userStateRef.current,
     onJobStart: startBackgroundJob,
@@ -442,7 +446,10 @@ export function useDashboardController() {
     tauriUnavailable: !tauriRuntimeAvailable,
     pendingDocument: documentIntake.pendingDocument,
     documentAnalysis: documentIntake.documentAnalysis,
+    documentSessions: documentIntake.documentSessions,
+    activeDocumentSessionId: documentIntake.activeDocumentSessionId,
     regimenDraft,
+    bodyNoteDraft,
     databaseStatus,
     aiPendingConversationId,
     backgroundJobs: userState.backgroundJobs,
@@ -467,8 +474,11 @@ export function useDashboardController() {
     loadCodexOptions,
     ...recordActions,
     addActivity,
+    ...fastingActions,
+    ...bodyNoteActions,
     importAppleHealthFile,
     prepareDocumentResult: documentIntake.prepareDocumentResult,
+    setActiveDocumentSessionId: documentIntake.setActiveDocumentSessionId,
     updateDocumentResult: documentIntake.updateDocumentResult,
     removeDocumentResult: documentIntake.removeDocumentResult,
     addDocumentResultRow: documentIntake.addDocumentResultRow,

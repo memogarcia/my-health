@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight } from "../health-icons";
+import { ChevronDown, ChevronUp, ChevronsLeft, ChevronsRight } from "../health-icons";
 import { t } from "../../i18n";
 
 export function BodyCollapseToggle({
@@ -8,13 +8,19 @@ export function BodyCollapseToggle({
   onToggle,
   section,
   className,
+  direction = "vertical",
 }: {
   collapsed: boolean;
   onToggle: () => void;
   section: string;
   className?: string;
+  direction?: "vertical" | "left" | "right";
 }) {
-  const Icon = collapsed ? ChevronRight : ChevronDown;
+  const Icon = direction === "left"
+    ? (collapsed ? ChevronsRight : ChevronsLeft)
+    : direction === "right"
+      ? (collapsed ? ChevronsLeft : ChevronsRight)
+      : (collapsed ? ChevronDown : ChevronUp);
   return (
     <Button
       aria-expanded={!collapsed}

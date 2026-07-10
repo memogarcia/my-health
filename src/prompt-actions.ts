@@ -4,7 +4,7 @@ import { runAiPrompt } from "./ai-actions";
 import type { AiSettings } from "./ai-sdk-config";
 import { mergeAiConversationState, setActiveAiConversation, startNewAiConversation } from "./ai-conversation";
 import { todayString } from "./dashboard-format";
-import type { BackgroundJobInput, BackgroundJobPatch, DeveloperLogInput, LlmCallInput, LlmCallPatch, NavKey, RegimenInput, UserState } from "./dashboard-model";
+import type { BackgroundJobInput, BackgroundJobPatch, DeveloperLogInput, DisplaySnapshot, LlmCallInput, LlmCallPatch, NavKey, RegimenInput, UserState } from "./dashboard-model";
 import { t } from "./i18n";
 import { promptIntakeFromText } from "./prompt-intake";
 import type { useDocumentIntake } from "./use-document-intake";
@@ -17,6 +17,7 @@ type PromptActionsOptions = {
   documentIntake: Pick<ReturnType<typeof useDocumentIntake>, "prepareDocumentResult" | "preparePromptResults">;
   persistUserState: (next: UserState) => Promise<boolean>;
   databaseEpoch: number;
+  display: DisplaySnapshot;
   isDatabaseCurrent: (epoch: number) => boolean;
   getUserState: () => UserState;
   selectedOrganKey: string;
@@ -86,6 +87,7 @@ export function makePromptActions(options: PromptActionsOptions) {
     const result = await runAiPrompt({
       prompt: prompt.trim(),
       aiSettings: options.aiSettings,
+      display: options.display,
       userState: options.getUserState(),
       onPending: async (nextState, conversationId, notice) => {
         if (!options.isDatabaseCurrent(options.databaseEpoch)) return;

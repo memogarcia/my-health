@@ -1,0 +1,10 @@
+.anatomy-3d-card { position: absolute; inset: 0; transform: rotateX(var(--anatomy-tilt)) rotateY(var(--anatomy-rotation)); transform-style: preserve-3d; will-change: transform; }
+.anatomy-face { position: absolute; inset: 0; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.anatomy-face-front { transform: translateZ(1px); }
+.anatomy-face-back { transform: rotateY(180deg) translateZ(1px); }
+.anatomy-face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; }
+.anatomy-note-surface { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; cursor: crosshair; border: 0; background: transparent; }
+.body-note-pin { position: absolute; z-index: 3; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); width: 12px; height: 12px; transform: translate(-50%, -50%); border: 2px solid var(--card); border-radius: 999px; background: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 28%, transparent); }
+.anatomy-rotation-toolbar { z-index: 4; display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 0.4rem; padding: 0.45rem 0.55rem 0; color: var(--muted-foreground); font-size: 0.7rem; }
+.anatomy-rotation-toolbar [data-slot="button"] { height: 1.8rem; padding-inline: 0.4rem; font-size: 0.7rem; }
+.anatomy-rotation-status { z-index: 4; margin: 0; padding: 0 0.55rem 0.45rem; color: var(--muted-foreground); font-size: 0.7rem; text-align: center; }
