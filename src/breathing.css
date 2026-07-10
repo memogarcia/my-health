@@ -1,0 +1,42 @@
+/* Breathing practice page — a calm, focused surface.
+   Design tokens (type scale, spacing, elevation, radius) live in styles.css. */
+.breathing-page { display: grid; gap: var(--space-4); min-width: 0; max-width: 46rem; }
+
+.breathing-techniques { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.breathing-technique { display: flex; align-items: flex-start; gap: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-3); text-align: left; background: var(--card); color: var(--foreground); transition: background-color var(--dur-feedback) var(--ease-out-quart), border-color var(--dur-feedback) var(--ease-out-quart); }
+.breathing-technique svg { width: 1.05rem; height: 1.05rem; flex: 0 0 auto; margin-top: 0.1rem; color: var(--muted-foreground); }
+.breathing-technique span { display: grid; min-width: 0; gap: 0.15rem; }
+.breathing-technique strong { font-size: var(--fs-base); font-weight: 600; }
+.breathing-technique small { color: var(--muted-foreground); font-size: var(--fs-sm); line-height: 1.35; }
+.breathing-technique:hover { background: color-mix(in srgb, var(--muted) 45%, transparent); }
+.breathing-technique:focus-visible { outline: 2px solid color-mix(in srgb, var(--ring) 70%, transparent); outline-offset: 2px; }
+.breathing-technique.is-selected { border-color: color-mix(in srgb, var(--primary) 40%, var(--border)); background: color-mix(in srgb, var(--primary) 7%, var(--card)); }
+.breathing-technique.is-selected svg { color: var(--primary); }
+
+.breathing-practice { gap: 0; padding: 0; box-shadow: var(--elev-1); }
+.breathing-practice-content { display: grid; grid-template-columns: minmax(13rem, 0.85fr) minmax(15rem, 1fr); align-items: center; gap: var(--space-6); padding: var(--space-6); }
+
+.breathing-orb { display: grid; width: min(15rem, 100%); aspect-ratio: 1; place-items: center; align-content: center; justify-self: center; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--border)); background: color-mix(in srgb, var(--primary) 6%, var(--card)); color: var(--primary); transition: transform var(--dur-state) var(--ease-out-quint), background-color var(--dur-state) var(--ease-out-quint); }
+.breathing-orb span { font-size: var(--fs-base); font-weight: 600; letter-spacing: 0.01em; }
+.breathing-orb strong { color: var(--foreground); font-size: var(--fs-2xl); line-height: 1.1; }
+.breathing-orb.is-active.is-inhale { transform: scale(1.1); background: color-mix(in srgb, var(--primary) 13%, var(--card)); }
+.breathing-orb.is-active.is-exhale { transform: scale(0.88); }
+
+.breathing-practice-detail { display: grid; gap: var(--space-3); }
+.breathing-practice-detail > div { display: grid; gap: 0.25rem; }
+.breathing-practice-detail strong { font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.01em; }
+.breathing-practice-detail p { margin: 0; color: var(--muted-foreground); font-size: var(--fs-base); line-height: 1.5; }
+.breathing-safety-check { display: flex; align-items: flex-start; gap: var(--space-2); color: var(--muted-foreground); font-size: var(--fs-sm); line-height: 1.45; }
+.breathing-practice-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-1); }
+.breathing-round { color: var(--muted-foreground); font-size: var(--fs-sm); }
+
+@media (max-width: 760px) {
+  .breathing-techniques { grid-template-columns: 1fr; }
+  .breathing-practice-content { grid-template-columns: 1fr; gap: var(--space-5); padding: var(--space-5); text-align: center; }
+  .breathing-practice-actions { justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breathing-orb { transition: none; }
+  .breathing-orb.is-active.is-inhale, .breathing-orb.is-active.is-exhale { transform: none; }
+}

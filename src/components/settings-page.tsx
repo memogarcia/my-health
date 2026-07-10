@@ -18,12 +18,10 @@ import { DataExportSettings } from "./data-export-settings";
 
 export function SettingsPage({ controller }: { controller: DashboardController }) {
   return (
-    <div className="settings-page grid items-start gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+    <div className="settings-page">
       <ProfileSettings controller={controller} />
-      <div className="grid gap-4">
-        <AiSettings controller={controller} />
-        <DataExportSettings controller={controller} />
-      </div>
+      <AiSettings controller={controller} />
+      <DataExportSettings controller={controller} />
     </div>
   );
 }
@@ -75,13 +73,16 @@ function AiSettings({ controller }: { controller: DashboardController }) {
   const [reasoningEffort, setReasoningEffort] = useState(controller.aiSettings.reasoningEffort);
   const [baseUrl, setBaseUrl] = useState(controller.aiSettings.baseUrl);
   const [apiKeyEnvVar, setApiKeyEnvVar] = useState(controller.aiSettings.apiKeyEnvVar);
+  const [apiToken, setApiToken] = useState(controller.aiSettings.apiToken);
   const [allowRemote, setAllowRemote] = useState(controller.aiSettings.allowRemoteHealthContext);
   const provider = getAiProvider(providerId);
   const isCodex = provider.id === "codex";
   const hasProviderConfiguration = provider.id !== "none";
   const showBaseUrl = provider.kind === "openai-compatible";
-  const showApiKeyEnvVar = provider.kind === "anthropic" || provider.kind === "openai" || provider.kind === "google" || provider.id === "custom";
+  const showApiToken = provider.id === "lmstudio";
+  const showApiKeyEnvVar = !showApiToken && provider.kind !== "none" && provider.kind !== "codex-cli";
   const apiKeyEnvVarRequired = provider.kind === "anthropic" || provider.kind === "openai" || provider.kind === "google";
+  const apiKeyEnvVarPlaceholder = provider.apiKeyEnvVar || t("settings.ai.apiKeyEnvVarPlaceholder");
   const showRemoteConsent = hasProviderConfiguration && !provider.local;
   const fallbackCodexModels = provider.models.map((item) => ({
     ...item,
@@ -115,6 +116,7 @@ function AiSettings({ controller }: { controller: DashboardController }) {
     setReasoningEffort(controller.aiSettings.reasoningEffort);
     setBaseUrl(controller.aiSettings.baseUrl);
     setApiKeyEnvVar(controller.aiSettings.apiKeyEnvVar);
+    setApiToken(controller.aiSettings.apiToken);
     setAllowRemote(controller.aiSettings.allowRemoteHealthContext);
   }, [controller.aiSettings]);
 
@@ -143,6 +145,7 @@ function AiSettings({ controller }: { controller: DashboardController }) {
     setReasoningEffort(DEFAULT_CODEX_REASONING_EFFORT);
     setBaseUrl(nextProvider.baseUrl);
     setApiKeyEnvVar(nextProvider.apiKeyEnvVar);
+    setApiToken("");
     setAllowRemote(false);
     if (nextProvider.id === "codex") void controller.loadCodexOptions();
   }
@@ -163,6 +166,7 @@ function AiSettings({ controller }: { controller: DashboardController }) {
           form.set("reasoningEffort", reasoningEffort);
           form.set("baseUrl", baseUrl);
           form.set("apiKeyEnvVar", apiKeyEnvVar);
+          form.set("apiToken", apiToken);
           if (allowRemote) form.set("allowRemoteHealthContext", "on");
           void controller.saveAiSettings(form);
         }}>
@@ -224,11 +228,26 @@ function AiSettings({ controller }: { controller: DashboardController }) {
                   name="apiKeyEnvVar"
                   value={apiKeyEnvVar}
                   onChange={(event) => setApiKeyEnvVar(event.target.value)}
-                  placeholder={provider.apiKeyEnvVar || t("settings.ai.apiKeyEnvVarPlaceholder")}
+                  placeholder={apiKeyEnvVarPlaceholder}
                   pattern="[A-Z_][A-Z0-9_]*"
                   aria-invalid={apiKeyEnvVarMissing || apiKeyEnvVarInvalid}
                   required={apiKeyEnvVarRequired}
                 />
+              </Field>
+            ) : null}
+            {showApiToken ? (
+              <Field>
+                <FieldLabel htmlFor="apiToken">{t("settings.ai.apiTokenLmStudio")}</FieldLabel>
+                <Input
+                  id="apiToken"
+                  name="apiToken"
+                  value={apiToken}
+                  onChange={(event) => setApiToken(event.target.value)}
+                  placeholder={t("settings.ai.apiTokenLmStudioPlaceholder")}
+                  type="password"
+                  autoComplete="off"
+                />
+                <FieldDescription>{t("settings.ai.apiTokenLmStudioDescription")}</FieldDescription>
               </Field>
             ) : null}
             {showRemoteConsent ? (

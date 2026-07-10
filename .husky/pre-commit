@@ -17,10 +17,10 @@ set -eu
 echo ""
 echo "Pre-commit checks..."
 
-npm run check:console
-npm run check:size
-npm run check:i18n-locales
-npm run check:i18n
+bun run check:console
+bun run check:size
+bun run check:i18n-locales
+bun run check:i18n
 
 echo ""
 echo "Pre-commit checks passed"

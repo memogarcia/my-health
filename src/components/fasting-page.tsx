@@ -2,14 +2,9 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { t, type TranslationKey } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
-import { AlertTriangle, Check, Timer, Wind } from "./health-icons";
-
-type TechniqueId = "paced" | "box" | "wimHof";
-type BreathPhase = { labelKey: TranslationKey; seconds: number; phaseKind: "inhale" | "hold" | "exhale" };
-type Technique = { id: TechniqueId; titleKey: TranslationKey; descriptionKey: TranslationKey; safetyKey: TranslationKey; phases: BreathPhase[]; cycles?: number };
+import { AlertTriangle, Check, Timer } from "./health-icons";
 
 const stages: Array<{ hours: number; titleKey: TranslationKey; descriptionKey: TranslationKey }> = [
   { hours: 0, titleKey: "fasting.stage.0.title", descriptionKey: "fasting.stage.0.description" },
@@ -20,26 +15,13 @@ const stages: Array<{ hours: number; titleKey: TranslationKey; descriptionKey: T
   { hours: 18, titleKey: "fasting.stage.18.title", descriptionKey: "fasting.stage.18.description" },
 ];
 
-const techniques: Technique[] = [
-  { id: "paced", titleKey: "fasting.breathing.paced.title", descriptionKey: "fasting.breathing.paced.description", safetyKey: "fasting.breathing.paced.safety", phases: [{ labelKey: "fasting.breathing.inhale", seconds: 4, phaseKind: "inhale" }, { labelKey: "fasting.breathing.exhale", seconds: 6, phaseKind: "exhale" }] },
-  { id: "box", titleKey: "fasting.breathing.box.title", descriptionKey: "fasting.breathing.box.description", safetyKey: "fasting.breathing.box.safety", phases: [{ labelKey: "fasting.breathing.inhale", seconds: 4, phaseKind: "inhale" }, { labelKey: "fasting.breathing.hold", seconds: 4, phaseKind: "hold" }, { labelKey: "fasting.breathing.exhale", seconds: 4, phaseKind: "exhale" }, { labelKey: "fasting.breathing.hold", seconds: 4, phaseKind: "hold" }] },
-  { id: "wimHof", titleKey: "fasting.breathing.wimHof.title", descriptionKey: "fasting.breathing.wimHof.description", safetyKey: "fasting.breathing.wimHof.safety", phases: [{ labelKey: "fasting.breathing.inhale", seconds: 2, phaseKind: "inhale" }, { labelKey: "fasting.breathing.exhale", seconds: 2, phaseKind: "exhale" }], cycles: 30 },
-];
-
 export function FastingPage({ controller }: { controller: DashboardController }) {
   const [now, setNow] = useState(Date.now());
-  const [selectedTechnique, setSelectedTechnique] = useState<TechniqueId>("paced");
-  const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
-  const [breathPhase, setBreathPhase] = useState(0);
-  const [breathCycles, setBreathCycles] = useState(0);
-  const [breathing, setBreathing] = useState(false);
   const fasting = controller.userState.fasting;
-  const activeTechnique = techniques.find((technique) => technique.id === selectedTechnique) || techniques[0];
   const elapsedSeconds = fasting.activeStartedAt ? Math.max(0, Math.floor((now - Date.parse(fasting.activeStartedAt)) / 1000)) : 0;
   const elapsedHours = elapsedSeconds / 3600;
   const currentStage = [...stages].reverse().find((stage) => elapsedHours >= stage.hours) || stages[0];
   const progress = Math.min(1, elapsedHours / fasting.targetHours);
-  const phase = activeTechnique.phases[breathPhase] || activeTechnique.phases[0];
 
   useEffect(() => {
     if (!fasting.activeStartedAt) return;
@@ -47,37 +29,7 @@ export function FastingPage({ controller }: { controller: DashboardController })
     return () => window.clearInterval(timer);
   }, [fasting.activeStartedAt]);
 
-  useEffect(() => {
-    if (!breathing) return;
-    const timer = window.setTimeout(() => {
-      setBreathPhase((current) => {
-        if (current < activeTechnique.phases.length - 1) return current + 1;
-        setBreathCycles((cycles) => {
-          const next = cycles + 1;
-          if (activeTechnique.cycles && next >= activeTechnique.cycles) setBreathing(false);
-          return next;
-        });
-        return 0;
-      });
-    }, phase.seconds * 1000);
-    return () => window.clearTimeout(timer);
-  }, [activeTechnique, breathing, phase.seconds]);
-
   const recentSessions = useMemo(() => fasting.sessions.slice(0, 3), [fasting.sessions]);
-
-  function chooseTechnique(id: TechniqueId): void {
-    setSelectedTechnique(id);
-    setBreathPhase(0);
-    setBreathCycles(0);
-    setBreathing(false);
-  }
-
-  function startBreathing(): void {
-    if (selectedTechnique === "wimHof" && !safetyAcknowledged) return;
-    setBreathPhase(0);
-    setBreathCycles(0);
-    setBreathing(true);
-  }
 
   return (
     <div className="fasting-page">
@@ -127,27 +79,6 @@ export function FastingPage({ controller }: { controller: DashboardController })
                 </li>
               ))}
             </ol>
-          </CardContent>
-        </Card>
-      </section>
-
-      <section className="fasting-breathwork" aria-labelledby="fasting-breathwork-title">
-        <div><h2 id="fasting-breathwork-title">{t("fasting.breathing.title")}</h2><p>{t("fasting.breathing.description")}</p></div>
-        <div className="fasting-technique-list">
-          {techniques.map((technique) => (
-            <button className={technique.id === selectedTechnique ? "is-selected" : ""} type="button" key={technique.id} aria-pressed={technique.id === selectedTechnique} onClick={() => chooseTechnique(technique.id)}>
-              <Wind aria-hidden="true" /><strong>{t(technique.titleKey)}</strong><span>{t(technique.descriptionKey)}</span>
-            </button>
-          ))}
-        </div>
-        <Card className="breathing-guide-card">
-          <CardContent className="breathing-guide-content">
-            <div className={`breathing-orb is-${phase.phaseKind} ${breathing ? "is-active" : ""}`} aria-live="polite"><span>{t(phase.labelKey)}</span><strong>{phase.seconds}</strong></div>
-            <div className="grid gap-2">
-              <div><strong>{t(activeTechnique.titleKey)}</strong><p className="text-sm text-muted-foreground">{t(activeTechnique.safetyKey)}</p></div>
-              {selectedTechnique === "wimHof" ? <label className="fasting-safety-check"><Checkbox checked={safetyAcknowledged} onCheckedChange={(checked) => setSafetyAcknowledged(checked === true)} /><span>{t("fasting.breathing.wimHof.acknowledge")}</span></label> : null}
-              <div className="flex flex-wrap gap-2"><Button type="button" onClick={breathing ? () => setBreathing(false) : startBreathing}>{breathing ? t("fasting.breathing.pause") : t("fasting.breathing.start")}</Button>{breathing ? <span className="self-center text-xs text-muted-foreground tnum">{t("fasting.breathing.round", { count: breathCycles + 1, total: activeTechnique.cycles || "∞" })}</span> : null}</div>
-            </div>
           </CardContent>
         </Card>
       </section>

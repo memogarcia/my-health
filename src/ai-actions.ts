@@ -101,11 +101,14 @@ export async function runAiPrompt(input: {
     const message = error instanceof Error ? error.message : String(error);
     if (callId) input.onLlmCallUpdate(callId, { status: "failed", error: message });
     input.onDeveloperLog({ area: "chat", level: "error", message: t("developer.log.callFailed"), detail: message });
+    const authHint = provider.id === "lmstudio" && message.includes("401 Unauthorized")
+      ? `\n\n${t("ai.lmStudioAuthHint")}`
+      : "";
     userState = addAiConversationMessage({
       userState,
       conversationId: userMessage.conversationId,
       role: "assistant",
-      content: t("ai.requestFailed", { message }),
+      content: t("ai.requestFailed", { message: `${message}${authHint}` }),
       providerId: provider.id,
       modelId: input.aiSettings.modelId,
       isError: true,

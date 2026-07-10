@@ -201,7 +201,9 @@ for the bridge contract and iOS provisioning checklist.
 ## AI Boundary
 
 Provider settings live in `src/ai-sdk-config.ts` and persist in `ai_settings`.
-API key values are never stored; settings store environment-variable names.
+Remote API key values are never stored; settings store environment-variable
+names for remote providers. LM Studio can store a local server token directly
+in the encrypted settings JSON and Rust uses it as a bearer token when present.
 
 The live chat execution path is provider-aware through
 `src-tauri/src/codex_cli.rs`. Each request includes its active conversation plus
@@ -211,8 +213,8 @@ metadata, organ status, and saved recommendations. Raw report files, local
 paths, database paths, and developer diagnostics are excluded. Codex uses its
 CLI; Anthropic, Gemini, OpenAI, and OpenAI-compatible providers use Rust HTTP
 adapters. Local providers do not require remote-context consent. Remote
-providers require the saved opt-in, and Rust resolves API keys from
-environment-variable names without exposing key material to the renderer.
+providers require the saved opt-in, and Rust resolves their API keys from
+environment-variable names. LM Studio can use the saved local token directly.
 
 Dropped PDFs and images are sent to Codex only after Rust validates the file,
 the saved provider and model, and the remote-health opt-in. Each request uses a
@@ -287,7 +289,7 @@ Backend:
 - Background-job and developer diagnostic metadata are persisted with encrypted
   `user_state`; raw document bytes and health context stay governed by the
   existing intake and AI consent rules.
-- Raw API keys never enter persisted settings.
+- Remote API keys never enter persisted settings; LM Studio may store a local token.
 - Remote AI context is opt-in, never automatic.
 - PDF/image intake is consent-gated AI extraction followed by mandatory manual
   review, then atomically saved with its source bytes inside encrypted SQLite.

@@ -2,11 +2,11 @@
 
 Use this before storing real health records or shipping a build.
 
-- Run `npm test`.
-- Run `npm run check`.
-- Run `npm run lint:rust`.
-- Run `npm run tauri:build`.
-- Verify first-run encrypted setup in `npm run tauri:dev` without mock data.
+- Run `bun run test`.
+- Run `bun run check`.
+- Run `bun run lint:rust`.
+- Run `bun run tauri:build`.
+- Verify first-run encrypted setup in `bun run tauri:dev` without mock data.
 - Verify optional mock data only with `ME_HEALTH_USE_MOCK_DB=1`.
 - Confirm AI defaults to Not configured and Codex requires explicit remote-context opt-in.
 - Confirm document imports require manual review of organ, date, status, and value before saving.

@@ -45,9 +45,10 @@ Full spec in `ARCHITECTURE.md` → "AI Configuration" and "AI Boundary".
 - Provider catalog in `src/ai-sdk-config.ts`: Anthropic, OpenAI, Gemini, LM
   Studio, Ollama, Codex CLI, plus a custom OpenAI-compatible escape hatch.
 - Selection persists in the `ai_settings` SQLite table as one JSON document.
-- API keys are referenced by **environment-variable name**, never stored in the
-  database. The database is already encrypted; keeping key material out of
-  persisted settings is a standing rule, not a temporary one.
+- Remote provider API keys are referenced by **environment-variable name** and
+  never stored in the database. LM Studio may store a local server token in the
+  encrypted settings JSON because the app Settings form is the only configuration
+  surface for that local provider.
 - The only live prompt path is the Codex CLI (`codex exec`), gated by
   `hasEnabledCodexModel` (provider + `allowRemoteHealthContext` + model).
 - Dropped images/PDFs are validated locally, sent to Codex for extraction only
@@ -76,7 +77,7 @@ Full spec in `ARCHITECTURE.md` → "AI Configuration" and "AI Boundary".
 
 ### Renderer (`src/`)
 
-- TypeScript strict. Run `npm run typecheck` before finishing.
+- TypeScript strict. Run `bun run typecheck` before finishing.
 - All Tauri calls go through `invoke()` in `use-dashboard-controller.ts`. Do not
   call `invoke` directly from leaf components; add a controller method.
 - All user-facing strings go through `t(key, values)` from `src/i18n.ts`. Never
@@ -121,16 +122,16 @@ Commands (see `package.json` and `.husky/`):
 
 | Command | What it does |
 | --- | --- |
-| `npm run tauri:dev` | Run the native app (the only supported dev runtime) |
-| `npm run tauri:build` | Production build |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | JS tests (`scripts/run-tests.mjs`) + Rust tests (`scripts/run-rust-tests.mjs`) |
-| `npm run check` | Console, size, locale shape, i18n baseline |
+| `bun run tauri:dev` | Run the native app (the only supported dev runtime) |
+| `bun run tauri:build` | Production build |
+| `bun run typecheck` | `tsc --noEmit` |
+| `bun run test` | JS tests (`scripts/run-tests.mjs`) + Rust tests (`scripts/run-rust-tests.mjs`) |
+| `bun run check` | Console, size, locale shape, i18n baseline |
 
 - Pre-commit (`.husky/pre-commit`) runs `check:console`, `check:size`,
   `check:i18n-locales`, `check:i18n`. Run it once you finish work.
 - Pre-push (`.husky/pre-push`) runs `typecheck`, `test`, `build`, `check`. Run
   it before pushing or when the change touches release-critical code.
 - Run the smallest relevant check before finishing and report what passed.
-- For UI work, run `npm run tauri:dev` and verify the exact native screen. Do
+- For UI work, run `bun run tauri:dev` and verify the exact native screen. Do
   not treat a raw browser/Vite session as supported app verification.

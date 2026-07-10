@@ -89,8 +89,8 @@ function RecommendationCard({ item }: { item: LifestyleRecommendation }) {
         <CardDescription>{item.title}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <p className="text-sm text-muted-foreground">{item.body}</p>
-        <div className="rounded-lg border border-border bg-muted/35 px-3 py-2 text-sm">{item.action}</div>
+        <p className="text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+        <p className="text-sm font-medium text-foreground">{item.action}</p>
         <div className="flex flex-wrap gap-1.5">
           {item.evidence.map((evidence) => <Badge variant="outline" key={evidence}>{evidence}</Badge>)}
         </div>

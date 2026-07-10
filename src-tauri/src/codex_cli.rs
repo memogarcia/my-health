@@ -402,6 +402,16 @@ fn load_ai_runtime_settings(
             .unwrap_or("")
             .trim()
             .to_string();
+        let api_token = if provider_id == "lmstudio" {
+            value
+                .get("apiToken")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim()
+                .to_string()
+        } else {
+            String::new()
+        };
         if matches!(provider_id.as_str(), "lmstudio" | "ollama" | "custom") && base_url.is_empty() {
             return Err("An OpenAI-compatible base URL is required for this LLM.".into());
         }
@@ -415,6 +425,7 @@ fn load_ai_runtime_settings(
             model_id,
             base_url,
             api_key_env_var,
+            api_token,
         })
     })
 }

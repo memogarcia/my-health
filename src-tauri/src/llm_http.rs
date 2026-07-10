@@ -15,6 +15,7 @@ pub(super) struct AiRuntimeSettings {
     pub(super) model_id: String,
     pub(super) base_url: String,
     pub(super) api_key_env_var: String,
+    pub(super) api_token: String,
 }
 
 pub(super) fn run_http_provider(
@@ -95,8 +96,7 @@ fn run_openai_compatible(
         "model": &settings.model_id,
         "messages": [{ "role": "user", "content": prompt }]
     }));
-    if !settings.api_key_env_var.trim().is_empty() {
-        let api_key = required_api_key(settings)?;
+    if let Some(api_key) = configured_api_key(settings)? {
         let mut headers = json_headers();
         headers.insert(
             AUTHORIZATION,
@@ -116,11 +116,23 @@ fn json_headers() -> HeaderMap {
 }
 
 fn required_api_key(settings: &AiRuntimeSettings) -> Result<String, String> {
+    if let Some(api_key) = configured_api_key(settings)? {
+        return Ok(api_key);
+    }
+    Err("This LLM requires an API key environment variable in Settings.".into())
+}
+
+fn configured_api_key(settings: &AiRuntimeSettings) -> Result<Option<String>, String> {
+    let token = settings.api_token.trim();
+    if !token.is_empty() {
+        return Ok(Some(token.to_string()));
+    }
     let name = settings.api_key_env_var.trim();
     if name.is_empty() {
-        return Err("This LLM requires an API key environment variable in Settings.".into());
+        return Ok(None);
     }
     env::var(name)
+        .map(Some)
         .map_err(|_| format!("The configured API key environment variable {name} is not set."))
 }
 

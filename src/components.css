@@ -1,5 +1,6 @@
 /* Component-level styles: status visuals, charts, chat, gate, ask bar.
-   Shell/layout styles live in styles.css; motion lives in animations.css. */
+   Shell/layout styles live in styles.css; motion lives in animations.css.
+   Design tokens (type scale, spacing, elevation, radius) live in styles.css. */
 
 /* ===== Status visuals ===== */
 .status-dot {
@@ -67,18 +68,18 @@
 
 /* ===== Charts ===== */
 .chart-shell { gap: 0; }
-.chart-content { display: grid; gap: 0.85rem; }
-.chart-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+.chart-content { display: grid; gap: var(--space-3); }
+.chart-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
 .chart-select {
   min-width: 12rem;
   border: 1px solid var(--input);
-  border-radius: calc(var(--radius) - 0.25rem);
-  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
   background: var(--background);
   color: var(--foreground);
 }
 .chart-svg { display: block; width: 100%; overflow: visible; }
-.chart-axis text, .chart-count-label, .chart-y-label { fill: var(--muted-foreground); font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.chart-axis text, .chart-count-label, .chart-y-label { fill: var(--muted-foreground); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .chart-grid-line { stroke: color-mix(in srgb, var(--border) 72%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .chart-reference-band { fill: color-mix(in srgb, var(--status-normal) 14%, transparent); }
 .chart-trend-line { fill: none; stroke: var(--primary); stroke-width: 2.25; vector-effect: non-scaling-stroke; }
@@ -86,29 +87,29 @@
 .chart-point.latest.status-normal, .chart-bar.status-normal { fill: var(--status-normal); stroke: var(--status-normal); }
 .chart-point.latest.status-monitor, .chart-bar.status-monitor { fill: var(--status-monitor); stroke: var(--status-monitor); }
 .chart-point.latest.status-attention, .chart-bar.status-attention { fill: var(--status-attention); stroke: var(--status-attention); }
-.reference-strip { display: grid; gap: 0.25rem; min-width: 8rem; }
-.reference-strip.compact { margin-top: 0.35rem; }
+.reference-strip { display: grid; gap: var(--space-1); min-width: 8rem; }
+.reference-strip.compact { margin-top: var(--space-1); }
 .reference-strip-track { position: relative; height: 0.45rem; border-radius: 999px; background: color-mix(in srgb, var(--muted) 82%, var(--border)); }
 .reference-strip-band { position: absolute; inset-block: 0; left: 25%; width: 50%; border-radius: 999px; background: color-mix(in srgb, var(--status-normal) 28%, white); }
 .reference-strip-dot { position: absolute; top: 50%; width: 0.75rem; height: 0.75rem; border: 2px solid var(--card); border-radius: 999px; background: currentColor; transform: translate(-50%, -50%); box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent); }
-.reference-strip-labels { display: flex; justify-content: space-between; gap: 0.5rem; }
+.reference-strip-labels { display: flex; justify-content: space-between; gap: var(--space-2); }
 .reference-strip-empty { min-height: 0.75rem; }
-.timeline-list { display: grid; gap: 0.6rem; }
-.timeline-row { display: grid; grid-template-columns: minmax(7rem, 0.9fr) minmax(8rem, 1.4fr) minmax(6rem, 0.8fr); align-items: center; gap: 0.75rem; }
+.timeline-list { display: grid; gap: var(--space-2); }
+.timeline-row { display: grid; grid-template-columns: minmax(7rem, 0.9fr) minmax(8rem, 1.4fr) minmax(6rem, 0.8fr); align-items: center; gap: var(--space-3); }
 .timeline-track { position: relative; height: 0.55rem; border-radius: 999px; background: var(--muted); }
 .timeline-bar { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: color-mix(in srgb, var(--muted-foreground) 42%, transparent); }
 .timeline-bar.active { background: color-mix(in srgb, var(--primary) 72%, var(--status-normal)); }
 .timeline-dot { position: absolute; top: 50%; width: 0.75rem; height: 0.75rem; border-radius: 999px; background: var(--primary); transform: translate(-50%, -50%); }
-.coverage-bars { display: grid; gap: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; background: var(--card); }
-.coverage-row { display: grid; grid-template-columns: minmax(7rem, 0.8fr) minmax(8rem, 1fr) 2.5rem; align-items: center; gap: 0.65rem; }
+.coverage-bars { display: grid; gap: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); background: var(--card); }
+.coverage-row { display: grid; grid-template-columns: minmax(7rem, 0.8fr) minmax(8rem, 1fr) 2.5rem; align-items: center; gap: var(--space-3); }
 .coverage-track { height: 0.55rem; overflow: hidden; border-radius: 999px; background: var(--muted); }
 .coverage-fill { display: block; height: 100%; border-radius: inherit; background: color-mix(in srgb, var(--primary) 72%, var(--status-normal)); }
-.status-matrix { display: grid; gap: 0.65rem; overflow-x: auto; border-top: 1px solid var(--border); padding-top: 0.5rem; }
+.status-matrix { display: grid; gap: var(--space-3); overflow-x: auto; border-top: 1px solid var(--border); padding-top: var(--space-2); }
 .status-matrix-header { display: grid; gap: 0.15rem; }
-.status-matrix-grid { display: grid; min-width: 32rem; align-items: center; gap: 0.35rem; }
-.status-matrix-date { writing-mode: vertical-rl; justify-self: center; color: var(--muted-foreground); font-size: 0.68rem; transform: rotate(180deg); }
+.status-matrix-grid { display: grid; min-width: 32rem; align-items: center; gap: var(--space-1); }
+.status-matrix-date { writing-mode: vertical-rl; justify-self: center; color: var(--muted-foreground); font-size: var(--fs-xs); transform: rotate(180deg); }
 .status-matrix-marker { overflow: hidden; border: 0; background: transparent; color: var(--foreground); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.status-matrix-cell { display: grid; min-height: 1.65rem; place-items: center; border-radius: 0.45rem; background: color-mix(in srgb, var(--muted) 62%, transparent); }
+.status-matrix-cell { display: grid; min-height: 1.65rem; place-items: center; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--muted) 62%, transparent); }
 .status-empty-dot { width: 0.25rem; height: 0.25rem; border-radius: 999px; background: var(--border); }
 
 /* ===== Documents ===== */
@@ -118,7 +119,7 @@
   justify-content: center;
   border: 1.5px dashed var(--input);
   border-radius: var(--radius);
-  padding: 1.5rem;
+  padding: var(--space-6);
   background: color-mix(in srgb, var(--muted) 55%, transparent);
   transition: border-color var(--dur-state) var(--ease-out-quart), background var(--dur-state) var(--ease-out-quart);
 }
@@ -126,34 +127,36 @@
 .document-drop:hover { border-color: var(--primary); background: var(--accent); }
 
 /* ===== Ask bar ===== */
+/* The effective prompt bar is the in-flow shell row defined in layout.css.
+   These rules keep the floating-bar fallback coherent with the token system. */
 .ai-prompt-bar {
   position: fixed;
-  right: 1.25rem;
-  bottom: 1rem;
-  left: calc(216px + 1.25rem);
+  right: var(--space-5);
+  bottom: var(--space-4);
+  left: calc(216px + var(--space-5));
   z-index: 40;
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.65rem;
+  gap: var(--space-3);
   margin-inline: auto;
   max-width: 860px;
   border: 1px solid var(--border);
-  border-radius: calc(var(--radius) + 0.35rem);
-  padding: 0.45rem 0.45rem 0.45rem 0.85rem;
+  border-radius: var(--radius-xl);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
   background: color-mix(in srgb, var(--card) 88%, transparent);
   backdrop-filter: blur(12px);
-  box-shadow: 0 4px 8px rgb(15 23 42 / 10%);
+  box-shadow: var(--elev-2);
 }
 .ai-prompt-bar-unavailable {
   grid-template-columns: minmax(0, 1fr) auto;
   max-width: 560px;
-  padding-left: 0.75rem;
+  padding-left: var(--space-3);
   background: var(--card);
 }
 .ai-prompt-bar [data-slot="textarea"] { border: 0; background: transparent; box-shadow: none; }
 .ai-prompt-bar [data-slot="textarea"]:focus-visible { outline: none; border: 0; box-shadow: none; }
-.ai-prompt-bar:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent); }
+.ai-prompt-bar:focus-within { border-color: var(--ring); box-shadow: var(--elev-2), 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent); }
 
 /* Background work uses staged progress when the native task cannot report a
    precise percentage. The moving segment communicates activity without
@@ -175,35 +178,35 @@
 .chat-layout {
   display: grid;
   min-height: 0;
-  height: calc(100vh - 58px - 2.2rem);
+  height: calc(100vh - 60px - 2.2rem);
   grid-template-columns: 264px minmax(0, 1fr);
-  gap: 1rem;
+  gap: var(--space-4);
 }
 .chat-scroll { scrollbar-width: thin; }
 .chat-message { max-width: 46rem; }
 .chat-message.user {
   justify-self: end;
-  border-radius: var(--radius) var(--radius) 0.25rem var(--radius);
-  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius) var(--radius) var(--radius-sm) var(--radius);
+  padding: var(--space-3) var(--space-4);
   color: white;
   background: linear-gradient(165deg, color-mix(in oklch, var(--primary) 92%, white), var(--primary));
 }
 .chat-message.assistant {
   justify-self: start;
   border: 1px solid var(--border);
-  border-radius: var(--radius) var(--radius) var(--radius) 0.25rem;
-  padding: 0.75rem 0.95rem;
+  border-radius: var(--radius) var(--radius) var(--radius) var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
   background: var(--card);
 }
 .chat-message.error { border-color: color-mix(in srgb, var(--destructive) 40%, var(--border)); }
-.markdown-output { color: var(--foreground); font-size: 0.9rem; line-height: 1.55; }
-.markdown-output :where(p, ul, ol, blockquote, pre, table) { margin-bottom: 0.75rem; }
+.markdown-output { color: var(--foreground); font-size: var(--fs-md); line-height: 1.55; }
+.markdown-output :where(p, ul, ol, blockquote, pre, table) { margin-bottom: var(--space-3); }
 .markdown-output :where(p, ul, ol):last-child { margin-bottom: 0; }
-.markdown-output :where(ul, ol) { padding-left: 1.25rem; }
+.markdown-output :where(ul, ol) { padding-left: var(--space-5); }
 .markdown-output pre {
   overflow: auto;
   border-radius: var(--radius);
-  padding: 0.75rem;
+  padding: var(--space-3);
   background: var(--muted);
 }
 
@@ -216,24 +219,24 @@
   min-height: 33rem;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   border: 1px solid var(--border);
-  border-radius: calc(var(--radius) + 0.4rem);
+  border-radius: var(--radius-xl);
   background: var(--card);
-  box-shadow: 0 4px 8px rgb(15 23 42 / 10%);
+  box-shadow: var(--elev-2);
 }
 .gate-brand {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 2rem;
-  padding: 2rem 1.9rem;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-6);
   color: white;
   background:
     radial-gradient(120% 80% at 0% 100%, color-mix(in oklch, var(--primary) 38%, transparent) 0%, transparent 60%),
     var(--sidebar);
 }
-.gate-brand h1 { margin: 0.35rem 0 0; font-size: 1.5rem; font-weight: 650; letter-spacing: -0.02em; line-height: 1.25; text-wrap: balance; }
-.gate-brand > div > p:last-child { margin: 0.45rem 0 0; color: var(--sidebar-muted); font-size: 0.88rem; line-height: 1.55; }
-.gate-point { display: flex; align-items: center; gap: 0.65rem; margin: 0; color: color-mix(in srgb, white 88%, transparent); font-size: 0.82rem; }
+.gate-brand h1 { margin: var(--space-1) 0 0; font-size: var(--fs-2xl); font-weight: 650; letter-spacing: -0.02em; line-height: 1.25; text-wrap: balance; }
+.gate-brand > div > p:last-child { margin: 0.5rem 0 0; color: var(--sidebar-muted); font-size: var(--fs-md); line-height: 1.55; }
+.gate-point { display: flex; align-items: center; gap: var(--space-3); margin: 0; color: color-mix(in srgb, white 88%, transparent); font-size: var(--fs-base); }
 .gate-point svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: oklch(0.8 0.09 185); }
 
 @media (max-width: 980px) {
@@ -243,5 +246,5 @@
 }
 
 @media (max-width: 900px) {
-  .ai-prompt-bar { left: calc(68px + 1rem); right: 1rem; }
+  .ai-prompt-bar { left: calc(68px + var(--space-4)); right: var(--space-4); }
 }

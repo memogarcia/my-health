@@ -1,17 +1,21 @@
 pub fn validate_ai_settings(value: &serde_json::Value) -> Result<(), String> {
-    if contains_secret_field(value) {
-        return Err(
-            "AI settings must store API key environment variable names, not raw API keys".into(),
-        );
+    let provider_id = value
+        .get("providerId")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
+    if contains_secret_field(value, provider_id == "lmstudio") {
+        return Err("AI settings must store raw API tokens only for local LM Studio.".into());
     }
     validate_api_key_env_var_fields(value)?;
+    validate_api_token_fields(value, provider_id)?;
     validate_base_url_fields(value)
 }
 
-fn contains_secret_field(value: &serde_json::Value) -> bool {
+fn contains_secret_field(value: &serde_json::Value, allow_lmstudio_api_token: bool) -> bool {
     match value {
         serde_json::Value::Object(map) => map.iter().any(|(key, value)| {
             let normalized = key.to_ascii_lowercase().replace(['_', '-'], "");
+            let allowed_token = allow_lmstudio_api_token && normalized == "apitoken";
             let secret_key = matches!(
                 normalized.as_str(),
                 "apikey"
@@ -22,9 +26,11 @@ fn contains_secret_field(value: &serde_json::Value) -> bool {
                     | "password"
                     | "authorization"
             );
-            secret_key || contains_secret_field(value)
+            (secret_key && !allowed_token) || contains_secret_field(value, allow_lmstudio_api_token)
         }),
-        serde_json::Value::Array(values) => values.iter().any(contains_secret_field),
+        serde_json::Value::Array(values) => values
+            .iter()
+            .any(|value| contains_secret_field(value, allow_lmstudio_api_token)),
         _ => false,
     }
 }
@@ -92,6 +98,38 @@ fn validate_api_key_env_var(value: &serde_json::Value) -> Result<(), String> {
     }
 }
 
+fn validate_api_token_fields(value: &serde_json::Value, provider_id: &str) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, value) in map {
+                if key == "apiToken" {
+                    validate_api_token(value, provider_id)?;
+                }
+                validate_api_token_fields(value, provider_id)?;
+            }
+            Ok(())
+        }
+        serde_json::Value::Array(values) => {
+            for value in values {
+                validate_api_token_fields(value, provider_id)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn validate_api_token(value: &serde_json::Value, provider_id: &str) -> Result<(), String> {
+    let serde_json::Value::String(token) = value else {
+        return Err("LM Studio API token must be a string.".into());
+    };
+    if provider_id == "lmstudio" || token.trim().is_empty() {
+        Ok(())
+    } else {
+        Err("Raw API tokens can only be saved for local LM Studio.".into())
+    }
+}
+
 fn is_env_var_name(name: &str) -> bool {
     let mut bytes = name.bytes();
     let Some(first) = bytes.next() else {
@@ -130,7 +168,7 @@ mod tests {
         let settings = serde_json::json!({ "apiKey": "sk-test" });
 
         let error = validate_ai_settings(&settings).unwrap_err();
-        assert!(error.contains("not raw API keys"));
+        assert!(error.contains("LM Studio"));
     }
 
     #[test]
@@ -148,5 +186,26 @@ mod tests {
 
         let error = validate_ai_settings(&settings).unwrap_err();
         assert!(error.contains("environment variable name"));
+    }
+
+    #[test]
+    fn accepts_lmstudio_api_token() {
+        let settings = serde_json::json!({
+            "providerId": "lmstudio",
+            "apiToken": "lm-secret"
+        });
+
+        assert!(validate_ai_settings(&settings).is_ok());
+    }
+
+    #[test]
+    fn rejects_remote_provider_api_token() {
+        let settings = serde_json::json!({
+            "providerId": "openai",
+            "apiToken": "sk-test"
+        });
+
+        let error = validate_ai_settings(&settings).unwrap_err();
+        assert!(error.contains("LM Studio"));
     }
 }

@@ -13,16 +13,18 @@ export function profileFromForm(form: FormData): UserProfile {
 }
 
 export function aiSettingsFromForm(form: FormData): AiSettings {
-  const apiKeyEnvVar = String(form.get("apiKeyEnvVar") || "");
+  const providerId = String(form.get("providerId") || "");
+  const apiKeyEnvVar = providerId === "lmstudio" ? "" : String(form.get("apiKeyEnvVar") || "");
   if (!isApiKeyEnvVarName(apiKeyEnvVar)) {
     throw new Error(t("userState.apiKeyEnvVar"));
   }
   return normalizeAiSettings({
-    providerId: String(form.get("providerId") || ""),
+    providerId,
     modelId: String(form.get("modelId") || ""),
     reasoningEffort: String(form.get("reasoningEffort") || ""),
     baseUrl: String(form.get("baseUrl") || ""),
     apiKeyEnvVar,
+    apiToken: String(form.get("apiToken") || ""),
     allowRemoteHealthContext: form.get("allowRemoteHealthContext") === "on",
   });
 }

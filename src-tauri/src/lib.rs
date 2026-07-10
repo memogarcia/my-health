@@ -99,8 +99,7 @@ fn get_ai_settings(state: tauri::State<'_, AppState>) -> Result<String, String> 
     })
 }
 
-/// Persists the AI settings JSON document after checking that secrets are still
-/// referenced by environment-variable name rather than stored directly.
+/// Persists AI settings after checking that only local LM Studio can store a token.
 #[tauri::command]
 fn save_ai_settings(
     settings: String,

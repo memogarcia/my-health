@@ -21,6 +21,7 @@ const MedicationsPage = lazy(() => import("./components/medications-page").then(
 const SettingsPage = lazy(() => import("./components/settings-page").then((module) => ({ default: module.SettingsPage })));
 const DeveloperPage = lazy(() => import("./components/developer-page").then((module) => ({ default: module.DeveloperPage })));
 const FastingPage = lazy(() => import("./components/fasting-page").then((module) => ({ default: module.FastingPage })));
+const BreathingPage = lazy(() => import("./components/breathing-page").then((module) => ({ default: module.BreathingPage })));
 
 export function App() {
   const controller = useDashboardController();
@@ -97,6 +98,7 @@ export function App() {
       {controller.selectedNav === "documents" ? <LazyPage><DocumentsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "medications" ? <LazyPage><MedicationsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "fasting" ? <LazyPage><FastingPage controller={controller} /></LazyPage> : null}
+      {controller.selectedNav === "breathing" ? <LazyPage><BreathingPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "settings" ? <LazyPage><SettingsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "developer" ? <LazyPage><DeveloperPage controller={controller} /></LazyPage> : null}
       <IntakeDialog controller={controller} />
@@ -116,10 +118,10 @@ function DesktopOnlyScreen({ error }: { error: string }) {
         <CardContent className="grid gap-4">
           <Alert variant="destructive">
             <AlertTitle>{t("desktop.requiredTitle")}</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
           </Alert>
           <p className="text-sm text-muted-foreground">
-            {t("desktop.requiredBody")} <code>npm run dev</code> or <code>npm run tauri:dev</code>. {t("desktop.requiredTail")}
+            {t("desktop.requiredBody")} <code>bun run dev</code> or <code>bun run tauri:dev</code>. {t("desktop.requiredTail")}
           </p>
         </CardContent>
       </Card>

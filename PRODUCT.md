@@ -71,7 +71,7 @@ Visual specifics (tokens, color, type, motion) live in `DESIGN.md`.
   or an intense breathing practice.
 - Use obviously synthetic sample data only when needed for local UI work.
 - Health data stays local unless the user explicitly opts in to sending specific context to a remote provider; that opt-in is off by default.
-- The database is SQLCipher-encrypted from the first run; API keys are referenced by environment-variable name, never stored in the database.
+- The database is SQLCipher-encrypted from the first run; remote API keys are referenced by environment-variable name, while a local LM Studio token can be stored in encrypted settings.
 
 The AI boundary and trust model are specified in `ARCHITECTURE.md`.
 

@@ -61,15 +61,17 @@ accept that Codex runs with the CLI's normal local read boundary.
   metadata, organ status, and saved recommendations. Raw report files, local
   paths, database paths, and developer diagnostics remain local. Selected
   documents are still sent to Codex for extraction.
-- API keys are never stored directly.
+- Remote provider API keys are never stored directly.
 - Settings store API key environment variable names, such as `OPENAI_API_KEY`.
-- Raw API key fields and raw-looking key values are rejected by the Rust backend.
+- LM Studio can store a local server API token directly in the encrypted settings database.
+- Raw API key fields and raw-looking key values are rejected by the Rust backend except for the LM Studio token field.
 - AI output must not be presented as diagnosis, treatment, or emergency triage.
 - User-entered health records included in prompts are serialized as untrusted JSON data.
 
 ## Adding Provider Execution
 
 Keep provider execution behind Rust commands, not leaf UI components. Resolve
-environment variables at the Rust boundary, keep remote-context opt-in explicit,
-and return advisory output that the user can review. Chat supports the provider
-catalog's native protocol or OpenAI-compatible chat-completions protocol.
+remote provider environment variables at the Rust boundary, keep remote-context
+opt-in explicit, and return advisory output that the user can review. Chat
+supports the provider catalog's native protocol or OpenAI-compatible
+chat-completions protocol.

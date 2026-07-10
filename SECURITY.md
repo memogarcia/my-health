@@ -47,9 +47,11 @@ device-protected encrypted queue and must not weaken the main database key model
 
 ## Secrets
 
-AI API keys are not stored in the database. AI settings store environment
-variable names only, such as `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. The Rust
-backend rejects raw `apiKey` fields and raw-looking key values in settings.
+Remote AI API keys are not stored in the database. AI settings store environment
+variable names for remote providers, such as `ANTHROPIC_API_KEY` or
+`OPENAI_API_KEY`. LM Studio can store a local server token in the encrypted
+settings database. The Rust backend rejects raw `apiKey` fields and raw-looking
+key values outside the LM Studio token field.
 
 ## AI Privacy
 

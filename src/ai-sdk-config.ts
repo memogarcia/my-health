@@ -33,6 +33,7 @@ export type AiSettings = {
   reasoningEffort: string;
   baseUrl: string;
   apiKeyEnvVar: string;
+  apiToken: string;
   allowRemoteHealthContext: boolean;
 };
 
@@ -174,7 +175,8 @@ export function normalizeAiSettings(input: Partial<AiSettings> = {}): AiSettings
     modelId: (modelId || provider.models[0]?.id || "").trim(),
     reasoningEffort: (input.reasoningEffort || DEFAULT_CODEX_REASONING_EFFORT).trim(),
     baseUrl: (input.baseUrl || provider.baseUrl).trim(),
-    apiKeyEnvVar: (input.apiKeyEnvVar || provider.apiKeyEnvVar).trim(),
+    apiKeyEnvVar: provider.id === "lmstudio" ? "" : (input.apiKeyEnvVar || provider.apiKeyEnvVar).trim(),
+    apiToken: provider.id === "lmstudio" ? (input.apiToken || "").trim() : "",
     allowRemoteHealthContext: input.allowRemoteHealthContext === true,
   };
 }

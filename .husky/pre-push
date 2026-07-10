@@ -18,19 +18,19 @@ echo ""
 echo "Pre-push checks..."
 
 echo "  Running typecheck..."
-npm run typecheck
+bun run typecheck
 
 echo "  Running tests..."
-npm test
+bun run test
 
 echo "  Running Rust lints..."
-npm run lint:rust
+bun run lint:rust
 
 echo "  Running production build..."
-npm run build
+bun run build
 
 echo "  Running local guard suite..."
-npm run check
+bun run check
 
 echo ""
 echo "Pre-push checks passed"

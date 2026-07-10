@@ -1,47 +1,30 @@
-.fasting-page { display: grid; gap: 1rem; min-width: 0; }
-.fasting-dashboard { display: grid; gap: 1rem; grid-template-columns: minmax(20rem, 0.9fr) minmax(20rem, 1.1fr); }
-.fasting-timer-card, .fasting-stages-card, .breathing-guide-card { gap: 0; padding: 0; box-shadow: none; }
-.fasting-timer-card > [data-slot="card-header"], .fasting-stages-card > [data-slot="card-header"] { border-bottom: 1px solid var(--border); padding: 0.85rem 0.9rem; }
-.fasting-timer-card > [data-slot="card-content"], .fasting-stages-card > [data-slot="card-content"] { padding: 1rem; }
-.fasting-timer-content { display: grid; grid-template-columns: minmax(11rem, 0.75fr) minmax(13rem, 1fr); align-items: center; gap: 1.25rem; }
+.fasting-page { display: grid; gap: var(--space-4); min-width: 0; }
+.fasting-dashboard { display: grid; gap: var(--space-4); grid-template-columns: minmax(20rem, 0.9fr) minmax(20rem, 1.1fr); }
+.fasting-timer-card, .fasting-stages-card { gap: 0; padding: 0; box-shadow: var(--elev-1); }
+.fasting-timer-card > [data-slot="card-header"], .fasting-stages-card > [data-slot="card-header"] { border-bottom: 1px solid var(--border); padding: var(--space-3) var(--space-4); }
+.fasting-timer-card > [data-slot="card-content"], .fasting-stages-card > [data-slot="card-content"] { padding: var(--space-4); }
+.fasting-timer-content { display: grid; grid-template-columns: minmax(11rem, 0.75fr) minmax(13rem, 1fr); align-items: center; gap: var(--space-5); }
 .fasting-orbit { display: grid; width: min(13rem, 100%); aspect-ratio: 1; place-items: center; align-content: center; justify-self: center; border-radius: 50%; color: var(--primary); background: radial-gradient(circle, var(--card) 57%, transparent 58%), conic-gradient(var(--primary) calc(var(--fasting-progress) * 1turn), color-mix(in srgb, var(--primary) 12%, var(--muted)) 0); }
 .fasting-orbit svg { width: 1.15rem; height: 1.15rem; }
-.fasting-orbit strong { color: var(--foreground); font-size: 1.55rem; line-height: 1.15; }
-.fasting-orbit span { color: var(--muted-foreground); font-size: 0.72rem; }
-.fasting-controls { display: grid; gap: 0.65rem; }
+.fasting-orbit strong { color: var(--foreground); font-size: var(--fs-2xl); line-height: 1.15; }
+.fasting-orbit span { color: var(--muted-foreground); font-size: var(--fs-sm); }
+.fasting-controls { display: grid; gap: var(--space-3); }
 .fasting-targets { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.fasting-stage-label { margin: 0.25rem 0 0; font-size: 0.9rem; font-weight: 650; }
+.fasting-stage-label { margin: var(--space-1) 0 0; font-size: var(--fs-md); font-weight: 650; }
 .fasting-controls > p:last-of-type { margin: 0; line-height: 1.45; }
 .fasting-controls > button { justify-self: start; margin-top: 0.2rem; }
 .fasting-stage-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
-.fasting-stage-list li { display: grid; grid-template-columns: 2.65rem minmax(0, 1fr) auto; align-items: start; gap: 0.7rem; border-top: 1px solid var(--border); padding: 0.7rem 0.1rem; }
+.fasting-stage-list li { display: grid; grid-template-columns: 2.65rem minmax(0, 1fr) auto; align-items: start; gap: var(--space-3); border-top: 1px solid var(--border); padding: var(--space-3) 0.1rem; }
 .fasting-stage-list li:first-child { border-top: 0; padding-top: 0; }
-.fasting-stage-list li > span { color: var(--muted-foreground); font-size: 0.72rem; }
-.fasting-stage-list li strong { font-size: 0.78rem; }
-.fasting-stage-list li p { margin: 0.12rem 0 0; color: var(--muted-foreground); font-size: 0.72rem; line-height: 1.4; }
+.fasting-stage-list li > span { color: var(--muted-foreground); font-size: var(--fs-sm); }
+.fasting-stage-list li strong { font-size: var(--fs-base); }
+.fasting-stage-list li p { margin: 0.15rem 0 0; color: var(--muted-foreground); font-size: var(--fs-sm); line-height: 1.4; }
 .fasting-stage-list li > svg { width: 1rem; color: var(--primary); }
 .fasting-stage-list li.is-current { background: color-mix(in srgb, var(--primary) 6%, transparent); }
-.fasting-breathwork { display: grid; gap: 0.75rem; border-top: 1px solid var(--border); padding-top: 1rem; }
-.fasting-breathwork h2, .fasting-history h2 { margin: 0; font-size: 0.95rem; }
-.fasting-breathwork > div > p { max-width: 62ch; margin: 0.2rem 0 0; color: var(--muted-foreground); font-size: 0.78rem; }
-.fasting-technique-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border); border-radius: 0.7rem; overflow: hidden; }
-.fasting-technique-list button { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 0.5rem; align-items: start; border: 0; border-right: 1px solid var(--border); padding: 0.8rem; text-align: left; background: var(--card); color: var(--foreground); }
-.fasting-technique-list button:last-child { border-right: 0; }
-.fasting-technique-list button:hover, .fasting-technique-list button:focus-visible, .fasting-technique-list button.is-selected { background: color-mix(in srgb, var(--primary) 8%, var(--card)); outline: none; }
-.fasting-technique-list button svg { grid-row: span 2; width: 1rem; margin-top: 0.08rem; color: var(--primary); }
-.fasting-technique-list button strong { font-size: 0.8rem; }
-.fasting-technique-list button span { margin-top: 0.15rem; color: var(--muted-foreground); font-size: 0.7rem; line-height: 1.35; }
-.breathing-guide-content { display: grid; grid-template-columns: 10rem minmax(0, 1fr); align-items: center; gap: 1.25rem; padding: 1rem; }
-.breathing-orb { display: grid; width: 8.5rem; aspect-ratio: 1; place-items: center; align-content: center; justify-self: center; border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border)); border-radius: 50%; background: color-mix(in srgb, var(--primary) 8%, var(--card)); color: var(--primary); transition: transform var(--dur-state) var(--ease-out-quint), background-color var(--dur-state) var(--ease-out-quint); }
-.breathing-orb span { font-size: 0.75rem; font-weight: 650; }
-.breathing-orb strong { color: var(--foreground); font-size: 1.35rem; }
-.breathing-orb.is-active.is-inhale { transform: scale(1.12); background: color-mix(in srgb, var(--primary) 14%, var(--card)); }
-.breathing-orb.is-active.is-exhale { transform: scale(0.88); }
-.fasting-safety-check { display: flex; align-items: flex-start; gap: 0.55rem; color: var(--muted-foreground); font-size: 0.75rem; line-height: 1.4; }
-.fasting-history { display: grid; gap: 0.55rem; border-top: 1px solid var(--border); padding-top: 1rem; }
-.fasting-history ol { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
-.fasting-history li { display: grid; gap: 0.1rem; border: 1px solid var(--border); border-radius: 0.55rem; padding: 0.55rem 0.7rem; background: var(--card); }
-.fasting-history li span:last-child { color: var(--muted-foreground); font-size: 0.7rem; }
+.fasting-history { display: grid; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-4); }
+.fasting-history h2 { margin: 0; font-size: var(--fs-lg); }
+.fasting-history ol { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.fasting-history li { display: grid; gap: 0.15rem; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.55rem var(--space-3); background: var(--card); }
+.fasting-history li span:last-child { color: var(--muted-foreground); font-size: var(--fs-sm); }
 @media (max-width: 1050px) { .fasting-dashboard { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .fasting-timer-content, .breathing-guide-content { grid-template-columns: 1fr; } .fasting-technique-list { grid-template-columns: 1fr; } .fasting-technique-list button { border-right: 0; border-bottom: 1px solid var(--border); } .fasting-technique-list button:last-child { border-bottom: 0; } }
-@media (prefers-reduced-motion: reduce) { .breathing-orb { transition: none; } .breathing-orb.is-active.is-inhale, .breathing-orb.is-active.is-exhale { transform: none; } }
+@media (max-width: 760px) { .fasting-timer-content { grid-template-columns: 1fr; } }

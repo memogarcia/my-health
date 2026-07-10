@@ -14,6 +14,29 @@ test("aiSettingsFromForm rejects raw API key-looking text", () => {
   assert.throws(() => aiSettingsFromForm(form), /environment variable name/);
 });
 
+test("aiSettingsFromForm stores LM Studio token from settings", () => {
+  const form = new FormData();
+  form.set("providerId", "lmstudio");
+  form.set("modelId", "local-model");
+  form.set("baseUrl", "http://localhost:1234/v1");
+  form.set("apiToken", "lm-studio-token");
+
+  const settings = aiSettingsFromForm(form);
+
+  assert.equal(settings.apiToken, "lm-studio-token");
+  assert.equal(settings.apiKeyEnvVar, "");
+});
+
+test("aiSettingsFromForm strips raw token for remote providers", () => {
+  const form = new FormData();
+  form.set("providerId", "openai");
+  form.set("modelId", "gpt-4o-mini");
+  form.set("apiKeyEnvVar", "OPENAI_API_KEY");
+  form.set("apiToken", "sk-proj-secret");
+
+  assert.equal(aiSettingsFromForm(form).apiToken, "");
+});
+
 test("normalizeAiSettings defaults to an explicit unconfigured provider", () => {
   assert.equal(normalizeAiSettings().providerId, "none");
 });

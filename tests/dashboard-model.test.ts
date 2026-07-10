@@ -147,3 +147,25 @@ test("normalizeUserState restores a bounded local fasting timer and history", ()
   assert.equal(state.fasting.targetHours, 24);
   assert.equal(state.fasting.sessions[0].targetHours, 12);
 });
+
+test("normalizeUserState keeps the new-chat sentinel so a fresh thread is not routed into an old one", () => {
+  const state = normalizeUserState({
+    aiConversations: [{ id: "chat-a", title: "Old thread", createdAt: "2026-07-01", updatedAt: "2026-07-01", messages: [] }],
+    activeAiConversationId: "",
+  });
+
+  assert.equal(state.activeAiConversationId, "");
+});
+
+test("normalizeUserState falls back to the most recent thread only for a stale active id", () => {
+  const stale = normalizeUserState({
+    aiConversations: [{ id: "chat-a", title: "Old thread", createdAt: "2026-07-01", updatedAt: "2026-07-01", messages: [] }],
+    activeAiConversationId: "deleted-thread",
+  });
+  assert.equal(stale.activeAiConversationId, "chat-a");
+
+  const missing = normalizeUserState({
+    aiConversations: [{ id: "chat-a", title: "Old thread", createdAt: "2026-07-01", updatedAt: "2026-07-01", messages: [] }],
+  });
+  assert.equal(missing.activeAiConversationId, "chat-a");
+});

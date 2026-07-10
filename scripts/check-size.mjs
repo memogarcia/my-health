@@ -18,7 +18,7 @@ const EXCLUDED_DIRS = new Set([
   'target',
 ]);
 
-const SKIPPED_FILES = new Set(['package-lock.json', 'Cargo.lock']);
+const SKIPPED_FILES = new Set(['bun.lock', 'Cargo.lock']);
 const FILE_LIMITS = [
   {
     name: 'UI component',
