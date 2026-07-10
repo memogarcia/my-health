@@ -1,8 +1,8 @@
-use super::*;
 use super::reports::{insert_lab_report, LabReportInput};
+use super::*;
 
 #[test]
-fn stores_report_local_copy_path() {
+fn stores_report_metadata_without_plaintext_document_path() {
     let conn = Connection::open_in_memory().unwrap();
     conn.execute_batch(
         "CREATE TABLE lab_reports (
@@ -18,15 +18,17 @@ fn stores_report_local_copy_path() {
         source_name: "ldl.png".into(),
         file_type: "PNG".into(),
         size_label: "20 KB".into(),
-        local_copy_path: Some("/tmp/result-documents/ldl.png".into()),
+        local_copy_path: None,
     };
 
     let report_id = insert_lab_report(&conn, Some(&report)).unwrap().unwrap();
 
     let copy_path: String = conn
-        .query_row("SELECT local_copy_path FROM lab_reports WHERE id = ?1", [report_id], |row| {
-            row.get(0)
-        })
+        .query_row(
+            "SELECT local_copy_path FROM lab_reports WHERE id = ?1",
+            [report_id],
+            |row| row.get(0),
+        )
         .unwrap();
-    assert_eq!(copy_path, "/tmp/result-documents/ldl.png");
+    assert_eq!(copy_path, "");
 }

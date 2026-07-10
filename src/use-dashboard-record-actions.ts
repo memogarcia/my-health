@@ -27,7 +27,7 @@ export type SymptomInput = {
 
 type RecordActionOptions = {
   closeDialog: () => void;
-  loadDashboard: () => Promise<void>;
+  loadDashboard: () => Promise<boolean>;
   setRegimenDraft: Dispatch<SetStateAction<RegimenDraft | null>>;
 };
 
@@ -127,11 +127,12 @@ export function makeRecordActions(options: RecordActionOptions) {
   };
 }
 
-async function mutate(command: string, args: Record<string, unknown>, successMessage: string, loadDashboard: () => Promise<void>): Promise<boolean> {
+async function mutate(command: string, args: Record<string, unknown>, successMessage: string, loadDashboard: () => Promise<boolean>): Promise<boolean> {
   try {
     await invoke(command, args);
     toast.success(successMessage);
-    await loadDashboard();
+    const refreshed = await loadDashboard();
+    if (!refreshed) toast.warning(t("toast.refreshFailed"));
     return true;
   } catch (error) {
     toast.error(error instanceof Error ? error.message : String(error));

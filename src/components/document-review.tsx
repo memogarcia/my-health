@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,8 @@ import { Trash2 } from "lucide-react";
 import type { ExtractedResult, ExtractedResultStatus, PendingDocument } from "../dashboard-model";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
-import { AlertTriangle, FileText, LoaderCircle, Plus, Send } from "./health-icons";
+import { AlertTriangle, FileText, Plus, Send } from "./health-icons";
+import { followUpPriorityLabel } from "./lab-result-context";
 import { OrganSelect } from "./organ-select";
 
 export function DocumentReview({ controller }: { controller: DashboardController }) {
@@ -31,12 +32,6 @@ export function DocumentReview({ controller }: { controller: DashboardController
   return (
     <div className="grid gap-4">
       {document ? <DocumentSummary document={document} /> : <PromptDraftSummary />}
-      {analysis.status === "analyzing" ? (
-        <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-          <LoaderCircle className="size-4 animate-spin" />
-          {t("intake.document.analyzing")}
-        </div>
-      ) : null}
       {analysis.status === "error" && analysis.error ? (
         <Alert>
           <AlertTriangle />
@@ -59,7 +54,7 @@ export function DocumentReview({ controller }: { controller: DashboardController
       </Button>
       <DialogFooter>
         <Button variant="ghost" onClick={() => controller.closeDialog()}>{t("common.cancel")}</Button>
-        <Button onClick={() => void controller.acceptDocumentResults()} disabled={analysis.status === "analyzing" || analysis.results.some(needsReview)}>
+        <Button onClick={() => void controller.acceptDocumentResults()} disabled={analysis.results.some(needsReview)}>
           <Send data-icon="inline-start" />{t("intake.document.accept")}
         </Button>
       </DialogFooter>
@@ -98,18 +93,19 @@ function ResultRowEditor({ controller, result }: { controller: DashboardControll
           <Input id={`range-${result.id}`} value={result.referenceRange} onChange={(event) => update({ referenceRange: event.target.value })} placeholder={t("intake.placeholder.range")} />
         </Field>
         <Field>
-          <FieldLabel>{t("common.status")}</FieldLabel>
+          <FieldLabel htmlFor={`status-${result.id}`}>{t("lab.followUp.label")}</FieldLabel>
           <Select value={result.status || "needs-review"} onValueChange={(value) => update({ status: value === "needs-review" ? "" : value as ExtractedResultStatus })}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-describedby={`status-description-${result.id}`} className="w-full" id={`status-${result.id}`}><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectItem value="needs-review">{t("intake.document.needsReview")}</SelectItem>
-                <SelectItem value="normal">{t("status.normal")}</SelectItem>
-                <SelectItem value="monitor">{t("status.monitor")}</SelectItem>
-                <SelectItem value="attention">{t("status.attention")}</SelectItem>
+                <SelectItem value="normal">{followUpPriorityLabel("normal")}</SelectItem>
+                <SelectItem value="monitor">{followUpPriorityLabel("monitor")}</SelectItem>
+                <SelectItem value="attention">{followUpPriorityLabel("attention")}</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
+          <FieldDescription id={`status-description-${result.id}`}>{t("lab.followUp.description")}</FieldDescription>
         </Field>
         <Field className="sm:col-span-2">
           <FieldLabel htmlFor={`date-${result.id}`}>{t("common.date")}</FieldLabel>
@@ -152,4 +148,3 @@ function PromptDraftSummary() {
     </div>
   );
 }
-

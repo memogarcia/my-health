@@ -1,36 +1,22 @@
 import type { HealthStatus, LabResult } from "./dashboard-model";
 
-// Single source of truth for status colors. Mirrors the --status-* tokens in
-// styles.css so sparklines, dots, meters, and badges never drift apart.
-const STATUS_HEX: Record<HealthStatus, string> = {
-  normal: "#1c7259",
-  monitor: "#9a540f",
-  attention: "#b64235",
-};
-
-export function statusHex(status: HealthStatus): string {
-  return STATUS_HEX[status];
-}
-
-// Trend lines stay in a neutral de-emphasis hue; the latest-point dot carries
-// the status color. Coloring the whole history line by the latest status would
-// misstate older readings. Resolved from the --trend-line token at render time
-// because the SVG is injected inline into the DOM.
+// Trend lines and points stay neutral. Follow-up priority and derived range
+// position are rendered as separate labeled context outside the sparkline.
 const TREND_LINE = "var(--trend-line)";
 const SURFACE = "var(--card)";
 
 /**
  * Parse a lab value string to a representative number. Plain numbers return
- * directly; composite values like a blood pressure reading average to their
- * mean; values with a leading comparator use the trailing number. Returns null
+ * directly; composite values such as blood pressure are not scalar and return
+ * null; values with a leading comparator use the trailing number. Returns null
  * when no numeric content is present.
  */
 export function parseLabNumber(value: string): number | null {
+  if (value.includes("/")) return null;
   const matches = value.match(/-?\d+(\.\d+)?/g);
-  if (!matches || matches.length === 0) return null;
-  const nums = matches.map(Number).filter((n) => Number.isFinite(n));
-  if (nums.length === 0) return null;
-  return nums.reduce((total, n) => total + n, 0) / nums.length;
+  if (!matches || matches.length !== 1) return null;
+  const parsed = Number(matches[0]);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 export type LabSeries = {
@@ -57,7 +43,7 @@ export function groupByMarker(labs: LabResult[]): LabSeries[] {
 
   const series: LabSeries[] = [];
   for (const [key, points] of map) {
-    const sorted = [...points].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
+    const sorted = [...points].sort((a, b) => a.measuredAt.localeCompare(b.measuredAt) || a.id - b.id);
     const latest = sorted[sorted.length - 1];
     series.push({ key, marker: latest.marker, unit: latest.unit, organKey: latest.organKey, status: latest.status, points: sorted });
   }
@@ -105,11 +91,11 @@ export function sparklineSvg(values: number[], color: string, cls = "mini-spark"
   return `<svg class="${cls}" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity="0.14" /><stop offset="1" stop-color="${color}" stop-opacity="0" /></linearGradient></defs><polygon points="${area}" fill="url(#${id})" /><polyline points="${line}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />${endDot}</svg>`;
 }
 
-/** Build a sparkline for a marker series: neutral line, status-colored end dot. */
+/** Build a neutral sparkline for a marker series. */
 export function seriesSparkline(series: LabSeries, cls = "mini-spark"): string {
   const values = series.points.map((point) => parseLabNumber(point.value)).filter((value): value is number => value != null);
   if (values.length === 0) return "";
-  return sparklineSvg(values, TREND_LINE, cls, statusHex(series.status));
+  return sparklineSvg(values, TREND_LINE, cls);
 }
 
 export type TrendSummary = { trendable: number; top: LabSeries | null };

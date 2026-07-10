@@ -2,9 +2,8 @@ import { useMemo } from "react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
 import { formatDate } from "../../dashboard-format";
-import type { LabResult, SymptomEntry } from "../../dashboard-model";
+import { latestLabsByMarker, type LabResult, type SymptomEntry } from "../../dashboard-model";
 import { t } from "../../i18n";
-import { groupByMarker } from "../../sparkline";
 
 /* Compact page intro for Results and Symptoms. Replaces the previous
    overview-hero + stat tiles, which duplicated the Body workspace hero.
@@ -34,28 +33,28 @@ export function HistorySummary({
 }
 
 function LabSummary({ labs, hasUnfiltered, onClear, action }: { labs: LabResult[]; hasUnfiltered: boolean; onClear: () => void; action?: React.ReactNode }) {
-  const series = useMemo(() => groupByMarker(labs), [labs]);
-  const attention = series.filter((item) => item.status === "attention").length;
-  const monitor = series.filter((item) => item.status === "monitor").length;
+  const latestLabs = useMemo(() => latestLabsByMarker(labs), [labs]);
+  const attention = latestLabs.filter((lab) => lab.status === "attention").length;
+  const monitor = latestLabs.filter((lab) => lab.status === "monitor").length;
   const latestDate = latestOf(labs.map((lab) => lab.measuredAt));
 
   let lead: string;
   let detail: string;
-  if (series.length === 0) {
+  if (latestLabs.length === 0) {
     lead = hasUnfiltered ? t("history.summary.noResultsMatch") : t("history.summary.noResultsYet");
     detail = hasUnfiltered ? t("history.summary.clearToSee") : t("history.summary.addFirstResult");
   } else if (attention > 0) {
-    lead = t(attention === 1 ? "history.summary.markerNeeds" : "history.summary.markersNeed", { count: attention });
-    detail = t("body.hero.attentionDetail");
+    lead = t(attention === 1 ? "history.summary.markerFollowUpSoon" : "history.summary.markersFollowUpSoon", { count: attention });
+    detail = t("history.summary.followUpDetail");
   } else if (monitor > 0) {
-    lead = t(monitor === 1 ? "history.summary.markerWatch" : "history.summary.markersWatch", { count: monitor });
-    detail = t("body.hero.monitorDetail");
+    lead = t(monitor === 1 ? "history.summary.markerFollowUpMonitor" : "history.summary.markersFollowUpMonitor", { count: monitor });
+    detail = t("history.summary.followUpDetail");
   } else {
-    lead = t(series.length === 1 ? "history.summary.markerInRange" : "history.summary.markersInRange", { count: series.length });
-    detail = t("history.summary.resultsInRange");
+    lead = t(latestLabs.length === 1 ? "history.summary.markerFollowUpRoutine" : "history.summary.markersFollowUpRoutine", { count: latestLabs.length });
+    detail = t("history.summary.followUpDetail");
   }
 
-  return <SummaryHero lead={lead} detail={detail} latestDate={latestDate} showClear={series.length === 0 && hasUnfiltered} onClear={onClear} action={action} />;
+  return <SummaryHero lead={lead} detail={detail} latestDate={latestDate} showClear={latestLabs.length === 0 && hasUnfiltered} onClear={onClear} action={action} />;
 }
 
 function SymptomSummary({ symptoms, hasUnfiltered, onClear, action }: { symptoms: SymptomEntry[]; hasUnfiltered: boolean; onClear: () => void; action?: React.ReactNode }) {

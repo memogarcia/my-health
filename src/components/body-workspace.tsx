@@ -1,5 +1,4 @@
-import anatomyBodyUrl from "../../assets/anatomy-body-dashboard.png";
-import { useMemo } from "react";
+import anatomyBodyUrl from "../../assets/anatomy-body-dashboard.jpg";
 import type React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +14,7 @@ import { ConditionsCard } from "./conditions-card";
 import { OrganTrendPreview } from "./charts/organ-trend-preview";
 import { Check, NotebookPen, organIcons } from "./health-icons";
 import { EmptyMessage, StatTile, StatusBadge, StatusDot } from "./health-status";
+import { LabFollowUpBadge } from "./lab-result-context";
 import { SparklineView } from "./sparkline-view";
 
 export function BodyWorkspace({ controller }: { controller: DashboardController }) {
@@ -26,24 +26,35 @@ export function BodyWorkspace({ controller }: { controller: DashboardController 
         <AnatomyStage controller={controller} />
         <DetailRail controller={controller} />
       </section>
+      <DailyLogCard controller={controller} />
     </div>
   );
 }
 
 function OverviewHero({ controller }: { controller: DashboardController }) {
-  const series = useMemo(() => groupByMarker(controller.display.latestLabResults), [controller.display.latestLabResults]);
-  const attention = series.filter((item) => item.status === "attention").length;
-  const monitor = series.filter((item) => item.status === "monitor").length;
-  const inRange = series.length - attention - monitor;
+  const trackedKeys = new Set([
+    ...controller.display.latestLabResults.map((lab) => lab.organKey),
+    ...controller.display.recentSymptoms.map((symptom) => symptom.organKey),
+    ...controller.display.conditions.map((condition) => condition.organKey),
+  ]);
+  const trackedOrgans = controller.display.organs.filter((organ) => trackedKeys.has(organ.key));
+  const attention = trackedOrgans.filter((organ) => organ.status === "attention").length;
+  const monitor = trackedOrgans.filter((organ) => organ.status === "monitor").length;
+  const noFollowUp = trackedOrgans.length - attention - monitor;
   const total = attention + monitor;
+  const hasHistory = trackedOrgans.length > 0;
 
-  const lead = total === 0
-    ? controller.latestDate ? t("body.hero.noneFollowUp") : t("body.hero.startHistory")
+  const lead = !hasHistory
+    ? t("body.hero.startHistory")
+    : total === 0
+      ? t("body.hero.noCurrentSignals")
     : attention > 0
-      ? t(attention === 1 ? "body.hero.markerNeeds" : "body.hero.markersNeed", { count: attention })
-      : t(monitor === 1 ? "body.hero.markerWatch" : "body.hero.markersWatch", { count: monitor });
-  const detail = total === 0
-    ? controller.latestDate ? t("body.hero.inRangeDetail") : t("body.hero.emptyDetail")
+      ? t(attention === 1 ? "body.hero.areaNeeds" : "body.hero.areasNeed", { count: attention })
+      : t(monitor === 1 ? "body.hero.areaWatch" : "body.hero.areasWatch", { count: monitor });
+  const detail = !hasHistory
+    ? t("body.hero.emptyDetail")
+    : total === 0
+      ? t("body.hero.noCurrentDetail")
     : attention > 0
       ? t("body.hero.attentionDetail")
       : t("body.hero.monitorDetail");
@@ -59,10 +70,10 @@ function OverviewHero({ controller }: { controller: DashboardController }) {
               className="cursor-pointer rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/35"
               key={organ.key}
               onClick={() => controller.setSelectedOrganKey(organ.key)}
-              title={t("body.hero.showOrgan", { organ: organ.name })}
+              title={t("body.hero.showOrgan", { organ: organ.name, status: statusLabel[organ.status] })}
               type="button"
             >
-              <StatusBadge status={organ.status}>{organ.name}</StatusBadge>
+              <StatusBadge status={organ.status}>{organ.name}<span aria-hidden="true"> · </span>{statusLabel[organ.status]}</StatusBadge>
             </button>
           ))}
           {controller.latestDate ? (
@@ -70,10 +81,10 @@ function OverviewHero({ controller }: { controller: DashboardController }) {
           ) : null}
         </div>
       </div>
-      <div className="stat-tiles" role="group" aria-label={t("body.hero.markerStatusLabel")}>
+      <div className="stat-tiles" role="group" aria-label={t("body.hero.areaStatusLabel")}>
         <StatTile count={attention} label={t("body.stat.needsAttention")} status="attention" />
         <StatTile count={monitor} label={t("body.stat.toWatch")} status="monitor" />
-        <StatTile count={inRange} label={t("body.stat.inRange")} status="normal" />
+        <StatTile count={noFollowUp} label={t("body.stat.noFollowUp")} status="normal" />
       </div>
     </section>
   );
@@ -105,9 +116,12 @@ function OrganRail({ controller }: { controller: DashboardController }) {
 function OrganButton({ controller, organ }: { controller: DashboardController; organ: OrganSummary }) {
   const Icon = organIcons[organ.key] || organIcons.heart;
   const selected = organ.key === controller.selectedOrganKey;
-  const recordCount = organ.labCount + organ.symptomCount;
+  const conditionCount = controller.display.conditions.filter((condition) => condition.organKey === organ.key).length;
+  const recordCount = organ.labCount + organ.symptomCount + conditionCount;
   return (
     <Button
+      aria-controls="selected-organ-details"
+      aria-pressed={selected}
       className="h-auto justify-start gap-3 px-2 py-2"
       onClick={() => {
         controller.setSelectedOrganKey(organ.key);
@@ -136,7 +150,9 @@ function AnatomyStage({ controller }: { controller: DashboardController }) {
         const visual = getOrganVisual(organ.key);
         return (
           <Button
-            aria-label={t("body.anatomy.select", { organ: organ.name })}
+            aria-controls="selected-organ-details"
+            aria-label={t("body.anatomy.select", { organ: organ.name, status: statusLabel[organ.status] })}
+            aria-pressed={organ.key === controller.selectedOrganKey}
             className={`hotspot status-${organ.status} ${visual.y < 30 ? "label-below" : ""} ${organ.key === controller.selectedOrganKey ? "selected" : ""}`}
             key={organ.key}
             onClick={() => controller.setSelectedOrganKey(organ.key)}
@@ -144,7 +160,7 @@ function AnatomyStage({ controller }: { controller: DashboardController }) {
             type="button"
             variant="ghost"
           >
-            <span className="hotspot-label"><StatusDot status={organ.status} />{organ.name}</span>
+            <span className="hotspot-label"><StatusDot status={organ.status} />{organ.name}<span aria-hidden="true">·</span>{statusLabel[organ.status]}</span>
           </Button>
         );
       })}
@@ -159,7 +175,7 @@ function AnatomyStage({ controller }: { controller: DashboardController }) {
 
 function DetailRail({ controller }: { controller: DashboardController }) {
   return (
-    <div className="detail-rail">
+    <div id="selected-organ-details" className="detail-rail" aria-live="polite">
       <Card className="selected-organ-card">
         <CardHeader>
           <CardTitle>{controller.selectedOrgan.name}</CardTitle>
@@ -180,14 +196,11 @@ function DetailRail({ controller }: { controller: DashboardController }) {
   );
 }
 
-/* Replaces the previous Labs / Symptoms / Activity / AI Chat stack. Those were
-   four titled cards, one of which (AI Chat) duplicated the Chat page. Labs,
-   symptoms, and daily logs now share one card with lightweight Section
-   sub-sections, and the AI Chat preview is removed entirely. */
+/* Organ-scoped records stay together here. Daily logs remain in the global
+   dashboard card below the anatomy workspace, never in the selected-organ rail. */
 function RecentCard({ controller }: { controller: DashboardController }) {
   const labSeries = groupByMarker(controller.organLabs).slice(0, 4);
   const recentSymptoms = controller.organSymptoms.slice(0, 4);
-  const recentActivity = controller.userState.activityEntries.slice(0, 3);
   return (
     <Card size="sm">
       <CardHeader>
@@ -208,7 +221,7 @@ function RecentCard({ controller }: { controller: DashboardController }) {
                   <div className="min-w-0"><strong className="block truncate">{item.marker}</strong><small className="text-muted-foreground">{item.unit || t("body.recent.valueUnit")}</small></div>
                   <SparklineView series={item} />
                   <strong className="text-right text-lg font-semibold">{latest.value}</strong>
-                  <StatusBadge status={latest.status} />
+                  <LabFollowUpBadge status={latest.status} />
                 </div>
               );
             }) : <EmptyMessage>{t("body.recent.noResults")}</EmptyMessage>}
@@ -224,26 +237,39 @@ function RecentCard({ controller }: { controller: DashboardController }) {
             {recentSymptoms.length ? recentSymptoms.map((symptom) => <StatusBadge key={symptom.id} status={symptomStatus(symptom)}>{symptom.name}</StatusBadge>) : <StatusBadge status="normal"><Check />{t("body.recent.noneTracked")}</StatusBadge>}
           </SectionContent>
         </Section>
-        <Separator />
-        <Section>
-          <SectionHeader>
-            <SectionTitle>{t("body.recent.dailyLog")}</SectionTitle>
-            <SectionAction><Button variant="link" size="sm" onClick={() => controller.openDialog("activity")}>{t("body.recent.add")}</Button></SectionAction>
-          </SectionHeader>
-          <SectionContent className="gap-2">
-            {recentActivity.map((entry) => (
-              <div className="grid grid-cols-[90px_1fr] gap-2 text-sm" key={entry.id}>
-                <span className="text-muted-foreground">{formatDate(entry.loggedAt)}</span>
-                <div>
-                  <strong>{entry.activityName || t("body.recent.dailyEntry")}</strong>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DailyLogCard({ controller }: { controller: DashboardController }) {
+  const entries = controller.userState.activityEntries;
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>{t("body.recent.dailyLog")}</CardTitle>
+        <CardDescription>{t("body.dailyLog.description")}</CardDescription>
+        <CardAction>
+          <Button variant="outline" size="sm" onClick={() => controller.openDialog("activity")}>
+            <NotebookPen data-icon="inline-start" />{t("body.recent.add")}
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        {entries.length ? (
+          <div className="grid max-h-72 gap-3 overflow-y-auto pr-1">
+            {entries.map((entry) => (
+              <article className="grid grid-cols-[minmax(6.5rem,auto)_1fr] gap-3 rounded-lg border border-border/70 bg-background/55 px-3 py-2 text-sm" key={entry.id}>
+                <time className="text-muted-foreground" dateTime={entry.loggedAt}>{formatDate(entry.loggedAt)}</time>
+                <div className="min-w-0">
+                  <strong className="block truncate">{entry.activityName || t("body.recent.dailyEntry")}</strong>
                   <p className="text-muted-foreground">{activitySummary(entry)}</p>
-                  {entry.notes ? <p className="text-muted-foreground">{entry.notes}</p> : null}
+                  {entry.notes ? <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{entry.notes}</p> : null}
                 </div>
-              </div>
+              </article>
             ))}
-            {recentActivity.length === 0 ? <EmptyMessage>{t("body.recent.noDailyEntries")}</EmptyMessage> : null}
-          </SectionContent>
-        </Section>
+          </div>
+        ) : <EmptyMessage>{t("body.recent.noDailyEntries")}</EmptyMessage>}
       </CardContent>
     </Card>
   );
@@ -264,9 +290,10 @@ function symptomStatus(symptom: SymptomEntry): HealthStatus {
 }
 
 function organSummary(controller: DashboardController): string {
-  if (controller.selectedOrgan.status === "normal" && controller.organLabs.length === 0 && controller.organSymptoms.length === 0) {
+  if (controller.selectedOrgan.status === "normal" && controller.organLabs.length === 0 && controller.organSymptoms.length === 0 && controller.organConditions.length === 0) {
     return t("body.summary.empty", { organ: controller.selectedOrgan.name });
   }
   if (controller.selectedOrgan.status === "normal") return t("body.summary.normal", { organ: controller.selectedOrgan.name });
+  if (controller.selectedOrgan.status === "attention") return t("body.summary.attention", { organ: controller.selectedOrgan.name.toLowerCase() });
   return t("body.summary.monitor", { organ: controller.selectedOrgan.name.toLowerCase() });
 }

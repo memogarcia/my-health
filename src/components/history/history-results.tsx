@@ -10,7 +10,7 @@ import { t } from "../../i18n";
 import { groupByMarker, parseLabNumber, type LabSeries } from "../../sparkline";
 import type { DashboardController } from "../../use-dashboard-controller";
 import { FileText } from "../health-icons";
-import { StatusBadge } from "../health-status";
+import { LabFlagBadge, LabFollowUpBadge } from "../lab-result-context";
 import { ReferenceRangeStrip } from "../charts/reference-range-strip";
 import { SparklineView } from "../sparkline-view";
 import { defaultLabSort, formatDelta, nextLabSort, organName, sortLabResults, type LabSort, type LabSortKey } from "./history-helpers";
@@ -70,14 +70,16 @@ function MarkerCard({
               {organLabel}<span className="ml-1 tnum">{series.points.length}</span>
             </Button>
           </div>
-          <StatusBadge status={latest.status} />
+          <div className="flex flex-wrap justify-end gap-1">
+            <LabFlagBadge flag={latest.flag} />
+            <LabFollowUpBadge status={latest.status} />
+          </div>
         </div>
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
             <span className="text-2xl font-semibold">{latest.value}</span>
             {series.unit ? <span className="ml-1 text-sm text-muted-foreground">{series.unit}</span> : null}
-            {latest.referenceRange ? <p className="mt-0.5 text-xs text-muted-foreground">{t("history.card.referenceRange", { range: latest.referenceRange })}</p> : null}
-            <ReferenceRangeStrip compact value={latest.valueNumber ?? parseLabNumber(latest.value)} low={latest.referenceLow} high={latest.referenceHigh} status={latest.status} />
+            <ReferenceRangeStrip compact value={latest.valueNumber ?? parseLabNumber(latest.value)} low={latest.referenceLow} high={latest.referenceHigh} flag={latest.flag} referenceRange={latest.referenceRange} />
             <Delta latest={latest} previous={previous} />
           </div>
           <SparklineView series={series} className="mini-spark w-28" />
@@ -159,7 +161,8 @@ export function LabTable({
           <SortableHead label={t("history.table.result")} column="value" sort={sort} onSort={(key) => setSort((current) => nextLabSort(current, key))} />
           <SortableHead label={t("history.table.units")} column="unit" sort={sort} onSort={(key) => setSort((current) => nextLabSort(current, key))} />
           <SortableHead label={t("history.table.refRange")} column="referenceRange" sort={sort} onSort={(key) => setSort((current) => nextLabSort(current, key))} />
-          <SortableHead label={t("common.status")} column="status" sort={sort} onSort={(key) => setSort((current) => nextLabSort(current, key))} />
+          <TableHead>{t("history.table.rangePosition")}</TableHead>
+          <SortableHead label={t("lab.followUp.label")} column="status" sort={sort} onSort={(key) => setSort((current) => nextLabSort(current, key))} />
           <TableHead>{t("history.table.trend")}</TableHead>
           <SortableHead label={t("history.table.notes")} column="notes" sort={sort} onSort={(key) => setSort((current) => nextLabSort(current, key))} />
           <TableHead>{t("common.actions")}</TableHead>
@@ -173,7 +176,8 @@ export function LabTable({
             <TableCell className="tnum">{lab.value}</TableCell>
             <TableCell>{lab.unit || "-"}</TableCell>
             <TableCell className="tnum">{lab.referenceRange || "-"}</TableCell>
-            <TableCell><StatusBadge status={lab.status} /></TableCell>
+            <TableCell><LabFlagBadge flag={lab.flag} /></TableCell>
+            <TableCell><LabFollowUpBadge status={lab.status} /></TableCell>
             <TableCell>
               {latestIdPerMarker.has(lab.id) && byMarker.has(labSeriesKey(lab)) ? (
                 <SparklineView className="table-spark w-28" series={byMarker.get(labSeriesKey(lab)) as LabSeries} />

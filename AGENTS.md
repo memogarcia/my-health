@@ -50,8 +50,9 @@ Full spec in `ARCHITECTURE.md` → "AI Configuration" and "AI Boundary".
   persisted settings is a standing rule, not a temporary one.
 - The only live prompt path is the Codex CLI (`codex exec`), gated by
   `hasEnabledCodexModel` (provider + `allowRemoteHealthContext` + model).
-- Dropped images/PDFs are analyzed by Codex, reviewed/edited, then saved through
-  `add_lab_result` / `add_lab_results`. See `codex_cli.rs`.
+- Dropped images/PDFs are validated locally, entered/reviewed as structured
+  rows, then stored inside encrypted SQLite with their results. They are never
+  exposed to Codex because its read-only sandbox does not confine file reads.
 
 ## Medical Safety and Privacy
 

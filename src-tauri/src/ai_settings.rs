@@ -1,19 +1,61 @@
 pub fn validate_ai_settings(value: &serde_json::Value) -> Result<(), String> {
-    if contains_api_key_field(value) {
+    if contains_secret_field(value) {
         return Err(
             "AI settings must store API key environment variable names, not raw API keys".into(),
         );
     }
-    validate_api_key_env_var_fields(value)
+    validate_api_key_env_var_fields(value)?;
+    validate_base_url_fields(value)
 }
 
-fn contains_api_key_field(value: &serde_json::Value) -> bool {
+fn contains_secret_field(value: &serde_json::Value) -> bool {
     match value {
-        serde_json::Value::Object(map) => map
-            .iter()
-            .any(|(key, value)| key == "apiKey" || contains_api_key_field(value)),
-        serde_json::Value::Array(values) => values.iter().any(contains_api_key_field),
+        serde_json::Value::Object(map) => map.iter().any(|(key, value)| {
+            let normalized = key.to_ascii_lowercase().replace(['_', '-'], "");
+            let secret_key = matches!(
+                normalized.as_str(),
+                "apikey"
+                    | "token"
+                    | "accesstoken"
+                    | "refreshtoken"
+                    | "secret"
+                    | "password"
+                    | "authorization"
+            );
+            secret_key || contains_secret_field(value)
+        }),
+        serde_json::Value::Array(values) => values.iter().any(contains_secret_field),
         _ => false,
+    }
+}
+
+fn validate_base_url_fields(value: &serde_json::Value) -> Result<(), String> {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (key, value) in map {
+                if key == "baseUrl" {
+                    let Some(url) = value.as_str() else {
+                        return Err("AI base URL must be a string.".into());
+                    };
+                    if url.split_once("://").is_some_and(|(_, tail)| {
+                        tail.split('/')
+                            .next()
+                            .is_some_and(|authority| authority.contains('@'))
+                    }) {
+                        return Err("AI base URL must not contain embedded credentials.".into());
+                    }
+                }
+                validate_base_url_fields(value)?;
+            }
+            Ok(())
+        }
+        serde_json::Value::Array(values) => {
+            for value in values {
+                validate_base_url_fields(value)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
     }
 }
 
@@ -89,6 +131,15 @@ mod tests {
 
         let error = validate_ai_settings(&settings).unwrap_err();
         assert!(error.contains("not raw API keys"));
+    }
+
+    #[test]
+    fn rejects_secret_aliases_and_url_credentials() {
+        assert!(validate_ai_settings(&serde_json::json!({ "access_token": "secret" })).is_err());
+        assert!(validate_ai_settings(
+            &serde_json::json!({ "baseUrl": "https://user:pass@example.com" })
+        )
+        .is_err());
     }
 
     #[test]

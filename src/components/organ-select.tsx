@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { OrganSummary } from "../dashboard-model";
@@ -20,17 +21,20 @@ export function OrganSelect({
   onChange?: (value: string) => void;
   description?: string;
 }) {
+  const generatedId = useId();
   const fallback = defaultValue || value || organs[0]?.key || "blood";
+  const triggerId = id || `organ-select-${generatedId}`;
+  const descriptionId = description ? `${triggerId}-description` : undefined;
   return (
     <Field>
-      <FieldLabel>{t("intake.result.organSystem")}</FieldLabel>
+      <FieldLabel htmlFor={triggerId}>{t("intake.result.organSystem")}</FieldLabel>
       <Select name={name} value={value} defaultValue={value === undefined ? fallback : undefined} onValueChange={onChange}>
-        <SelectTrigger className="w-full" id={id}><SelectValue /></SelectTrigger>
+        <SelectTrigger aria-describedby={descriptionId} className="w-full" id={triggerId}><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectGroup>{organs.map((organ) => <SelectItem value={organ.key} key={organ.key}>{organ.name}</SelectItem>)}</SelectGroup>
         </SelectContent>
       </Select>
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
+      {description ? <FieldDescription id={descriptionId}>{description}</FieldDescription> : null}
     </Field>
   );
 }

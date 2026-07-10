@@ -2,12 +2,14 @@ import { formatDate } from "../../dashboard-format";
 import { t } from "../../i18n";
 import { extent, linearScale, padDomain } from "../../charts/chart-scale";
 import type { NumericLabSeries } from "../../charts/lab-series";
+import { LabFlagBadge, LabFollowUpBadge } from "../lab-result-context";
 
-export function LabTrendChart({ series, height = 220 }: { series: NumericLabSeries; height?: number }) {
+export function LabTrendChart({ series, height }: { series: NumericLabSeries; height?: number }) {
+  const chartHeight = height ?? (series.points.length === 1 ? 132 : 176);
   const width = 640;
   const margin = { top: 18, right: 18, bottom: 34, left: 44 };
   const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
+  const innerHeight = chartHeight - margin.top - margin.bottom;
   const times = series.points.map((point) => Date.parse(`${point.measuredAt}T00:00:00`));
   const valueDomain = extent([
     ...series.points.map((point) => point.numericValue),
@@ -33,6 +35,10 @@ export function LabTrendChart({ series, height = 220 }: { series: NumericLabSeri
           <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{t("charts.lab.latest")}</p>
           <p className="text-lg font-semibold tnum">{latest.value} {latest.unit}</p>
           <p className="text-xs text-muted-foreground">{formatDate(latest.measuredAt)}</p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            <LabFlagBadge flag={latest.flag} />
+            <LabFollowUpBadge status={latest.status} />
+          </div>
         </div>
         <div>
           <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">{t("charts.lab.previous")}</p>
@@ -45,7 +51,7 @@ export function LabTrendChart({ series, height = 220 }: { series: NumericLabSeri
           {series.hasMixedUnits || series.hasReferenceChanges ? <p className="text-xs text-muted-foreground">{series.hasMixedUnits ? t("charts.lab.unitsChanged") : t("charts.lab.referenceChanged")}</p> : null}
         </div>
       </div>
-      <svg className="chart-svg" viewBox={`0 0 ${width} ${height}`} role="img" aria-labelledby={`${titleId} ${descId}`}>
+      <svg className="chart-svg" viewBox={`0 0 ${width} ${chartHeight}`} role="img" aria-labelledby={`${titleId} ${descId}`}>
         <title id={titleId}>{t("charts.lab.title")}: {series.marker}</title>
         <desc id={descId}>{t("charts.lab.description")}</desc>
         {[0, 0.5, 1].map((tick) => {
@@ -56,11 +62,11 @@ export function LabTrendChart({ series, height = 220 }: { series: NumericLabSeri
         <path className="chart-trend-line" d={path} />
         {series.points.map((point) => {
           const latestPoint = point.id === latest.id;
-          return <circle className={latestPoint ? `chart-point latest status-${latest.status}` : "chart-point"} cx={xScale(Date.parse(`${point.measuredAt}T00:00:00`))} cy={yScale(point.numericValue)} r={latestPoint ? 5 : 3.5} key={point.id} />;
+          return <circle className={latestPoint ? "chart-point latest" : "chart-point"} cx={xScale(Date.parse(`${point.measuredAt}T00:00:00`))} cy={yScale(point.numericValue)} r={latestPoint ? 5 : 3.5} key={point.id} />;
         })}
         <g className="chart-axis">
-          <text x={margin.left} y={height - 10}>{formatDate(series.points[0].measuredAt)}</text>
-          <text x={width - margin.right} y={height - 10} textAnchor="end">{formatDate(latest.measuredAt)}</text>
+          <text x={margin.left} y={chartHeight - 10}>{formatDate(series.points[0].measuredAt)}</text>
+          <text x={width - margin.right} y={chartHeight - 10} textAnchor="end">{formatDate(latest.measuredAt)}</text>
         </g>
       </svg>
     </div>

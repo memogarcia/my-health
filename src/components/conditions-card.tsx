@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +31,7 @@ export function ConditionsCard({ controller }: { controller: DashboardController
         <ConditionForm controller={controller} />
         {controller.organConditions.length ? (
           <div className="grid gap-2">
-            {controller.organConditions.slice(0, 4).map((condition) => <ConditionRow condition={condition} controller={controller} key={condition.id} />)}
+            {controller.organConditions.map((condition) => <ConditionRow condition={condition} controller={controller} key={condition.id} />)}
           </div>
         ) : <EmptyMessage>{t("conditions.empty")}</EmptyMessage>}
       </CardContent>
@@ -40,6 +40,12 @@ export function ConditionsCard({ controller }: { controller: DashboardController
 }
 
 function ConditionForm({ controller }: { controller: DashboardController }) {
+  const [organKey, setOrganKey] = useState(controller.selectedOrganKey);
+
+  useEffect(() => {
+    setOrganKey(controller.selectedOrganKey);
+  }, [controller.selectedOrganKey]);
+
   return (
     <form className="grid gap-2" onSubmit={(event) => {
       event.preventDefault();
@@ -51,25 +57,32 @@ function ConditionForm({ controller }: { controller: DashboardController }) {
         status: String(data.get("status") || "current") as ConditionStatus,
         diagnosedAt: String(data.get("diagnosedAt") || ""),
         notes: String(data.get("notes") || ""),
-      }).then((saved) => { if (saved) form.reset(); });
+      }).then((saved) => {
+        if (!saved) return;
+        form.reset();
+        setOrganKey(controller.selectedOrganKey);
+      });
     }}>
       <div className="grid gap-2">
-        <OrganSelect organs={controller.display.organs} defaultValue={controller.selectedOrganKey} description={t("intake.organDescription")} />
+        <OrganSelect id="condition-organ" organs={controller.display.organs} value={organKey} onChange={setOrganKey} description={t("intake.organDescription")} />
         <Field>
           <FieldLabel className="sr-only" htmlFor="condition-name">{t("conditions.condition")}</FieldLabel>
           <Input id="condition-name" name="name" placeholder={t("conditions.placeholder.name")} required />
         </Field>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-          <Select name="status" defaultValue="current">
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="current">{t("conditions.current")}</SelectItem>
-                <SelectItem value="managed">{t("conditions.managed")}</SelectItem>
-                <SelectItem value="past">{t("conditions.past")}</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <Field>
+            <FieldLabel className="sr-only" htmlFor="condition-status">{t("common.status")}</FieldLabel>
+            <Select name="status" defaultValue="current">
+              <SelectTrigger id="condition-status" className="w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="current">{t("conditions.current")}</SelectItem>
+                  <SelectItem value="managed">{t("conditions.managed")}</SelectItem>
+                  <SelectItem value="past">{t("conditions.past")}</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </Field>
           <Button type="submit" size="sm"><Plus data-icon="inline-start" />{t("common.save")}</Button>
         </div>
       </div>
@@ -112,18 +125,24 @@ function ConditionRow({ condition, controller }: { condition: ConditionEntry; co
           <FieldLabel htmlFor={`condition-edit-name-${condition.id}`}>{t("conditions.condition")}</FieldLabel>
           <Input id={`condition-edit-name-${condition.id}`} name="name" defaultValue={condition.name} required />
         </Field>
-        <Select name="status" defaultValue={condition.status}>
-          <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              <SelectItem value="current">{t("conditions.current")}</SelectItem>
-              <SelectItem value="managed">{t("conditions.managed")}</SelectItem>
-              <SelectItem value="past">{t("conditions.past")}</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        <Field>
+          <FieldLabel htmlFor={`condition-edit-status-${condition.id}`}>{t("common.status")}</FieldLabel>
+          <Select name="status" defaultValue={condition.status}>
+            <SelectTrigger id={`condition-edit-status-${condition.id}`} className="w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectItem value="current">{t("conditions.current")}</SelectItem>
+                <SelectItem value="managed">{t("conditions.managed")}</SelectItem>
+                <SelectItem value="past">{t("conditions.past")}</SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </Field>
         <Input name="diagnosedAt" type="date" defaultValue={condition.diagnosedAt} aria-label={t("common.date")} />
-        <Textarea name="notes" defaultValue={condition.notes} placeholder={t("conditions.placeholder.notes")} />
+        <Field>
+          <FieldLabel htmlFor={`condition-edit-notes-${condition.id}`}>{t("common.notes")}</FieldLabel>
+          <Textarea id={`condition-edit-notes-${condition.id}`} name="notes" defaultValue={condition.notes} placeholder={t("conditions.placeholder.notes")} />
+        </Field>
         <div className="flex justify-end gap-2">
           <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)}>{t("common.cancel")}</Button>
           <Button type="submit" size="sm">{t("common.save")}</Button>

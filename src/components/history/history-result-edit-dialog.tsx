@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { HealthStatus, LabResult } from "../../dashboard-model";
 import { t } from "../../i18n";
 import type { DashboardController } from "../../use-dashboard-controller";
+import { followUpPriorityLabel } from "../lab-result-context";
 import { OrganSelect } from "../organ-select";
 
 export function EditLabDialog({ controller, lab, onClose }: { controller: DashboardController; lab: LabResult | null; onClose: () => void }) {
@@ -50,15 +51,16 @@ function EditLabForm({ controller, lab, onClose }: { controller: DashboardContro
         </FieldGroup>
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <Field>
-            <FieldLabel>{t("common.status")}</FieldLabel>
+            <FieldLabel htmlFor="lab-edit-follow-up-priority">{t("lab.followUp.label")}</FieldLabel>
             <Select name="status" defaultValue={lab.status}>
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-describedby="lab-edit-follow-up-description" className="w-full" id="lab-edit-follow-up-priority"><SelectValue /></SelectTrigger>
               <SelectContent><SelectGroup>
-                <SelectItem value="normal">{t("status.normal")}</SelectItem>
-                <SelectItem value="monitor">{t("status.monitor")}</SelectItem>
-                <SelectItem value="attention">{t("status.attention")}</SelectItem>
+                <SelectItem value="normal">{followUpPriorityLabel("normal")}</SelectItem>
+                <SelectItem value="monitor">{followUpPriorityLabel("monitor")}</SelectItem>
+                <SelectItem value="attention">{followUpPriorityLabel("attention")}</SelectItem>
               </SelectGroup></SelectContent>
             </Select>
+            <FieldDescription id="lab-edit-follow-up-description">{t("lab.followUp.description")}</FieldDescription>
           </Field>
           <Field><FieldLabel htmlFor="lab-edit-date">{t("common.date")}</FieldLabel><Input id="lab-edit-date" name="measuredAt" type="date" defaultValue={lab.measuredAt} required /></Field>
         </FieldGroup>

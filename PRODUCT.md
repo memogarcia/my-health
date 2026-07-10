@@ -29,11 +29,11 @@ else supports reading and adding data around it.
   A true 3D body is a planned enhancement; today the map is a 2D image with
   positioned hotspots.
 - **Labs and history** — add a single result or a batch from a dropped report,
-  review extracted values, and read trends over time.
+  review entered values, and read trends over time.
 - **Symptoms and conditions** — log severity and dates against an organ.
 - **Medications and supplements** — track active and stopped regimen items.
-- **Documents** — drop a PDF or image, let Codex extract measurements, review,
-  and accept them as results.
+- **Documents** — drop a PDF or image, enter and review its measurements, then
+  save the source bytes and structured results inside encrypted SQLite.
 - **Assistant** — advisory AI chat and deep research, gated by an explicit
   remote-context opt-in.
 

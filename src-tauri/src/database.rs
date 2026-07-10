@@ -1,108 +1,21 @@
 use rusqlite::{params, Connection};
 use serde::Serialize;
 use std::{
-    fs::{self, File},
-    io::Read,
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Path, PathBuf},
     sync::Mutex,
-    time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::Manager;
+mod paths;
+mod schema;
 mod seed;
+use paths::{is_plaintext_sqlite, migration_paths, unix_nanos};
+use schema::{backfill_lab_result_derivatives, migrate_legacy_document_copies, SCHEMA};
 use seed::seed_organs;
-const SCHEMA: &str = r#"
-PRAGMA foreign_keys = ON;
-CREATE TABLE IF NOT EXISTS organs (
-  key TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  system TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'normal' CHECK (status IN ('normal', 'monitor', 'attention')),
-  notes TEXT NOT NULL DEFAULT '',
-  display_order INTEGER NOT NULL DEFAULT 0
-);
-CREATE TABLE IF NOT EXISTS lab_reports (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  source_name TEXT NOT NULL,
-  file_type TEXT NOT NULL DEFAULT '',
-  size_label TEXT NOT NULL DEFAULT '',
-  local_copy_path TEXT NOT NULL DEFAULT '',
-  test_date TEXT NOT NULL DEFAULT '',
-  report_date TEXT NOT NULL DEFAULT '',
-  lab_name TEXT NOT NULL DEFAULT '',
-  notes TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE IF NOT EXISTS lab_results (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  report_id INTEGER REFERENCES lab_reports(id) ON DELETE SET NULL,
-  organ_key TEXT NOT NULL REFERENCES organs(key) ON DELETE CASCADE,
-  marker TEXT NOT NULL,
-  value TEXT NOT NULL,
-  value_number REAL,
-  unit TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL CHECK (status IN ('normal', 'monitor', 'attention')),
-  flag TEXT NOT NULL DEFAULT 'unknown' CHECK (flag IN ('low', 'normal', 'high', 'unknown')),
-  measured_at TEXT NOT NULL,
-  notes TEXT NOT NULL DEFAULT '',
-  reference_range TEXT NOT NULL DEFAULT '',
-  reference_low REAL,
-  reference_high REAL,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE IF NOT EXISTS symptoms (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  organ_key TEXT NOT NULL REFERENCES organs(key) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  severity INTEGER NOT NULL CHECK (severity BETWEEN 1 AND 5),
-  observed_at TEXT NOT NULL,
-  notes TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE IF NOT EXISTS conditions (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  organ_key TEXT NOT NULL REFERENCES organs(key) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  status TEXT NOT NULL CHECK (status IN ('current', 'managed', 'past')),
-  diagnosed_at TEXT NOT NULL DEFAULT '',
-  notes TEXT NOT NULL DEFAULT '',
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TEXT NOT NULL DEFAULT ''
-);
-CREATE TABLE IF NOT EXISTS ai_settings (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  settings TEXT NOT NULL DEFAULT '{}',
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
--- ponytail: one JSON row is enough for early profile, daily log, and import summaries; split tables when querying them matters.
-CREATE TABLE IF NOT EXISTS user_state (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  state TEXT NOT NULL DEFAULT '{}',
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-CREATE TABLE IF NOT EXISTS regimen_items (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  kind TEXT NOT NULL CHECK (kind IN ('medication', 'supplement')),
-  name TEXT NOT NULL,
-  dose TEXT NOT NULL DEFAULT '',
-  unit TEXT NOT NULL DEFAULT '',
-  frequency TEXT NOT NULL DEFAULT '',
-  start_date TEXT NOT NULL DEFAULT '',
-  stop_date TEXT NOT NULL DEFAULT '',
-  reason TEXT NOT NULL DEFAULT '',
-  notes TEXT NOT NULL DEFAULT '',
-  active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TEXT NOT NULL DEFAULT ''
-);
-"#;
+const APPLICATION_ID: i64 = 0x4D45_4844;
+const APPLICATION_NAME: &str = "me-health-dashboard";
+const ACTIVE_DATABASE_FILE: &str = "active-database-path";
 #[cfg(any(debug_assertions, test))]
 const DEV_MOCK_DATABASE_NAME: &str = "mock-health-dashboard.sqlite3";
 pub struct AppState {
@@ -112,6 +25,7 @@ struct DatabaseSession {
     conn: Option<Connection>,
     db_path: PathBuf,
     requires_encryption: bool,
+    active_path_file: Option<PathBuf>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -123,6 +37,7 @@ pub struct DatabaseStatus {
     has_legacy_plaintext: bool,
 }
 impl AppState {
+    #[cfg(any(debug_assertions, test))]
     #[cfg_attr(debug_assertions, allow(dead_code))]
     pub fn new(db_path: PathBuf) -> Self {
         Self {
@@ -130,6 +45,7 @@ impl AppState {
                 conn: None,
                 db_path,
                 requires_encryption: true,
+                active_path_file: None,
             }),
         }
     }
@@ -140,6 +56,17 @@ impl AppState {
                 conn: Some(conn),
                 db_path,
                 requires_encryption: false,
+                active_path_file: None,
+            }),
+        }
+    }
+    fn persistent(db_path: PathBuf, active_path_file: PathBuf) -> Self {
+        Self {
+            inner: Mutex::new(DatabaseSession {
+                conn: None,
+                db_path,
+                requires_encryption: true,
+                active_path_file: Some(active_path_file),
             }),
         }
     }
@@ -199,9 +126,15 @@ pub fn init_database_state(app: &mut tauri::App) -> Result<AppState, Box<dyn std
     }
     #[cfg(not(debug_assertions))]
     {
-        let document_dir = app.path().document_dir().unwrap_or(app_data_dir);
+        let document_dir = app
+            .path()
+            .document_dir()
+            .unwrap_or_else(|_| app_data_dir.clone());
         fs::create_dir_all(&document_dir)?;
-        Ok(AppState::new(document_dir.join("health-dashboard.sqlite3")))
+        Ok(persistent_database_state(
+            &app_data_dir,
+            document_dir.join("health-dashboard.sqlite3"),
+        ))
     }
 }
 #[cfg(any(debug_assertions, test))]
@@ -216,7 +149,20 @@ fn init_dev_database_state(app_data_dir: &Path) -> Result<AppState, Box<dyn std:
         install_schema(&conn)?;
         return Ok(AppState::unlocked_plaintext(db_path, conn));
     }
-    Ok(AppState::new(app_data_dir.join("health-dashboard-dev.sqlite3")))
+    Ok(persistent_database_state(
+        app_data_dir,
+        app_data_dir.join("health-dashboard-dev.sqlite3"),
+    ))
+}
+
+fn persistent_database_state(app_data_dir: &Path, default_path: PathBuf) -> AppState {
+    let active_path_file = app_data_dir.join(ACTIVE_DATABASE_FILE);
+    let db_path = fs::read_to_string(&active_path_file)
+        .ok()
+        .map(|value| PathBuf::from(value.trim()))
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or(default_path);
+    AppState::persistent(db_path, active_path_file)
 }
 #[cfg(any(debug_assertions, test))]
 fn dev_mock_database_path() -> PathBuf {
@@ -251,6 +197,9 @@ pub fn select_database(
 pub fn select_database_path(state: &AppState, path: &str) -> Result<DatabaseStatus, String> {
     let path = normalize_database_path(path)?;
     let mut inner = state.inner.lock().map_err(|error| error.to_string())?;
+    if let Some(active_path_file) = &inner.active_path_file {
+        persist_active_database_path(active_path_file, &path)?;
+    }
     inner.conn = None;
     inner.db_path = path;
     inner.requires_encryption = true;
@@ -265,12 +214,20 @@ pub fn unlock_database(state: &AppState, passphrase: &str) -> Result<DatabaseSta
         return Ok(state.status());
     }
     recover_plaintext_migration(&inner.db_path)?;
+    let had_content = inner
+        .db_path
+        .metadata()
+        .map(|metadata| metadata.len() > 0)
+        .unwrap_or(false);
     if is_plaintext_sqlite(&inner.db_path) {
         migrate_plaintext_database(&inner.db_path, passphrase)?;
     }
     let conn = open_encrypted_database(&inner.db_path, passphrase).map_err(|_| {
         "Could not unlock the database. Check the passphrase and try again.".to_string()
     })?;
+    if had_content {
+        validate_app_database(&conn, true)?;
+    }
     install_schema(&conn).map_err(|error| error.to_string())?;
     inner.conn = Some(conn);
     drop(inner);
@@ -281,6 +238,22 @@ pub fn with_connection<T>(
     action: impl FnOnce(&Connection) -> Result<T, String>,
 ) -> Result<T, String> {
     let inner = state.inner.lock().map_err(|error| error.to_string())?;
+    let conn = inner
+        .conn
+        .as_ref()
+        .ok_or_else(|| "Database locked. Unlock it first.".to_string())?;
+    action(conn)
+}
+
+pub fn with_connection_at_path<T>(
+    state: &AppState,
+    expected_path: &str,
+    action: impl FnOnce(&Connection) -> Result<T, String>,
+) -> Result<T, String> {
+    let inner = state.inner.lock().map_err(|error| error.to_string())?;
+    if inner.db_path.as_path() != Path::new(expected_path) {
+        return Err("The active database changed before this operation completed.".into());
+    }
     let conn = inner
         .conn
         .as_ref()
@@ -312,6 +285,7 @@ fn migrate_plaintext_database(path: &Path, passphrase: &str) -> Result<(), Strin
     let _ = fs::remove_file(&plaintext_backup);
 
     let source = Connection::open(path).map_err(|error| error.to_string())?;
+    validate_app_database(&source, true)?;
     let encrypted_path = encrypted_tmp
         .to_str()
         .ok_or_else(|| "Database path is not valid UTF-8".to_string())?;
@@ -384,8 +358,61 @@ fn open_plaintext_database(path: &Path) -> rusqlite::Result<Connection> {
 
 fn install_schema(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(SCHEMA)?;
+    conn.pragma_update(None, "application_id", APPLICATION_ID)?;
     migrate_schema(conn)?;
     seed_organs(conn)
+}
+
+fn validate_app_database(conn: &Connection, allow_legacy: bool) -> Result<(), String> {
+    let application_id: i64 = conn
+        .pragma_query_value(None, "application_id", |row| row.get(0))
+        .map_err(|error| error.to_string())?;
+    if application_id == APPLICATION_ID {
+        return Ok(());
+    }
+    let marker: Option<String> = conn
+        .query_row("SELECT app_id FROM app_metadata WHERE id = 1", [], |row| {
+            row.get(0)
+        })
+        .ok();
+    if marker.as_deref() == Some(APPLICATION_NAME) {
+        return Ok(());
+    }
+    if allow_legacy && has_legacy_app_schema(conn)? {
+        return Ok(());
+    }
+    Err("This file is not a Me Health Dashboard database. It was not modified.".into())
+}
+
+fn has_legacy_app_schema(conn: &Connection) -> Result<bool, String> {
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master
+             WHERE type = 'table' AND name IN ('organs', 'lab_results', 'symptoms')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|error| error.to_string())?;
+    Ok(count == 3)
+}
+
+fn persist_active_database_path(active_path_file: &Path, db_path: &Path) -> Result<(), String> {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(active_path_file)
+        .map_err(|error| error.to_string())?;
+    file.write_all(db_path.to_string_lossy().as_bytes())
+        .map_err(|error| error.to_string())?;
+    file.sync_all().map_err(|error| error.to_string())?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(active_path_file, fs::Permissions::from_mode(0o600))
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 fn migrate_schema(conn: &Connection) -> rusqlite::Result<()> {
@@ -395,6 +422,7 @@ fn migrate_schema(conn: &Connection) -> rusqlite::Result<()> {
         ("lab_reports", "file_type", "ALTER TABLE lab_reports ADD COLUMN file_type TEXT NOT NULL DEFAULT ''"),
         ("lab_reports", "size_label", "ALTER TABLE lab_reports ADD COLUMN size_label TEXT NOT NULL DEFAULT ''"),
         ("lab_reports", "local_copy_path", "ALTER TABLE lab_reports ADD COLUMN local_copy_path TEXT NOT NULL DEFAULT ''"),
+        ("lab_reports", "document_bytes", "ALTER TABLE lab_reports ADD COLUMN document_bytes BLOB NOT NULL DEFAULT X''"),
         ("lab_reports", "updated_at", "ALTER TABLE lab_reports ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
         ("lab_reports", "deleted_at", "ALTER TABLE lab_reports ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
         ("lab_results", "report_id", "ALTER TABLE lab_results ADD COLUMN report_id INTEGER REFERENCES lab_reports(id) ON DELETE SET NULL"),
@@ -414,6 +442,8 @@ fn migrate_schema(conn: &Connection) -> rusqlite::Result<()> {
     ] {
         add_column_if_missing(conn, table, name, sql)?;
     }
+    backfill_lab_result_derivatives(conn)?;
+    migrate_legacy_document_copies(conn)?;
     Ok(())
 }
 
@@ -446,21 +476,6 @@ fn validate_passphrase(passphrase: &str) -> Result<&str, String> {
     }
 }
 
-fn is_plaintext_sqlite(path: &Path) -> bool {
-    let mut header = [0; 16];
-    File::open(path)
-        .and_then(|mut file| file.read_exact(&mut header))
-        .map(|_| header == *b"SQLite format 3\0")
-        .unwrap_or(false)
-}
-
-fn migration_paths(path: &Path) -> (PathBuf, PathBuf) {
-    (
-        path.with_extension("sqlite3.encrypted-tmp"),
-        path.with_extension("sqlite3.plaintext-backup"),
-    )
-}
-
 fn recover_plaintext_migration(path: &Path) -> Result<(), String> {
     let (encrypted_tmp, plaintext_backup) = migration_paths(path);
     if !path.exists() && plaintext_backup.exists() {
@@ -473,13 +488,6 @@ fn recover_plaintext_migration(path: &Path) -> Result<(), String> {
         let _ = fs::remove_file(&encrypted_tmp);
     }
     Ok(())
-}
-
-fn unix_nanos() -> u128 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or(0)
 }
 
 #[cfg(test)]

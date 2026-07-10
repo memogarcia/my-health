@@ -18,7 +18,12 @@ export type NumericLabSeries = {
 const statusRank: Record<HealthStatus, number> = { normal: 0, monitor: 1, attention: 2 };
 
 export function numericValueOf(lab: LabResult): number | null {
+  if (lab.value.includes("/")) return null;
   return lab.valueNumber ?? parseLabNumber(lab.value);
+}
+
+export function labSeriesKey(lab: Pick<LabResult, "marker" | "unit" | "organKey">): string {
+  return [lab.marker.trim().toLowerCase(), lab.unit.trim().toLowerCase(), lab.organKey].join("|");
 }
 
 export function buildNumericLabSeries(labs: LabResult[]): NumericLabSeries[] {
@@ -29,7 +34,7 @@ export function buildNumericLabSeries(labs: LabResult[]): NumericLabSeries[] {
     if (numericValue == null) continue;
     const markerKey = lab.marker.trim().toLowerCase();
     const unitKey = lab.unit.trim().toLowerCase();
-    const key = [markerKey, unitKey, lab.organKey].join("|");
+    const key = labSeriesKey(lab);
     markerUnits.set(markerKey, (markerUnits.get(markerKey) || new Set()).add(unitKey));
     groups.set(key, [...(groups.get(key) || []), { ...lab, numericValue }]);
   }

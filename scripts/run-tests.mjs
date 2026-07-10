@@ -32,6 +32,7 @@ const files = ROOTS.flatMap((root) => walk(root));
 const nodeTests = files.filter((file) => NODE_TEST_PATTERN.test(path.basename(file))).sort();
 const tsTests = files.filter((file) => TS_TEST_PATTERN.test(path.basename(file))).sort();
 
+let testOutDir = '';
 const compiledTsTests = tsTests.length > 0 ? compileTypeScriptTests(tsTests) : [];
 const tests = [...nodeTests, ...compiledTsTests];
 
@@ -46,10 +47,12 @@ for (const file of tests) {
 }
 
 const result = spawnSync(process.execPath, ['--test', ...tests], { stdio: 'inherit' });
+if (testOutDir) rmSync(testOutDir, { recursive: true, force: true });
 process.exit(result.status ?? 1);
 
 function compileTypeScriptTests() {
   const outDir = path.join(tmpdir(), `me-health-dashboard-tests-${process.pid}`);
+  testOutDir = outDir;
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
   if (existsSync('node_modules')) symlinkSync(path.resolve('node_modules'), path.join(outDir, 'node_modules'), 'dir');

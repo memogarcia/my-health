@@ -7,10 +7,9 @@ import { ChartFrame } from "./chart-frame";
 import { LabTrendChart } from "./lab-trend-chart";
 import { MarkerStatusMatrix } from "./marker-status-matrix";
 
-export function LabAnalyticsPanel({ labs, allLabs, organs }: { labs: LabResult[]; allLabs: LabResult[]; organs: OrganSummary[] }) {
+export function LabAnalyticsPanel({ labs, organs }: { labs: LabResult[]; organs: OrganSummary[] }) {
   const filteredSeries = useMemo(() => buildNumericLabSeries(labs), [labs]);
-  const allSeries = useMemo(() => buildNumericLabSeries(allLabs), [allLabs]);
-  const series = filteredSeries.length ? filteredSeries : allSeries;
+  const series = filteredSeries;
   const defaultSeries = pickDefaultLabSeries(series);
   const [selectedKey, setSelectedKey] = useState(defaultSeries?.key || "");
   useEffect(() => {
@@ -30,7 +29,7 @@ export function LabAnalyticsPanel({ labs, allLabs, organs }: { labs: LabResult[]
       {selected ? (
         <div className="grid gap-4">
           <LabTrendChart series={selected} />
-          <MarkerStatusMatrix labs={labs} onSelectMarker={(marker) => setSelectedKey(series.find((item) => item.marker === marker)?.key || selected.key)} />
+          <MarkerStatusMatrix labs={labs} organs={organs} onSelectSeries={(seriesKey) => setSelectedKey(series.some((item) => item.key === seriesKey) ? seriesKey : selected.key)} />
         </div>
       ) : <ChartEmpty title={t("charts.lab.noNumeric")} description={t("charts.lab.noNumericDescription")} />}
     </ChartFrame>

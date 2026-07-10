@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, type ReactNode } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,16 +8,17 @@ import { configureNativeDatabaseMenu, configureNativeShell } from "./native-shel
 import { navItems } from "./dashboard-model";
 import { bindDocumentDrop } from "./document-intake";
 import { useDashboardController } from "./use-dashboard-controller";
-import { AiChatPage } from "./components/ai-chat-page";
 import { AppShell } from "./components/app-shell";
 import { BodyWorkspace } from "./components/body-workspace";
 import { DatabaseGate } from "./components/database-gate";
-import { ResearchPage } from "./components/deep-research-page";
-import { DocumentsPage } from "./components/documents-page";
-import { HistoryPage } from "./components/history-page";
 import { IntakeDialog } from "./components/intake-dialog";
-import { MedicationsPage } from "./components/medications-page";
-import { SettingsPage } from "./components/settings-page";
+
+const AiChatPage = lazy(() => import("./components/ai-chat-page").then((module) => ({ default: module.AiChatPage })));
+const ResearchPage = lazy(() => import("./components/deep-research-page").then((module) => ({ default: module.ResearchPage })));
+const DocumentsPage = lazy(() => import("./components/documents-page").then((module) => ({ default: module.DocumentsPage })));
+const HistoryPage = lazy(() => import("./components/history-page").then((module) => ({ default: module.HistoryPage })));
+const MedicationsPage = lazy(() => import("./components/medications-page").then((module) => ({ default: module.MedicationsPage })));
+const SettingsPage = lazy(() => import("./components/settings-page").then((module) => ({ default: module.SettingsPage })));
 
 export function App() {
   const controller = useDashboardController();
@@ -86,16 +87,22 @@ export function App() {
   return (
     <AppShell controller={controller}>
       {controller.selectedNav === "body" ? <BodyWorkspace controller={controller} /> : null}
-      {controller.selectedNav === "labs" || controller.selectedNav === "symptoms" ? <HistoryPage controller={controller} /> : null}
-      {controller.selectedNav === "plan" ? <AiChatPage controller={controller} /> : null}
-      {controller.selectedNav === "research" ? <ResearchPage controller={controller} /> : null}
-      {controller.selectedNav === "documents" ? <DocumentsPage controller={controller} /> : null}
-      {controller.selectedNav === "medications" ? <MedicationsPage controller={controller} /> : null}
-      {controller.selectedNav === "settings" ? <SettingsPage controller={controller} /> : null}
+      {controller.selectedNav === "labs" || controller.selectedNav === "symptoms" ? <LazyPage><HistoryPage controller={controller} /></LazyPage> : null}
+      {controller.selectedNav === "plan" ? (
+        <LazyPage><AiChatPage controller={controller} /></LazyPage>
+      ) : null}
+      {controller.selectedNav === "research" ? <LazyPage><ResearchPage controller={controller} /></LazyPage> : null}
+      {controller.selectedNav === "documents" ? <LazyPage><DocumentsPage controller={controller} /></LazyPage> : null}
+      {controller.selectedNav === "medications" ? <LazyPage><MedicationsPage controller={controller} /></LazyPage> : null}
+      {controller.selectedNav === "settings" ? <LazyPage><SettingsPage controller={controller} /></LazyPage> : null}
       <IntakeDialog controller={controller} />
       <Toaster position="top-center" />
     </AppShell>
   );
+}
+
+function LazyPage({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<Skeleton className="h-[calc(100vh-8rem)] w-full" />}>{children}</Suspense>;
 }
 
 function DesktopOnlyScreen({ error }: { error: string }) {

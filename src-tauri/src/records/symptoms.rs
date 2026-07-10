@@ -3,7 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::database::{self, AppState};
 
-use super::{ensure_organ, parse::{validate_iso_date, validate_required}, soft_delete_row};
+use super::{
+    ensure_organ,
+    parse::{validate_iso_date, validate_required},
+    soft_delete_row,
+};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,7 +46,12 @@ pub fn add_symptom(
     input: AddSymptomInput,
     state: tauri::State<'_, AppState>,
 ) -> Result<SymptomEntry, String> {
-    validate_symptom_input(&input.organ_key, &input.name, input.severity, &input.observed_at)?;
+    validate_symptom_input(
+        &input.organ_key,
+        &input.name,
+        input.severity,
+        &input.observed_at,
+    )?;
 
     database::with_connection(&state, |conn| {
         insert_symptom(
@@ -65,14 +74,21 @@ pub fn update_symptom(
     if input.id <= 0 {
         return Err("id is required".into());
     }
-    validate_symptom_input(&input.organ_key, &input.name, input.severity, &input.observed_at)?;
+    validate_symptom_input(
+        &input.organ_key,
+        &input.name,
+        input.severity,
+        &input.observed_at,
+    )?;
 
     database::with_connection(&state, |conn| update_symptom_in_conn(conn, &input))
 }
 
 #[tauri::command]
 pub fn delete_symptom(id: i64, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    database::with_connection(&state, |conn| soft_delete_row(conn, "symptoms", id, "Symptom"))
+    database::with_connection(&state, |conn| {
+        soft_delete_row(conn, "symptoms", id, "Symptom")
+    })
 }
 
 pub fn list_recent_symptoms(conn: &Connection) -> rusqlite::Result<Vec<SymptomEntry>> {
@@ -116,13 +132,22 @@ pub(super) fn insert_symptom(
     conn.execute(
         "INSERT INTO symptoms (organ_key, name, severity, observed_at, notes)
          VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![organ_key.trim(), name.trim(), severity, observed_at.trim(), notes.trim()],
+        params![
+            organ_key.trim(),
+            name.trim(),
+            severity,
+            observed_at.trim(),
+            notes.trim()
+        ],
     )
     .map_err(|error| error.to_string())?;
     Ok(conn.last_insert_rowid())
 }
 
-fn update_symptom_in_conn(conn: &Connection, input: &UpdateSymptomInput) -> Result<SymptomEntry, String> {
+fn update_symptom_in_conn(
+    conn: &Connection,
+    input: &UpdateSymptomInput,
+) -> Result<SymptomEntry, String> {
     ensure_organ(conn, &input.organ_key)?;
     let changed = conn
         .execute(

@@ -43,6 +43,7 @@ test("promptIntakeFromText drafts lab results from short text", () => {
   assert.equal(action.result.unit, "mg/dL");
   assert.equal(action.result.organKey, "blood");
   assert.equal(action.result.measuredAt, "2026-07-09");
+  assert.equal(action.result.status, "");
 });
 
 test("promptIntakeFromText drafts blood pressure with default unit", () => {
@@ -55,6 +56,15 @@ test("promptIntakeFromText drafts blood pressure with default unit", () => {
   assert.equal(action.result.unit, "mmHg");
   assert.equal(action.result.organKey, "heart");
   assert.equal(action.result.measuredAt, "2026-07-08");
+  assert.equal(action.result.status, "");
+});
+
+test("promptIntakeFromText only sets explicit follow-up priority", () => {
+  const high = promptIntakeFromText("Log LDL 140 mg/dL high today", base);
+  const monitor = promptIntakeFromText("Log LDL 140 mg/dL and monitor today", base);
+
+  assert.equal(high.kind === "result" ? high.result.status : null, "");
+  assert.equal(monitor.kind === "result" ? monitor.result.status : null, "monitor");
 });
 
 test("promptIntakeFromText keeps questions in chat", () => {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -10,6 +11,7 @@ import { t } from "../i18n";
 import type { DashboardController, ResultInput, SymptomInput } from "../use-dashboard-controller";
 import { Send } from "./health-icons";
 import { DocumentReview } from "./document-review";
+import { followUpPriorityLabel } from "./lab-result-context";
 import { OrganSelect } from "./organ-select";
 
 export function IntakeDialog({ controller }: { controller: DashboardController }) {
@@ -31,9 +33,11 @@ export function IntakeDialog({ controller }: { controller: DashboardController }
 }
 
 function ResultForm({ controller }: { controller: DashboardController }) {
+  const [status, setStatus] = useState("" as HealthStatus | "");
   return (
     <form onSubmit={(event) => {
       event.preventDefault();
+      if (!status) return;
       const form = new FormData(event.currentTarget);
       const input: ResultInput = {
         organKey: String(form.get("organKey") || controller.selectedOrganKey),
@@ -41,7 +45,7 @@ function ResultForm({ controller }: { controller: DashboardController }) {
         value: String(form.get("value") || ""),
         unit: String(form.get("unit") || ""),
         referenceRange: String(form.get("referenceRange") || ""),
-        status: String(form.get("status") || "normal") as HealthStatus,
+        status: status as HealthStatus,
         measuredAt: String(form.get("measuredAt") || ""),
         notes: String(form.get("notes") || ""),
       };
@@ -69,17 +73,18 @@ function ResultForm({ controller }: { controller: DashboardController }) {
         </FieldGroup>
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <Field>
-            <FieldLabel>{t("common.status")}</FieldLabel>
-            <Select name="status" defaultValue="normal">
-              <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <FieldLabel htmlFor="result-follow-up-priority">{t("lab.followUp.label")}</FieldLabel>
+            <Select name="status" value={status} onValueChange={(value) => setStatus(value as HealthStatus)}>
+              <SelectTrigger aria-describedby="result-follow-up-description" aria-required="true" className="w-full" id="result-follow-up-priority"><SelectValue placeholder={t("lab.followUp.choose")} /></SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectItem value="normal">{t("status.normal")}</SelectItem>
-                  <SelectItem value="monitor">{t("status.monitor")}</SelectItem>
-                  <SelectItem value="attention">{t("status.attention")}</SelectItem>
+                  <SelectItem value="normal">{followUpPriorityLabel("normal")}</SelectItem>
+                  <SelectItem value="monitor">{followUpPriorityLabel("monitor")}</SelectItem>
+                  <SelectItem value="attention">{followUpPriorityLabel("attention")}</SelectItem>
                 </SelectGroup>
               </SelectContent>
             </Select>
+            <FieldDescription id="result-follow-up-description">{t("lab.followUp.description")}</FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="measuredAt">{t("common.date")}</FieldLabel>
@@ -91,7 +96,7 @@ function ResultForm({ controller }: { controller: DashboardController }) {
           <Textarea id="notes" name="notes" placeholder={t("intake.placeholder.notes")} />
         </Field>
         <DialogFooter>
-          <Button type="submit"><Send data-icon="inline-start" />{t("intake.result.save")}</Button>
+          <Button type="submit" disabled={!status}><Send data-icon="inline-start" />{t("intake.result.save")}</Button>
         </DialogFooter>
       </FieldGroup>
     </form>

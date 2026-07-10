@@ -23,6 +23,9 @@ npm run typecheck
 echo "  Running tests..."
 npm test
 
+echo "  Running Rust lints..."
+npm run lint:rust
+
 echo "  Running production build..."
 npm run build
 

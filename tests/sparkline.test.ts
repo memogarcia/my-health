@@ -38,3 +38,12 @@ test("groupByMarker keeps different units and organs separate", () => {
   assert.deepEqual(series.map((item) => item.points.length).sort(), [1, 1, 2]);
   assert.equal(series.find((item) => item.organKey === "blood" && item.unit === "mg/dL")?.points.length, 2);
 });
+
+test("groupByMarker treats the highest id as latest on the same date", () => {
+  const [series] = groupByMarker([
+    lab({ id: 9, value: "109", measuredAt: "2026-07-01" }),
+    lab({ id: 3, value: "103", measuredAt: "2026-07-01" }),
+  ]);
+
+  assert.equal(series.points.at(-1)?.id, 9);
+});

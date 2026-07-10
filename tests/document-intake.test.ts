@@ -43,7 +43,7 @@ function fakeDropEvent(file: File) {
   return {
     dataTransfer: { types: ["Files"], files: [file], dropEffect: "" },
     defaultPrevented: false,
-    preventDefault() {
+    preventDefault(this: { defaultPrevented: boolean }) {
       this.defaultPrevented = true;
     },
     target: null,

@@ -28,7 +28,7 @@ Core tokens (`:root`):
 | `--primary` | `oklch(0.48 0.09 186)` | Teal accent, primary actions |
 | `--ring` | `oklch(0.62 0.08 186)` | Focus rings |
 | `--border` | `oklch(0.9 0.01 225)` | Dividers, card edges |
-| `--input` | `oklch(0.84 0.012 225)` | Input borders |
+| `--input` | `oklch(0.66 0.012 225)` | Input borders; at least 3:1 against cards |
 | `--destructive` | `oklch(0.55 0.2 30)` | Destructive actions |
 | `--sidebar` | `oklch(0.19 0.03 235)` | Dark sidebar |
 | `--sidebar-muted` | `oklch(0.72 0.026 230)` | Sidebar secondary text |
@@ -45,13 +45,14 @@ Status never relies on color alone. Each status has a color, a label
 
 | Status | Token | Value | Meaning |
 | --- | --- | --- | --- |
-| `normal` | `--status-normal` | `#1c7259` | In range / healthy |
-| `monitor` | `--status-monitor` | `#9a540f` | Slightly off, watch |
-| `attention` | `--status-attention` | `#b64235` | Clearly abnormal, act |
+| `normal` | `--status-normal` | `#1c7259` | Routine / no current follow-up |
+| `monitor` | `--status-monitor` | `#9a540f` | Monitor over time |
+| `attention` | `--status-attention` | `#b64235` | Discuss soon |
 | (empty) | `--status-empty` | `oklch(0.66 0.02 235)` | No data yet |
 
-Lab flag (`low`/`high`/`normal`/`unknown`) renders as directional context on a
-result row, not as a fourth status color. `--trend-line: #5f7186` for sparklines.
+Lab flag (`low`/`high`/`normal`/`unknown`) renders as neutral directional context
+on result rows, trends, and detail views, not as a fourth status color. Follow-up
+priority stays visually separate. `--trend-line: #5f7186` for sparklines.
 
 ### Organ colors
 
@@ -86,6 +87,8 @@ title/description and actions, then the workspace.
 - `body-workspace-grid`: `240px minmax(420px, 1fr) 336px` — organ rail,
   anatomy stage, detail rail.
 - Overview hero sits above the grid: `minmax(0, 1fr) auto` with stat tiles.
+- The global daily-log history sits below the grid; it must not appear inside
+  the selected-organ detail rail.
 
 ### Responsive breakpoints
 
@@ -94,13 +97,16 @@ title/description and actions, then the workspace.
 - `≤ 900px`: sidebar collapses to a 68px icon rail (labels, group labels,
   and shortcuts hidden); body workspace becomes single column.
 
+The native window minimum is `820px`, so both responsive states are reachable
+through normal window resizing.
+
 Use these existing breakpoints. Do not add component-local media queries that
 conflict with them.
 
 ### Anatomy stage
 
 The body map is an image with absolutely-positioned hotspots. Hotspots are
-18px circles using `--organ-color`, a white border, and a soft ring. They scale
+24px circles using `--organ-color`, a white border, and a soft ring. They scale
 to 1.25 on hover, focus-visible, and selected. Labels appear above the hotspot
 (`label-below` flips them). Keep hotspots keyboard-focusable; they are
 `<button>`s.
@@ -141,8 +147,11 @@ state changes, not decoration. Respect `prefers-reduced-motion`.
 - Visible focus: `focus-visible:ring` using `--ring`. Hotspots and nav buttons
   show a ring on keyboard focus.
 - Status is not color-only: label + icon/dot accompany every status color.
-- Targets are at least 18px on hotspots; nav buttons have comfortable padding.
+- Targets are at least 24px on hotspots; nav buttons have comfortable padding.
+- Selected organ controls expose `aria-pressed`, and organ detail changes use a
+  polite live region.
 - The active nav item sets `aria-current="page"`; nav has `aria-label`.
+- Route changes reset workspace scroll and focus the new page heading.
 - Drag regions (`data-tauri-drag-region`) are marked `aria-hidden` so they do
   not capture screen-reader focus.
 - Contrast meets the calm-clinical baseline; avoid low-contrast muted text for

@@ -6,6 +6,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { AlertTriangle, CheckCircle2, Eye, EyeOff, Folder, Plus, Sparkles } from "./health-icons";
 import type { DatabaseStatus } from "../database-gate";
+import { isDatabasePassphraseLongEnough, MIN_DATABASE_PASSPHRASE_LENGTH, normalizeDatabasePassphrase } from "../database-passphrase";
 import { t } from "../i18n";
 
 type Props = {
@@ -18,8 +19,28 @@ type Props = {
 
 export function DatabaseGate({ status, error, onNewDatabase, onOpenDatabase, onSubmit }: Props) {
   const [showPassphrase, setShowPassphrase] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
+  const [confirmation, setConfirmation] = useState("");
   const isSetup = status.state === "needsSetup";
   const isMigration = status.state === "legacyPlaintext";
+  const needsConfirmation = isSetup || isMigration;
+  const normalizedPassphrase = normalizeDatabasePassphrase(passphrase);
+  const normalizedConfirmation = normalizeDatabasePassphrase(confirmation);
+  const passphraseLongEnough = isDatabasePassphraseLongEnough(passphrase);
+  const confirmationLongEnough = !needsConfirmation || isDatabasePassphraseLongEnough(confirmation);
+  const passphrasesMatch = !needsConfirmation || normalizedPassphrase === normalizedConfirmation;
+  const submitReady = passphraseLongEnough && confirmationLongEnough && passphrasesMatch;
+  const validationMessage = passphrase.length === 0
+    ? ""
+    : !passphraseLongEnough
+      ? t("gate.passphraseTooShort")
+      : needsConfirmation && confirmation.length === 0
+        ? t("gate.confirmRequired")
+        : !confirmationLongEnough
+          ? t("gate.passphraseTooShort")
+          : !passphrasesMatch
+            ? t("gate.passphrasesMismatch")
+            : "";
   const eyebrow = isSetup ? t("gate.eyebrow.setup") : isMigration ? t("gate.eyebrow.migration") : t("gate.eyebrow.locked");
   const title = isSetup || isMigration ? t("gate.title.protect") : t("gate.title.unlock");
   const body = isSetup
@@ -65,7 +86,11 @@ export function DatabaseGate({ status, error, onNewDatabase, onOpenDatabase, onS
           className="flex flex-col justify-center gap-5 p-8"
           onSubmit={(event) => {
             event.preventDefault();
-            void onSubmit(new FormData(event.currentTarget));
+            if (!submitReady) return;
+            const form = new FormData(event.currentTarget);
+            form.set("passphrase", normalizedPassphrase);
+            if (needsConfirmation) form.set("confirmPassphrase", normalizedConfirmation);
+            void onSubmit(form);
           }}
         >
           <div>
@@ -74,31 +99,50 @@ export function DatabaseGate({ status, error, onNewDatabase, onOpenDatabase, onS
           </div>
           <FieldGroup>
             {error ? <InlineAlert destructive>{error}</InlineAlert> : null}
-            <Field>
+            <Field data-invalid={passphrase.length > 0 && !passphraseLongEnough ? "true" : undefined}>
               <FieldLabel htmlFor="database-passphrase">{t("gate.passphrase")}</FieldLabel>
               <div className="flex gap-2">
                 <Input
                   autoFocus
                   autoComplete={isSetup ? "new-password" : "current-password"}
                   id="database-passphrase"
-                  minLength={12}
+                  minLength={MIN_DATABASE_PASSPHRASE_LENGTH}
                   name="passphrase"
+                  onChange={(event) => setPassphrase(event.target.value)}
                   required
                   type={showPassphrase ? "text" : "password"}
+                  value={passphrase}
+                  aria-describedby={validationMessage ? "database-passphrase-validation" : undefined}
+                  aria-invalid={passphrase.length > 0 && !passphraseLongEnough}
                 />
-                <Button type="button" variant="outline" size="icon" onClick={() => setShowPassphrase((value) => !value)}>
+                <Button type="button" variant="outline" size="icon" aria-pressed={showPassphrase} onClick={() => setShowPassphrase((value) => !value)}>
                   {showPassphrase ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
                   <span className="sr-only">{showPassphrase ? t("gate.hidePassphrase") : t("gate.showPassphrase")}</span>
                 </Button>
               </div>
             </Field>
             {isSetup || isMigration ? (
-              <Field>
+              <Field data-invalid={confirmation.length > 0 && (!confirmationLongEnough || !passphrasesMatch) ? "true" : undefined}>
                 <FieldLabel htmlFor="database-confirm-passphrase">{t("gate.confirmPassphrase")}</FieldLabel>
-                <Input id="database-confirm-passphrase" minLength={12} name="confirmPassphrase" required type={showPassphrase ? "text" : "password"} />
+                <Input
+                  id="database-confirm-passphrase"
+                  minLength={MIN_DATABASE_PASSPHRASE_LENGTH}
+                  name="confirmPassphrase"
+                  onChange={(event) => setConfirmation(event.target.value)}
+                  required
+                  type={showPassphrase ? "text" : "password"}
+                  value={confirmation}
+                  aria-describedby={validationMessage ? "database-passphrase-validation" : undefined}
+                  aria-invalid={confirmation.length > 0 && (!confirmationLongEnough || !passphrasesMatch)}
+                />
               </Field>
             ) : null}
-            <Button type="submit" className="w-full">{button}</Button>
+            {validationMessage ? (
+              <FieldDescription id="database-passphrase-validation" role="status" aria-live="polite">
+                {validationMessage}
+              </FieldDescription>
+            ) : null}
+            <Button type="submit" className="w-full" disabled={!submitReady} aria-describedby={validationMessage ? "database-passphrase-validation" : undefined}>{button}</Button>
             <div className="grid gap-2 sm:grid-cols-2">
               <Button type="button" variant="outline" onClick={() => void onOpenDatabase()}>
                 <Folder data-icon="inline-start" />{t("gate.openDatabase")}

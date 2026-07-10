@@ -1,9 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type React from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { getAiProvider } from "../ai-sdk-config";
+import { getAiProvider, hasEnabledCodexModel } from "../ai-sdk-config";
 import { navGroups, navItems, type NavKey } from "../dashboard-model";
 import { resultDocumentAccept } from "../document-intake";
 import { t } from "../i18n";
@@ -19,8 +19,21 @@ type Props = {
 
 export function AppShell({ controller, children }: Props) {
   const activeItem = currentNavItem(controller.selectedNav);
+  const pageTitleRef = useRef(null as HTMLHeadingElement | null);
+  const workspaceRef = useRef(null as HTMLElement | null);
+  const previousNavRef = useRef(controller.selectedNav);
+  const showHealthActions = controller.selectedNav === "body" || controller.selectedNav === "labs" || controller.selectedNav === "symptoms" || controller.selectedNav === "medications";
+
+  useEffect(() => {
+    workspaceRef.current?.scrollTo({ top: 0 });
+    if (previousNavRef.current !== controller.selectedNav) {
+      pageTitleRef.current?.focus({ preventScroll: true });
+      previousNavRef.current = controller.selectedNav;
+    }
+  }, [controller.selectedNav]);
+
   return (
-    <main className="app-shell min-h-screen bg-background text-foreground">
+    <div className="app-shell min-h-screen bg-background text-foreground">
       <div className="mac-titlebar-drag-region" data-tauri-drag-region aria-hidden="true" />
       <aside className="app-sidebar" data-tauri-drag-region="deep">
         <div className="app-brand">
@@ -55,25 +68,27 @@ export function AppShell({ controller, children }: Props) {
       <div className="app-main">
         <header className="app-bar" data-tauri-drag-region="deep">
           <div className="app-page-title">
-            <h1>{activeItem.label}</h1>
+            <h1 id="app-page-title" ref={pageTitleRef} tabIndex={-1}>{activeItem.label}</h1>
             <p>{activeItem.description}</p>
           </div>
-          <div className="app-bar-actions">
-            <Button type="button" variant="outline" size="sm" onClick={() => controller.openDialog("activity")}>
-              <NotebookPen data-icon="inline-start" />
-              {t("appShell.dailyLog")}
-            </Button>
-            <AddResultDropdown controller={controller} />
-          </div>
+          {showHealthActions ? (
+            <div className="app-bar-actions">
+              <Button type="button" variant="outline" size="sm" onClick={() => controller.openDialog("activity")}>
+                <NotebookPen data-icon="inline-start" />
+                {t("appShell.dailyLog")}
+              </Button>
+              <AddResultDropdown controller={controller} />
+            </div>
+          ) : null}
         </header>
 
-        <section className="workspace" data-nav={controller.selectedNav}>
+        <main ref={workspaceRef} className="workspace" data-nav={controller.selectedNav} aria-labelledby="app-page-title">
           <Notice controller={controller} />
           {children}
-          {controller.selectedNav === "settings" || controller.selectedNav === "plan" || controller.selectedNav === "research" ? null : <CompactAiPrompt controller={controller} />}
-        </section>
+          {controller.selectedNav === "settings" || controller.selectedNav === "plan" || controller.selectedNav === "research" || controller.selectedNav === "documents" ? null : <CompactAiPrompt controller={controller} />}
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -125,8 +140,24 @@ function CompactAiPrompt({ controller }: { controller: DashboardController }) {
   const [prompt, setPrompt] = useState("");
   const [file, setFile] = useState(null as File | null);
   const fileInputRef = useRef(null as HTMLInputElement | null);
-  const disabled = Boolean(controller.aiPendingConversationId);
+  const available = hasEnabledCodexModel(controller.aiSettings);
+  const pending = Boolean(controller.aiPendingConversationId);
   const provider = getAiProvider(controller.aiSettings.providerId);
+
+  if (!available) {
+    return (
+      <aside className="ai-prompt-bar ai-prompt-bar-unavailable" aria-label={t("appShell.askAiLabel")}>
+        <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+          <Sparkles className="size-4 shrink-0 text-primary" />
+          <span className="truncate">{t("chat.setupRequired")}</span>
+        </span>
+        <Button type="button" variant="outline" size="sm" onClick={() => controller.setSelectedNav("settings")}>
+          {t("settings.ai.open")}
+        </Button>
+      </aside>
+    );
+  }
+
   return (
     <form
       className="ai-prompt-bar"
@@ -134,7 +165,7 @@ function CompactAiPrompt({ controller }: { controller: DashboardController }) {
       onSubmit={(event) => {
         event.preventDefault();
         void controller.submitAiPrompt(prompt, file || undefined);
-        setPrompt("");
+        if (!file) setPrompt("");
         setFile(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
       }}
@@ -144,8 +175,9 @@ function CompactAiPrompt({ controller }: { controller: DashboardController }) {
         {provider.label}
       </span>
       <Textarea
+        aria-label={t("appShell.promptPlaceholder")}
         className="min-h-10 resize-none"
-        disabled={disabled}
+        disabled={pending}
         name="prompt"
         onChange={(event) => setPrompt(event.target.value)}
         onKeyDown={(event) => {
@@ -162,10 +194,10 @@ function CompactAiPrompt({ controller }: { controller: DashboardController }) {
         type="file"
         onChange={(event) => setFile(event.currentTarget.files?.[0] || null)}
       />
-      <Button type="button" variant={file ? "secondary" : "ghost"} size="icon" disabled={disabled} onClick={() => fileInputRef.current?.click()} title={file?.name || t("appShell.attachResultFile")} aria-label={file?.name || t("appShell.attachResultFile")}>
+      <Button type="button" variant={file ? "secondary" : "ghost"} size="icon" disabled={pending} onClick={() => fileInputRef.current?.click()} title={file?.name || t("appShell.attachResultFile")} aria-label={file?.name || t("appShell.attachResultFile")}>
         <FileText />
       </Button>
-      <Button type="submit" disabled={disabled}>
+      <Button type="submit" disabled={pending || (!prompt.trim() && !file)}>
         <Send data-icon="inline-start" />
         {t("common.send")}
       </Button>

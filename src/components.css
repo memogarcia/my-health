@@ -123,10 +123,17 @@
   padding: 0.45rem 0.45rem 0.45rem 0.85rem;
   background: color-mix(in srgb, var(--card) 88%, transparent);
   backdrop-filter: blur(12px);
-  box-shadow: var(--shadow-floating);
+  box-shadow: 0 4px 8px rgb(15 23 42 / 10%);
+}
+.ai-prompt-bar-unavailable {
+  grid-template-columns: minmax(0, 1fr) auto;
+  max-width: 560px;
+  padding-left: 0.75rem;
+  background: var(--card);
 }
 .ai-prompt-bar [data-slot="textarea"] { border: 0; background: transparent; box-shadow: none; }
 .ai-prompt-bar [data-slot="textarea"]:focus-visible { outline: none; border: 0; box-shadow: none; }
+.ai-prompt-bar:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent); }
 
 /* ===== Chat ===== */
 .chat-layout {
@@ -175,7 +182,7 @@
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) + 0.4rem);
   background: var(--card);
-  box-shadow: var(--shadow-floating);
+  box-shadow: 0 4px 8px rgb(15 23 42 / 10%);
 }
 .gate-brand {
   display: flex;

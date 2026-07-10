@@ -1,26 +1,13 @@
-use crate::document_files::{unique_document_file_name, validate_document_upload};
+use crate::database::{self, AppState};
+use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    process::{Command, Output, Stdio},
-    thread,
-    time::{Duration, Instant},
-};
-use tauri::Manager;
+use std::{path::Path, process::Command, time::Duration};
+mod process;
+use process::{codex_bin, run_command_with_timeout, CodexWorkspace};
 const MAX_PROMPT_CHARS: usize = 32_000;
 const MAX_OUTPUT_CHARS: usize = 8_000;
 const CODEX_TIMEOUT: Duration = Duration::from_secs(120);
 const CODEX_MODEL_CATALOG_TIMEOUT: Duration = Duration::from_secs(20);
-const PROCESS_POLL_INTERVAL: Duration = Duration::from_millis(50);
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct AnalyzeDocumentInput {
-    file_name: String,
-    file_bytes: Vec<u8>,
-    model_id: Option<String>,
-    reasoning_effort: Option<String>,
-}
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AskLlmInput {
@@ -61,20 +48,13 @@ impl CodexRunOptions {
         }
     }
 }
-/// Writes a dropped result file into the Codex workspace, asks Codex to extract
-/// every measurement as JSON, then removes the file so health data is not left
-/// in the cache. The raw Codex output is parsed by the renderer.
 #[tauri::command]
-pub async fn analyze_document(
-    input: AnalyzeDocumentInput,
+pub async fn ask_llm(
+    input: AskLlmInput,
     app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    tauri::async_runtime::spawn_blocking(move || run_document_analysis(input, &app))
-        .await
-        .map_err(|error| error.to_string())?
-}
-#[tauri::command]
-pub async fn ask_llm(input: AskLlmInput, app: tauri::AppHandle) -> Result<String, String> {
+    ensure_remote_ai_allowed(&state, input.model_id.as_deref())?;
     tauri::async_runtime::spawn_blocking(move || {
         run_codex(
             input.prompt,
@@ -97,9 +77,13 @@ fn run_codex(
     options: CodexRunOptions,
 ) -> Result<String, String> {
     let prompt = normalize_prompt(&prompt)?;
-    let workspace = codex_workspace(app)?;
-    let output = run_command_with_timeout(codex_exec_command(&workspace, prompt, &options), CODEX_TIMEOUT)
-        .map_err(|error| format!("Could not run Codex CLI: {error}"))?;
+    let workspace = CodexWorkspace::create(app)?;
+    let output = run_command_with_timeout(
+        codex_exec_command(workspace.path(), &options),
+        CODEX_TIMEOUT,
+        Some(prompt.as_bytes()),
+    )
+    .map_err(|error| format!("Could not run Codex CLI: {error}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     if output.status.success() {
         return Ok(truncate(stdout.trim(), MAX_OUTPUT_CHARS));
@@ -110,39 +94,7 @@ fn run_codex(
         MAX_OUTPUT_CHARS,
     ))
 }
-fn run_document_analysis(
-    input: AnalyzeDocumentInput,
-    app: &tauri::AppHandle,
-) -> Result<String, String> {
-    let AnalyzeDocumentInput {
-        file_name,
-        file_bytes,
-        model_id,
-        reasoning_effort,
-    } = input;
-    validate_document_upload(&file_name, &file_bytes)?;
-    let workspace = codex_workspace(app)?;
-    let safe_name = unique_document_file_name(&file_name);
-    let file_path = workspace.join(&safe_name);
-    fs::write(&file_path, &file_bytes)
-        .map_err(|error| format!("Could not save uploaded file: {error}"))?;
-    let _cleanup = TempFileGuard::new(file_path.clone());
-    let prompt = format!(
-        "Read the file `{safe_name}` in this workspace. It is a medical lab result or health report. \
-Extract every discrete measurement as a JSON array. Each element must be an object with these string fields: \
-organKey (one of: brain,thyroid,lungs,heart,liver,spleen,stomach,pancreas,kidneys,intestines,bladder,blood,bones,skin,reproductive), \
-marker, value, unit, referenceRange, status (normal, monitor, or attention), measuredAt (YYYY-MM-DD), notes. \
-Use 'blood' for general bloodwork when the organ is unclear. Set status to 'normal' only when the value is clearly inside the reference range, \
-'monitor' when slightly off, and 'attention' when clearly abnormal. If status is uncertain, use an empty string. Use the report or collection date for measuredAt. \
-If the date is missing or uncertain, use an empty string. Return ONLY the JSON array. No prose, no markdown fences."
-    );
-    run_codex(
-        prompt,
-        app,
-        CodexRunOptions::from_parts(model_id, reasoning_effort),
-    )
-}
-fn codex_exec_command(workspace: &Path, prompt: String, options: &CodexRunOptions) -> Command {
+fn codex_exec_command(workspace: &Path, options: &CodexRunOptions) -> Command {
     let mut command = Command::new(codex_bin());
     command
         .arg("exec")
@@ -161,7 +113,7 @@ fn codex_exec_command(workspace: &Path, prompt: String, options: &CodexRunOption
             .arg("-c")
             .arg(format!("model_reasoning_effort=\"{reasoning_effort}\""));
     }
-    command.arg(prompt).env("NO_COLOR", "1");
+    command.arg("-").env("NO_COLOR", "1");
     command
 }
 fn load_codex_options() -> Result<CodexOptions, String> {
@@ -174,7 +126,7 @@ fn run_codex_models(bundled: bool) -> Result<CodexOptions, String> {
         command.arg("--bundled");
     }
     command.env("NO_COLOR", "1");
-    let output = run_command_with_timeout(command, CODEX_MODEL_CATALOG_TIMEOUT)
+    let output = run_command_with_timeout(command, CODEX_MODEL_CATALOG_TIMEOUT, None)
         .map_err(|error| format!("Could not read Codex model catalog: {error}"))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -312,28 +264,39 @@ fn normalize_prompt(prompt: &str) -> Result<String, String> {
     ))
 }
 
-fn codex_workspace(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    let path = app
-        .path()
-        .app_cache_dir()
-        .map_err(|error| error.to_string())?
-        .join("codex-workspace");
-    fs::create_dir_all(&path).map_err(|error| error.to_string())?;
-    Ok(path)
-}
-
-fn codex_bin() -> PathBuf {
-    if let Ok(path) = std::env::var("CODEX_CLI_PATH") {
-        if !path.trim().is_empty() {
-            return PathBuf::from(path);
+fn ensure_remote_ai_allowed(state: &AppState, requested_model: Option<&str>) -> Result<(), String> {
+    database::with_connection(state, |conn| {
+        let settings = conn
+            .query_row("SELECT settings FROM ai_settings WHERE id = 1", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .optional()
+            .map_err(|error| error.to_string())?
+            .ok_or_else(|| "Remote AI is not configured.".to_string())?;
+        let settings: serde_json::Value = serde_json::from_str(&settings)
+            .map_err(|_| "Stored AI settings are invalid.".to_string())?;
+        let provider = settings.get("providerId").and_then(|value| value.as_str());
+        let allowed = settings
+            .get("allowRemoteHealthContext")
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        let configured_model = settings
+            .get("modelId")
+            .and_then(|value| value.as_str())
+            .unwrap_or("")
+            .trim();
+        if provider != Some("codex") || !allowed || configured_model.is_empty() {
+            return Err("Remote health context is disabled in AI settings.".into());
         }
-    }
-    for path in ["/opt/homebrew/bin/codex", "/usr/local/bin/codex"] {
-        if Path::new(path).exists() {
-            return PathBuf::from(path);
+        if requested_model
+            .map(str::trim)
+            .filter(|model| !model.is_empty())
+            != Some(configured_model)
+        {
+            return Err("The requested model does not match the saved AI settings.".into());
         }
-    }
-    PathBuf::from("codex")
+        Ok(())
+    })
 }
 
 fn truncate(value: impl AsRef<str>, limit: usize) -> String {
@@ -346,45 +309,14 @@ fn truncate(value: impl AsRef<str>, limit: usize) -> String {
     truncated
 }
 
-fn run_command_with_timeout(mut command: Command, timeout: Duration) -> Result<Output, String> {
-    command.stdout(Stdio::piped()).stderr(Stdio::piped());
-    let mut child = command.spawn().map_err(|error| error.to_string())?;
-    let started = Instant::now();
-    loop {
-        if child.try_wait().map_err(|error| error.to_string())?.is_some() {
-            return child.wait_with_output().map_err(|error| error.to_string());
-        }
-        if started.elapsed() >= timeout {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(format!("Timed out after {} seconds", timeout.as_secs()));
-        }
-        thread::sleep(PROCESS_POLL_INTERVAL);
-    }
-}
-
-struct TempFileGuard {
-    path: PathBuf,
-}
-
-impl TempFileGuard {
-    fn new(path: PathBuf) -> Self {
-        Self { path }
-    }
-}
-
-impl Drop for TempFileGuard {
-    fn drop(&mut self) {
-        let _ = fs::remove_file(&self.path);
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use super::process::run_command_with_timeout;
     use super::{
-        codex_exec_command, normalize_prompt, parse_codex_models, run_command_with_timeout, truncate,
-        CodexRunOptions, TempFileGuard, MAX_OUTPUT_CHARS, MAX_PROMPT_CHARS,
+        codex_exec_command, ensure_remote_ai_allowed, normalize_prompt, parse_codex_models,
+        truncate, CodexRunOptions, MAX_OUTPUT_CHARS, MAX_PROMPT_CHARS,
     };
+    use crate::database::{self, AppState};
     use std::{path::Path, process::Command, time::Duration};
 
     #[test]
@@ -432,7 +364,7 @@ mod tests {
     #[test]
     fn adds_selected_model_and_effort_to_codex_exec() {
         let options = CodexRunOptions::from_parts(Some("gpt-5.5".into()), Some("xhigh".into()));
-        let command = codex_exec_command(Path::new("/tmp/work"), "hello".into(), &options);
+        let command = codex_exec_command(Path::new("/tmp/work"), &options);
         let args = command
             .get_args()
             .map(|arg| arg.to_string_lossy().into_owned())
@@ -442,13 +374,14 @@ mod tests {
             .windows(2)
             .any(|pair| pair[0] == "--model" && pair[1] == "gpt-5.5"));
         assert!(args.contains(&"model_reasoning_effort=\"xhigh\"".to_string()));
+        assert_eq!(args.last().map(String::as_str), Some("-"));
     }
 
     #[test]
     fn run_command_with_timeout_succeeds_for_short_command() {
         let mut command = Command::new("sh");
         command.arg("-c").arg("printf ok");
-        let output = run_command_with_timeout(command, Duration::from_secs(2)).unwrap();
+        let output = run_command_with_timeout(command, Duration::from_secs(2), None).unwrap();
         assert!(output.status.success());
         assert_eq!(String::from_utf8_lossy(&output.stdout), "ok");
     }
@@ -457,18 +390,47 @@ mod tests {
     fn run_command_with_timeout_fails_for_long_command() {
         let mut command = Command::new("sh");
         command.arg("-c").arg("sleep 2");
-        let error = run_command_with_timeout(command, Duration::from_millis(100)).unwrap_err();
+        let error =
+            run_command_with_timeout(command, Duration::from_millis(100), None).unwrap_err();
         assert!(error.contains("Timed out"));
     }
 
     #[test]
-    fn temp_file_guard_removes_file_on_drop() {
-        let path = std::env::temp_dir().join(format!("me-codex-guard-{}", std::process::id()));
-        std::fs::write(&path, b"private").unwrap();
-        {
-            let _guard = TempFileGuard::new(path.clone());
-            assert!(path.exists());
-        }
-        assert!(!path.exists());
+    fn run_command_with_timeout_writes_stdin_and_drains_large_output() {
+        let mut command = Command::new("sh");
+        command.arg("-c").arg("cat; yes x | head -c 300000");
+        let output =
+            run_command_with_timeout(command, Duration::from_secs(2), Some(b"ok\n")).unwrap();
+        assert!(output.status.success());
+        assert!(output.stdout.starts_with(b"ok\n"));
+        assert!(output.stdout.len() > 250_000);
+    }
+
+    #[test]
+    fn remote_ai_requires_saved_consent_and_matching_model() {
+        let path = std::env::temp_dir().join(format!(
+            "me-codex-consent-{}-{}.sqlite3",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let state = AppState::new(path.clone());
+        database::unlock_database(&state, "correct horse battery staple").unwrap();
+        database::with_connection(&state, |conn| {
+            conn.execute(
+                "INSERT INTO ai_settings (id, settings) VALUES (1, ?1)",
+                [r#"{"providerId":"codex","modelId":"gpt-test","allowRemoteHealthContext":true}"#],
+            )
+            .map_err(|error| error.to_string())?;
+            Ok(())
+        })
+        .unwrap();
+
+        assert!(ensure_remote_ai_allowed(&state, Some("gpt-test")).is_ok());
+        assert!(ensure_remote_ai_allowed(&state, Some("other-model")).is_err());
+        drop(state);
+        let _ = std::fs::remove_file(path);
     }
 }

@@ -47,32 +47,32 @@ export type AiSdkTarget = {
 export const DEFAULT_AI_PROVIDER_ID = "none";
 export const DEFAULT_CODEX_REASONING_EFFORT = "medium";
 export const CODEX_REASONING_EFFORT_OPTIONS: CodexReasoningEffortOption[] = [
-  { id: "minimal", label: "Minimal", description: "Shortest thinking time" },
-  { id: "low", label: "Low", description: "Fast responses with lighter reasoning" },
-  { id: "medium", label: "Medium", description: "Balanced speed and depth" },
-  { id: "high", label: "High", description: "Deeper reasoning for complex work" },
-  { id: "xhigh", label: "Extra high", description: "Maximum available reasoning depth" },
+  { id: "minimal", label: t("aiConfig.effort.minimal"), description: t("aiConfig.effort.minimalDescription") },
+  { id: "low", label: t("aiConfig.effort.low"), description: t("aiConfig.effort.lowDescription") },
+  { id: "medium", label: t("aiConfig.effort.medium"), description: t("aiConfig.effort.mediumDescription") },
+  { id: "high", label: t("aiConfig.effort.high"), description: t("aiConfig.effort.highDescription") },
+  { id: "xhigh", label: t("aiConfig.effort.xhigh"), description: t("aiConfig.effort.xhighDescription") },
 ];
 
 export const AI_PROVIDERS: AiProviderConfig[] = [
   {
     id: "none",
-    label: "Not configured",
+    label: t("aiConfig.provider.none"),
     kind: "none",
     local: true,
     executionStatus: "disabled",
-    statusLabel: "Setup required",
+    statusLabel: t("aiConfig.status.setupRequired"),
     baseUrl: "",
     apiKeyEnvVar: "",
-    models: [{ id: "", label: "No model selected" }],
+    models: [{ id: "", label: t("aiConfig.model.none") }],
   },
   {
     id: "codex",
-    label: "Codex CLI",
+    label: t("aiConfig.provider.codex"),
     kind: "codex-cli",
     local: false,
     executionStatus: "live",
-    statusLabel: "Live via Codex CLI",
+    statusLabel: t("aiConfig.status.codexLive"),
     baseUrl: "",
     apiKeyEnvVar: "",
     models: [
@@ -82,11 +82,11 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
   },
   {
     id: "anthropic",
-    label: "Anthropic",
+    label: t("aiConfig.provider.anthropic"),
     kind: "anthropic",
     local: false,
     executionStatus: "planned",
-    statusLabel: "Planned, not live",
+    statusLabel: t("aiConfig.status.planned"),
     baseUrl: "",
     apiKeyEnvVar: "ANTHROPIC_API_KEY",
     models: [
@@ -96,11 +96,11 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
   },
   {
     id: "openai",
-    label: "OpenAI",
+    label: t("aiConfig.provider.openai"),
     kind: "openai",
     local: false,
     executionStatus: "planned",
-    statusLabel: "Planned, not live",
+    statusLabel: t("aiConfig.status.planned"),
     baseUrl: "",
     apiKeyEnvVar: "OPENAI_API_KEY",
     models: [
@@ -110,11 +110,11 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
   },
   {
     id: "gemini",
-    label: "Gemini",
+    label: t("aiConfig.provider.gemini"),
     kind: "google",
     local: false,
     executionStatus: "planned",
-    statusLabel: "Planned, not live",
+    statusLabel: t("aiConfig.status.planned"),
     baseUrl: "",
     apiKeyEnvVar: "GOOGLE_GENERATIVE_AI_API_KEY",
     models: [
@@ -124,22 +124,22 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
   },
   {
     id: "lmstudio",
-    label: "LM Studio",
+    label: t("aiConfig.provider.lmStudio"),
     kind: "openai-compatible",
     local: true,
     executionStatus: "planned",
-    statusLabel: "Planned local provider",
+    statusLabel: t("aiConfig.status.plannedLocal"),
     baseUrl: "http://localhost:1234/v1",
     apiKeyEnvVar: "",
-    models: [{ id: "local-model", label: "Local model" }],
+    models: [{ id: "local-model", label: t("aiConfig.model.local") }],
   },
   {
     id: "ollama",
-    label: "Ollama",
+    label: t("aiConfig.provider.ollama"),
     kind: "openai-compatible",
     local: true,
     executionStatus: "planned",
-    statusLabel: "Planned local provider",
+    statusLabel: t("aiConfig.status.plannedLocal"),
     baseUrl: "http://localhost:11434/v1",
     apiKeyEnvVar: "",
     models: [
@@ -149,14 +149,14 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
   },
   {
     id: "custom",
-    label: "Custom",
+    label: t("aiConfig.provider.custom"),
     kind: "openai-compatible",
     local: false,
     executionStatus: "planned",
-    statusLabel: "Planned, not live",
+    statusLabel: t("aiConfig.status.planned"),
     baseUrl: "",
     apiKeyEnvVar: "",
-    models: [{ id: "model-id", label: "Custom model" }],
+    models: [{ id: "model-id", label: t("aiConfig.model.custom") }],
   },
 ];
 
@@ -203,3 +203,4 @@ export function isApiKeyEnvVarName(value: string): boolean {
   const name = value.trim();
   return name === "" || /^[A-Z_][A-Z0-9_]*$/u.test(name);
 }
+import { t } from "./i18n";

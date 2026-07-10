@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
-import { getAiProvider, isAiProviderLive, normalizeAiSettings, type AiSettings, type CodexModelOption } from "./ai-sdk-config";
+import { normalizeAiSettings, type AiSettings, type CodexModelOption } from "./ai-sdk-config";
 import { summarizeAppleHealthFile } from "./apple-health-import";
 import { type DatabaseStatus } from "./database-gate";
+import { isDatabasePassphraseLongEnough, normalizeDatabasePassphrase } from "./database-passphrase";
 import { newLocalDatabasePath, pickExistingDatabase } from "./database-picker";
 import {
   buildDisplaySnapshot,
@@ -42,6 +43,14 @@ export function useDashboardController() {
   const [aiPendingConversationId, setAiPendingConversationId] = useState("");
   const [codexModels, setCodexModels] = useState<CodexModelOption[]>([]);
   const [codexOptionsError, setCodexOptionsError] = useState("");
+  const databasePathRef = useRef("");
+  const databaseEpochRef = useRef(0);
+  const userStateRef = useRef(userState);
+  const userStateSaveQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    userStateRef.current = userState;
+  }, [userState]);
 
   const display = useMemo(() => buildDisplaySnapshot(snapshot), [snapshot]);
   const selectedOrgan = useMemo(
@@ -66,6 +75,11 @@ export function useDashboardController() {
     .filter((organ) => organ.status === "attention" || organ.status === "monitor")
     .slice(0, 4)
     .map((organ) => ({ key: organ.key, name: organ.name, status: organ.status }));
+  const latestDate = useMemo(() => [
+    ...display.latestLabResults.map((lab) => lab.measuredAt),
+    ...display.recentSymptoms.map((symptom) => symptom.observedAt),
+    ...display.conditions.map((condition) => condition.diagnosedAt),
+  ].filter(Boolean).sort().at(-1) || "", [display.conditions, display.latestLabResults, display.recentSymptoms]);
 
   function setSelectedNav(nav: NavKey): void {
     setSelectedNavState(nav);
@@ -75,6 +89,7 @@ export function useDashboardController() {
 
   const documentIntake = useDocumentIntake({
     aiSettings,
+    databasePath: databaseStatus?.dbPath || "",
     selectedOrganKey,
     loadDashboard,
     setSelectedNav,
@@ -91,9 +106,11 @@ export function useDashboardController() {
   }
 
   async function persistAiSettings(next: AiSettings): Promise<boolean> {
+    const dbPath = databasePathRef.current;
+    if (!dbPath) return false;
     try {
-      await invoke("save_ai_settings", { settings: JSON.stringify(next) });
-      return true;
+      await invoke("save_ai_settings", { settings: JSON.stringify(next), dbPath });
+      return databasePathRef.current === dbPath;
     } catch (error) {
       const message = String(error || "");
       if (message.includes("API key")) {
@@ -105,28 +122,39 @@ export function useDashboardController() {
     }
   }
 
-  async function persistUserState(next: UserState): Promise<void> {
-    try {
-      await invoke("save_user_state", { state: JSON.stringify(next) });
-    } catch {
-      toast.warning(t("toast.changesSession"));
-    }
+  async function persistUserState(next: UserState): Promise<boolean> {
+    const dbPath = databasePathRef.current;
+    if (!dbPath) return false;
+    const save = userStateSaveQueueRef.current.then(async () => {
+      try {
+        await invoke("save_user_state", { state: JSON.stringify(next), dbPath });
+        return databasePathRef.current === dbPath;
+      } catch {
+        toast.warning(t("toast.changesSession"));
+        return false;
+      }
+    });
+    userStateSaveQueueRef.current = save.then(() => undefined);
+    return save;
   }
 
-  async function loadDashboard(currentDatabaseStatus = databaseStatus): Promise<void> {
+  async function loadDashboard(currentDatabaseStatus = databaseStatus): Promise<boolean> {
     try {
       const nextSnapshot = await invoke<DashboardSnapshot>("get_dashboard_snapshot");
+      if (databasePathRef.current && nextSnapshot.dbPath !== databasePathRef.current) return false;
       setSnapshot(nextSnapshot);
       setSelectedOrganKey((current) =>
         nextSnapshot.organs.some((organ) => organ.key === current) ? current : nextSnapshot.organs[0]?.key || "heart",
       );
       setLoadError("");
+      setHasLoadedOnce(true);
+      return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setSnapshot(null);
       setLoadError(currentDatabaseStatus ? message : TAURI_ONLY_MESSAGE);
+      setHasLoadedOnce(true);
+      return false;
     }
-    setHasLoadedOnce(true);
   }
 
   useEffect(() => {
@@ -142,6 +170,7 @@ export function useDashboardController() {
         status = await invoke<DatabaseStatus>("get_database_status");
         if (!alive) return;
         setDatabaseStatus(status);
+        databasePathRef.current = status.dbPath;
         setHasLoadedOnce(true);
       } catch {
         if (!alive) return;
@@ -185,9 +214,13 @@ export function useDashboardController() {
   }
 
   async function unlockDatabase(form: FormData): Promise<void> {
-    const passphrase = String(form.get("passphrase") || "");
-    const confirmPassphrase = String(form.get("confirmPassphrase") || "");
+    const passphrase = normalizeDatabasePassphrase(String(form.get("passphrase") || ""));
+    const confirmPassphrase = normalizeDatabasePassphrase(String(form.get("confirmPassphrase") || ""));
     const previousState = databaseStatus?.state;
+    if (!isDatabasePassphraseLongEnough(passphrase)) {
+      setLoadError(t("gate.passphraseTooShort"));
+      return;
+    }
     if (confirmPassphrase && passphrase !== confirmPassphrase) {
       setLoadError(t("toast.passphrasesMismatch"));
       return;
@@ -195,6 +228,7 @@ export function useDashboardController() {
     try {
       const status = await invoke<DatabaseStatus>("unlock_database", { passphrase });
       setDatabaseStatus(status);
+      databasePathRef.current = status.dbPath;
       setLoadError("");
       toast.success(previousState === "locked" ? t("toast.databaseUnlocked") : t("toast.encryptedDatabaseReady"));
       const settings = await invoke<string>("get_ai_settings").catch(() => "");
@@ -210,10 +244,13 @@ export function useDashboardController() {
   async function selectDatabasePath(path: string): Promise<void> {
     try {
       const status = await invoke<DatabaseStatus>("select_database", { path });
+      databasePathRef.current = status.dbPath;
+      databaseEpochRef.current += 1;
       setDatabaseStatus(status);
       setSnapshot(null);
       setAiSettings(normalizeAiSettings());
       setUserState(normalizeUserState());
+      userStateRef.current = normalizeUserState();
       setLoadError("");
       setSelectedOrganKey("heart");
       setSelectedNav("body");
@@ -246,8 +283,7 @@ export function useDashboardController() {
     const next = normalizeUserState({ ...userState, profile: profileFromForm(form) });
     setUserState(next);
     setSelectedNav("settings");
-    toast.success(t("toast.profileSaved"));
-    await persistUserState(next);
+    if (await persistUserState(next)) toast.success(t("toast.profileSaved"));
   }
 
   async function saveAiSettings(form: FormData): Promise<void> {
@@ -261,44 +297,25 @@ export function useDashboardController() {
     }
   }
 
-  async function updateAiProvider(providerId: string, navAfterChange: NavKey): Promise<void> {
-    const provider = getAiProvider(providerId);
-    if (navAfterChange === "plan" && !isAiProviderLive(provider.id)) {
-      toast.warning(t("toast.providerPlanned", { provider: provider.label }));
-      return;
-    }
-    const next = normalizeAiSettings({
-      providerId: provider.id,
-      modelId: provider.models[0]?.id || "",
-      baseUrl: provider.baseUrl,
-      apiKeyEnvVar: provider.apiKeyEnvVar,
-    });
-    setAiSettings(next);
-    setSelectedNav(navAfterChange);
-    if (provider.id === "codex") void loadCodexOptions();
-    if (await persistAiSettings(next)) toast.success(t("toast.providerSwitched", { provider: provider.label }));
-  }
-
-
   async function addActivity(form: FormData): Promise<void> {
     const entry = activityFromForm(form);
-    const next = normalizeUserState({ ...userState, activityEntries: [entry, ...userState.activityEntries].slice(0, 50) });
+    const next = normalizeUserState({ ...userState, activityEntries: [entry, ...userState.activityEntries] });
     setUserState(next);
     closeDialog();
-    toast.success(t("toast.dailyLogSaved"));
-    await persistUserState(next);
+    if (await persistUserState(next)) toast.success(t("toast.dailyLogSaved"));
   }
 
   async function importAppleHealthFile(file: File): Promise<void> {
+    const epoch = databaseEpochRef.current;
     try {
       const summary = await summarizeAppleHealthFile(file);
+      if (epoch !== databaseEpochRef.current) return;
       const next = normalizeUserState({
         ...userState,
-        appleHealthImports: [summary, ...userState.appleHealthImports].slice(0, 10),
+        appleHealthImports: [summary, ...userState.appleHealthImports],
       });
       setUserState(next);
-      toast.success(t("toast.appleHealthSaved", { count: summary.recordCount }));
-      await persistUserState(next);
+      if (await persistUserState(next)) toast.success(t("toast.appleHealthSaved", { count: summary.recordCount }));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     }
@@ -306,12 +323,18 @@ export function useDashboardController() {
 
 
   async function exportDatabase(passphrase: string, confirmPassphrase: string): Promise<void> {
-    if (passphrase !== confirmPassphrase) {
+    const normalizedPassphrase = normalizeDatabasePassphrase(passphrase);
+    const normalizedConfirmation = normalizeDatabasePassphrase(confirmPassphrase);
+    if (!isDatabasePassphraseLongEnough(normalizedPassphrase)) {
+      toast.error(t("settings.export.passphraseTooShort"));
+      return;
+    }
+    if (normalizedPassphrase !== normalizedConfirmation) {
       toast.error(t("toast.exportPassphrasesMismatch"));
       return;
     }
     try {
-      const path = await invoke<string>("export_database", { passphrase });
+      const path = await invoke<string>("export_database", { passphrase: normalizedPassphrase });
       setLoadError("");
       toast.success(t("toast.exportSaved", { path }));
     } catch (error) {
@@ -336,6 +359,9 @@ export function useDashboardController() {
     setSelectedNav,
     setUserState,
     userState,
+    databaseEpoch: databaseEpochRef.current,
+    isDatabaseCurrent: (epoch) => databaseEpochRef.current === epoch,
+    getUserState: () => userStateRef.current,
   });
 
   return {
@@ -365,7 +391,7 @@ export function useDashboardController() {
     attentionMarkers,
     monitorMarkers,
     attentionOrgans,
-    latestDate: display.latestLabResults[0]?.measuredAt || "",
+    latestDate,
     setSelectedOrganKey,
     setSelectedNav,
     setActiveHistoryTab,
@@ -376,7 +402,6 @@ export function useDashboardController() {
     unlockDatabase,
     saveProfile,
     saveAiSettings,
-    updateAiProvider,
     loadCodexOptions,
     ...recordActions,
     addActivity,

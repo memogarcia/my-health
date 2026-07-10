@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { escapeHtml, formatDate } from "../src/dashboard-format";
+import { escapeHtml, formatDate, todayString } from "../src/dashboard-format";
+
+test("todayString uses the local calendar date", () => {
+  const now = new Date();
+  const expected = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  assert.equal(todayString(), expected);
+});
 
 test("formatDate renders valid ISO dates", () => {
   assert.match(formatDate("2026-07-08"), /2026/);

@@ -34,7 +34,9 @@ pub struct DeleteLabReportInput {
 
 #[tauri::command]
 pub fn list_lab_reports(state: tauri::State<'_, AppState>) -> Result<Vec<LabReportEntry>, String> {
-    database::with_connection(&state, |conn| list_lab_reports_for_snapshot(conn).map_err(|error| error.to_string()))
+    database::with_connection(&state, |conn| {
+        list_lab_reports_for_snapshot(conn).map_err(|error| error.to_string())
+    })
 }
 
 pub fn list_lab_reports_for_snapshot(conn: &Connection) -> rusqlite::Result<Vec<LabReportEntry>> {
@@ -57,10 +59,15 @@ pub fn delete_lab_report(
     if input.id <= 0 {
         return Err("id is required".into());
     }
-    database::with_connection(&state, |conn| delete_lab_report_in_conn(conn, input.id, input.delete_results))
+    database::with_connection(&state, |conn| {
+        delete_lab_report_in_conn(conn, input.id, input.delete_results)
+    })
 }
 
-pub(super) fn insert_lab_report(conn: &Connection, report: Option<&LabReportInput>) -> Result<Option<i64>, String> {
+pub(super) fn insert_lab_report(
+    conn: &Connection,
+    report: Option<&LabReportInput>,
+) -> Result<Option<i64>, String> {
     let Some(report) = report else {
         return Ok(None);
     };
@@ -104,49 +111,51 @@ fn active_report_exists(conn: &Connection, id: i64) -> Result<bool, String> {
     .map_err(|error| error.to_string())
 }
 
-pub(super) fn delete_lab_report_in_conn(conn: &Connection, id: i64, delete_results: bool) -> Result<(), String> {
+pub(super) fn delete_lab_report_in_conn(
+    conn: &Connection,
+    id: i64,
+    delete_results: bool,
+) -> Result<(), String> {
     if !active_report_exists(conn, id)? {
         return Err("Lab report not found".into());
     }
-    conn.execute("BEGIN", []).map_err(|error| error.to_string())?;
-    let outcome = (|| -> Result<(), String> {
-        if delete_results {
-            conn.execute(
+    let transaction = conn
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    if delete_results {
+        transaction
+            .execute(
                 "UPDATE lab_results
                  SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
                  WHERE report_id = ?1 AND deleted_at = ''",
                 params![id],
             )
             .map_err(|error| error.to_string())?;
-        } else {
-            conn.execute(
+    } else {
+        transaction
+            .execute(
                 "UPDATE lab_results SET report_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE report_id = ?1 AND deleted_at = ''",
                 params![id],
             )
             .map_err(|error| error.to_string())?;
-        }
-        conn.execute(
+    }
+    transaction
+        .execute(
             "UPDATE lab_reports
-             SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             SET deleted_at = CURRENT_TIMESTAMP,
+                 updated_at = CURRENT_TIMESTAMP,
+                 document_bytes = X'',
+                 local_copy_path = ''
              WHERE id = ?1 AND deleted_at = ''",
             params![id],
         )
         .map_err(|error| error.to_string())?;
-        Ok(())
-    })();
-    match outcome {
-        Ok(()) => {
-            conn.execute("COMMIT", []).map_err(|error| error.to_string())?;
-            Ok(())
-        }
-        Err(error) => {
-            let _ = conn.execute("ROLLBACK", []);
-            Err(error)
-        }
-    }
+    transaction.commit().map_err(|error| error.to_string())
 }
 
-pub(super) fn list_lab_reports_for_conn(conn: &Connection) -> rusqlite::Result<Vec<LabReportEntry>> {
+pub(super) fn list_lab_reports_for_conn(
+    conn: &Connection,
+) -> rusqlite::Result<Vec<LabReportEntry>> {
     let mut stmt = conn.prepare(
         "SELECT
            r.id,

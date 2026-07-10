@@ -143,7 +143,7 @@ function ResultsPage({
             <ViewToggle view={view} onChange={onViewChange} />
           </div>
           <OrganChips options={organOptions} value={organFilter} onChange={onOrganChange} />
-          <LabAnalyticsPanel labs={labs} allLabs={allLabs} organs={organs} />
+          <LabAnalyticsPanel labs={labs} organs={organs} />
           {view === "grouped" ? (
             <MarkerCards labs={labs} organs={organs} hasUnfiltered={hasUnfiltered} onSelectOrgan={onOrganChange} onClear={onClear} />
           ) : (

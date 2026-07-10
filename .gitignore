@@ -11,4 +11,6 @@ src-tauri/target/
 !src-tauri/dev/mock-health-dashboard.sqlite3
 .pi-subagents/
 
-assets/
+assets/*
+!assets/anatomy-body-dashboard.jpg
+!assets/health-dashboard-ui-concept.png

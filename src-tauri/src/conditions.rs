@@ -47,7 +47,12 @@ pub fn add_condition(
     input: AddConditionInput,
     state: tauri::State<'_, AppState>,
 ) -> Result<ConditionEntry, String> {
-    validate_condition_input(&input.organ_key, &input.name, &input.status, &input.diagnosed_at)?;
+    validate_condition_input(
+        &input.organ_key,
+        &input.name,
+        &input.status,
+        &input.diagnosed_at,
+    )?;
 
     database::with_connection(&state, |conn| {
         let id = insert_condition(
@@ -70,13 +75,20 @@ pub fn update_condition(
     if input.id <= 0 {
         return Err("id is required".into());
     }
-    validate_condition_input(&input.organ_key, &input.name, &input.status, &input.diagnosed_at)?;
+    validate_condition_input(
+        &input.organ_key,
+        &input.name,
+        &input.status,
+        &input.diagnosed_at,
+    )?;
     database::with_connection(&state, |conn| update_condition_in_conn(conn, &input))
 }
 
 #[tauri::command]
 pub fn delete_condition(id: i64, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    database::with_connection(&state, |conn| soft_delete_row(conn, "conditions", id, "Condition"))
+    database::with_connection(&state, |conn| {
+        soft_delete_row(conn, "conditions", id, "Condition")
+    })
 }
 
 pub fn list_conditions(conn: &Connection) -> rusqlite::Result<Vec<ConditionEntry>> {
@@ -84,8 +96,7 @@ pub fn list_conditions(conn: &Connection) -> rusqlite::Result<Vec<ConditionEntry
         "SELECT id, organ_key, name, status, diagnosed_at, notes
          FROM conditions
          WHERE deleted_at = ''
-         ORDER BY created_at DESC, id DESC
-         LIMIT 30",
+         ORDER BY created_at DESC, id DESC",
     )?;
     let rows = stmt.query_map([], map_condition)?;
     rows.collect()
@@ -130,7 +141,10 @@ fn insert_condition(
     Ok(conn.last_insert_rowid())
 }
 
-fn update_condition_in_conn(conn: &Connection, input: &UpdateConditionInput) -> Result<ConditionEntry, String> {
+fn update_condition_in_conn(
+    conn: &Connection,
+    input: &UpdateConditionInput,
+) -> Result<ConditionEntry, String> {
     ensure_organ(conn, &input.organ_key)?;
     let changed = conn
         .execute(
@@ -194,7 +208,15 @@ mod tests {
     fn saves_and_lists_conditions_by_latest_first() {
         let conn = test_connection();
 
-        insert_condition(&conn, "thyroid", "Hypothyroidism", "managed", "2026-07-09", "synthetic").unwrap();
+        insert_condition(
+            &conn,
+            "thyroid",
+            "Hypothyroidism",
+            "managed",
+            "2026-07-09",
+            "synthetic",
+        )
+        .unwrap();
         insert_condition(&conn, "heart", "High cholesterol", "current", "", "").unwrap();
 
         let conditions = list_conditions(&conn).unwrap();

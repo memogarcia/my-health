@@ -67,7 +67,7 @@ test("summarizeAppleHealthFile sends accepted XML to a worker", async () => {
     text: async () => {
       throw new Error("main thread read");
     },
-  } as File;
+  } as unknown as File;
 
   class FakeWorker {
     onmessage: ((event: MessageEvent<{ summary: AppleHealthImport }>) => void) | null = null;

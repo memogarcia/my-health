@@ -1,6 +1,8 @@
-use super::*;
-use super::reports::{delete_lab_report_in_conn, insert_lab_report, list_lab_reports_for_conn, LabReportInput};
+use super::reports::{
+    delete_lab_report_in_conn, insert_lab_report, list_lab_reports_for_conn, LabReportInput,
+};
 use super::symptoms::insert_symptom;
+use super::*;
 
 #[test]
 fn lists_all_lab_results_for_research_context() {
@@ -83,7 +85,16 @@ fn update_lab_recalculates_derived_fields() {
 fn update_lab_rejects_invalid_organ() {
     let conn = test_connection();
     let id = insert_lab_result(
-        &conn, None, "heart", "LDL", "120", "mg/dL", "monitor", "2026-07-01", "", "",
+        &conn,
+        None,
+        "heart",
+        "LDL",
+        "120",
+        "mg/dL",
+        "monitor",
+        "2026-07-01",
+        "",
+        "",
     )
     .unwrap();
 
@@ -109,10 +120,20 @@ fn update_lab_rejects_invalid_organ() {
 fn soft_deletes_lab_results_and_symptoms_from_lists() {
     let conn = test_connection();
     let lab_id = insert_lab_result(
-        &conn, None, "heart", "LDL", "120", "mg/dL", "monitor", "2026-07-01", "", "",
+        &conn,
+        None,
+        "heart",
+        "LDL",
+        "120",
+        "mg/dL",
+        "monitor",
+        "2026-07-01",
+        "",
+        "",
     )
     .unwrap();
-    let symptom_id = insert_symptom(&conn, "heart", "Chest tightness", 3, "2026-07-01", "").unwrap();
+    let symptom_id =
+        insert_symptom(&conn, "heart", "Chest tightness", 3, "2026-07-01", "").unwrap();
 
     soft_delete_row(&conn, "lab_results", lab_id, "Lab result").unwrap();
     soft_delete_row(&conn, "symptoms", symptom_id, "Symptom").unwrap();
@@ -136,7 +157,16 @@ fn delete_report_can_unlink_or_delete_linked_results() {
     .unwrap()
     .unwrap();
     insert_lab_result(
-        &conn, Some(report_id), "heart", "LDL", "120", "mg/dL", "monitor", "2026-07-01", "", "",
+        &conn,
+        Some(report_id),
+        "heart",
+        "LDL",
+        "120",
+        "mg/dL",
+        "monitor",
+        "2026-07-01",
+        "",
+        "",
     )
     .unwrap();
 
@@ -173,6 +203,38 @@ fn delete_report_can_unlink_or_delete_linked_results() {
     assert_eq!(list_latest_lab_results(&conn).unwrap().len(), 1);
 }
 
+#[test]
+fn document_bytes_are_saved_inside_the_report_transaction() {
+    let conn = test_connection();
+    let report = LabReportInput {
+        source_name: "report.pdf".into(),
+        file_type: "PDF".into(),
+        size_label: "1 KB".into(),
+        local_copy_path: None,
+    };
+    let result = LabResultSeed {
+        organ_key: "heart".into(),
+        marker: "LDL".into(),
+        value: "120".into(),
+        unit: "mg/dL".into(),
+        status: "monitor".into(),
+        measured_at: "2026-07-01".into(),
+        notes: "".into(),
+        reference_range: "50-100".into(),
+    };
+
+    save_lab_results(&conn, &[result], Some(&report), Some(b"%PDF-1.7\n")).unwrap();
+
+    let stored: Vec<u8> = conn
+        .query_row(
+            "SELECT document_bytes FROM lab_reports LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(stored, b"%PDF-1.7\n");
+}
+
 fn test_connection() -> Connection {
     let conn = Connection::open_in_memory().unwrap();
     conn.execute_batch(
@@ -190,6 +252,7 @@ fn test_connection() -> Connection {
            file_type TEXT NOT NULL DEFAULT '',
            size_label TEXT NOT NULL DEFAULT '',
            local_copy_path TEXT NOT NULL DEFAULT '',
+           document_bytes BLOB NOT NULL DEFAULT X'',
            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
            deleted_at TEXT NOT NULL DEFAULT ''
@@ -230,4 +293,3 @@ fn test_connection() -> Connection {
     .unwrap();
     conn
 }
-

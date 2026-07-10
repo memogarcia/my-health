@@ -35,10 +35,11 @@ providers. Settings can save planned providers, but warns that they are not live
 The default state is "Not configured" so first use asks for setup instead of
 failing against a non-live provider.
 
-Codex runs with an ephemeral, read-only workspace and a timeout. Dropped
-documents are validated for size/type, written temporarily for extraction, then
-removed on success, failure, or timeout. Extracted results are shown to the user
-for review before they are saved, and uncertain dates/statuses must be resolved.
+Codex chat runs with an ephemeral, per-request workspace and a timeout. Prompts
+are sent over stdin, and Rust rechecks the saved provider, model, database, and
+remote-health opt-in before execution. Dropped documents are never given to
+Codex because read-only mode does not confine filesystem reads; document intake
+uses local validation and manual structured review instead.
 
 ## Privacy Rules
 

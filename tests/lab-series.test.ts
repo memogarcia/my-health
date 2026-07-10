@@ -28,6 +28,7 @@ test("numericValueOf prefers valueNumber and excludes non-numeric values", () =>
   assert.equal(numericValueOf(lab({ value: "text", valueNumber: 4.2 })), 4.2);
   const series = buildNumericLabSeries([lab({ value: "not numeric", valueNumber: null })]);
   assert.equal(series.length, 0);
+  assert.equal(numericValueOf(lab({ value: "120/80", valueNumber: 120 })), null);
 });
 
 test("buildNumericLabSeries groups by marker, unit, and organ and sorts oldest first", () => {

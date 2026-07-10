@@ -2,13 +2,19 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel, FieldTitle } from "@/components/ui/field";
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AI_PROVIDERS, CODEX_REASONING_EFFORT_OPTIONS, DEFAULT_CODEX_REASONING_EFFORT, getAiProvider } from "../ai-sdk-config";
+import {
+  AI_PROVIDERS,
+  CODEX_REASONING_EFFORT_OPTIONS,
+  DEFAULT_CODEX_REASONING_EFFORT,
+  getAiProvider,
+  isApiKeyEnvVarName,
+} from "../ai-sdk-config";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
-import { Download } from "./health-icons";
+import { DataExportSettings } from "./data-export-settings";
 
 export function SettingsPage({ controller }: { controller: DashboardController }) {
   return (
@@ -16,7 +22,7 @@ export function SettingsPage({ controller }: { controller: DashboardController }
       <ProfileSettings controller={controller} />
       <div className="grid gap-4">
         <AiSettings controller={controller} />
-        <DataExport controller={controller} />
+        <DataExportSettings controller={controller} />
       </div>
     </div>
   );
@@ -39,9 +45,9 @@ function ProfileSettings({ controller }: { controller: DashboardController }) {
           <FieldGroup className="grid gap-4 sm:grid-cols-2">
             <NumberField name="age" label={t("settings.profile.age")} value={profile.age} min={0} max={130} step={1} />
             <Field>
-              <FieldLabel>{t("settings.profile.sex")}</FieldLabel>
+              <FieldLabel htmlFor="profile-sex">{t("settings.profile.sex")}</FieldLabel>
               <Select name="sex" defaultValue={profile.sex}>
-                <SelectTrigger className="w-full"><SelectValue placeholder={t("settings.profile.notSet")} /></SelectTrigger>
+                <SelectTrigger className="w-full" id="profile-sex"><SelectValue placeholder={t("settings.profile.notSet")} /></SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value="female">{t("settings.profile.sexFemale")}</SelectItem>
@@ -72,6 +78,11 @@ function AiSettings({ controller }: { controller: DashboardController }) {
   const [allowRemote, setAllowRemote] = useState(controller.aiSettings.allowRemoteHealthContext);
   const provider = getAiProvider(providerId);
   const isCodex = provider.id === "codex";
+  const hasProviderConfiguration = provider.id !== "none";
+  const showBaseUrl = provider.kind === "openai-compatible";
+  const showApiKeyEnvVar = provider.kind === "anthropic" || provider.kind === "openai" || provider.kind === "google" || provider.id === "custom";
+  const apiKeyEnvVarRequired = provider.kind === "anthropic" || provider.kind === "openai" || provider.kind === "google";
+  const showRemoteConsent = hasProviderConfiguration && !provider.local;
   const fallbackCodexModels = provider.models.map((item) => ({
     ...item,
     defaultReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
@@ -80,6 +91,23 @@ function AiSettings({ controller }: { controller: DashboardController }) {
   const codexModelOptions = controller.codexModels.length ? controller.codexModels : fallbackCodexModels;
   const selectedCodexModel = codexModelOptions.find((item) => item.id === modelId) || codexModelOptions[0];
   const reasoningOptions = selectedCodexModel?.reasoningEfforts.length ? selectedCodexModel.reasoningEfforts : CODEX_REASONING_EFFORT_OPTIONS;
+  const modelMissing = hasProviderConfiguration && modelId.trim() === "";
+  const reasoningEffortMissing = isCodex && reasoningEffort.trim() === "";
+  const baseUrlMissing = showBaseUrl && baseUrl.trim() === "";
+  const apiKeyEnvVarMissing = apiKeyEnvVarRequired && apiKeyEnvVar.trim() === "";
+  const apiKeyEnvVarInvalid = showApiKeyEnvVar && !isApiKeyEnvVarName(apiKeyEnvVar);
+  const settingsValid = !hasProviderConfiguration || (!modelMissing && !reasoningEffortMissing && !baseUrlMissing && !apiKeyEnvVarMissing && !apiKeyEnvVarInvalid);
+  const validationMessage = modelMissing
+      ? t("settings.ai.modelRequired")
+      : reasoningEffortMissing
+        ? t("settings.ai.reasoningEffortRequired")
+        : baseUrlMissing
+          ? t("settings.ai.baseUrlRequired")
+          : apiKeyEnvVarMissing
+            ? t("settings.ai.apiKeyEnvVarRequired")
+            : apiKeyEnvVarInvalid
+              ? t("userState.apiKeyEnvVar")
+              : "";
 
   useEffect(() => {
     setProviderId(controller.aiSettings.providerId);
@@ -108,6 +136,17 @@ function AiSettings({ controller }: { controller: DashboardController }) {
     }
   }
 
+  function selectProvider(value: string): void {
+    const nextProvider = getAiProvider(value);
+    setProviderId(nextProvider.id);
+    setModelId(nextProvider.models[0]?.id || "");
+    setReasoningEffort(DEFAULT_CODEX_REASONING_EFFORT);
+    setBaseUrl(nextProvider.baseUrl);
+    setApiKeyEnvVar(nextProvider.apiKeyEnvVar);
+    setAllowRemote(false);
+    if (nextProvider.id === "codex") void controller.loadCodexOptions();
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -117,51 +156,53 @@ function AiSettings({ controller }: { controller: DashboardController }) {
       <CardContent>
         <form onSubmit={(event) => {
           event.preventDefault();
+          if (!settingsValid) return;
           const form = new FormData(event.currentTarget);
           form.set("providerId", providerId);
           form.set("modelId", modelId);
           form.set("reasoningEffort", reasoningEffort);
+          form.set("baseUrl", baseUrl);
+          form.set("apiKeyEnvVar", apiKeyEnvVar);
           if (allowRemote) form.set("allowRemoteHealthContext", "on");
           void controller.saveAiSettings(form);
         }}>
           <FieldGroup className="grid gap-4 sm:grid-cols-2">
             <Field>
-              <FieldLabel>{t("settings.ai.provider")}</FieldLabel>
-              <Select value={providerId} onValueChange={(value) => {
-                setProviderId(value);
-                void controller.updateAiProvider(value, "settings");
-              }}>
-                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+              <FieldLabel htmlFor="ai-provider">{t("settings.ai.provider")}</FieldLabel>
+              <Select value={providerId} onValueChange={selectProvider}>
+                <SelectTrigger className="w-full" id="ai-provider"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectGroup>{AI_PROVIDERS.map((item) => <SelectItem value={item.id} key={item.id}>{item.label} · {item.statusLabel}</SelectItem>)}</SelectGroup>
                 </SelectContent>
               </Select>
               {provider.executionStatus === "planned" ? <FieldDescription>{t("settings.ai.notLiveWarning")}</FieldDescription> : null}
             </Field>
-            <Field>
-              <FieldLabel htmlFor="modelId">{t("settings.ai.model")}</FieldLabel>
-              {isCodex ? (
-                <>
-                  <Select value={modelId} onValueChange={selectCodexModel}>
-                    <SelectTrigger className="w-full" id="modelId"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>{codexModelOptions.map((item) => <SelectItem value={item.id} key={item.id}>{item.label}</SelectItem>)}</SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  {controller.codexOptionsError ? <FieldDescription>{controller.codexOptionsError}</FieldDescription> : null}
-                </>
-              ) : (
-                <>
-                  <Input id="modelId" name="modelId" list="ai-model-options" value={modelId} onChange={(event) => setModelId(event.target.value)} required />
-                  <datalist id="ai-model-options">{provider.models.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</datalist>
-                </>
-              )}
-            </Field>
+            {hasProviderConfiguration ? (
+              <Field data-invalid={modelMissing ? "true" : undefined}>
+                <FieldLabel htmlFor="modelId">{t("settings.ai.model")}</FieldLabel>
+                {isCodex ? (
+                  <>
+                    <Select value={modelId} onValueChange={selectCodexModel}>
+                      <SelectTrigger className="w-full" id="modelId" aria-invalid={modelMissing}><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>{codexModelOptions.map((item) => <SelectItem value={item.id} key={item.id}>{item.label}</SelectItem>)}</SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {controller.codexOptionsError ? <FieldDescription>{controller.codexOptionsError}</FieldDescription> : null}
+                  </>
+                ) : (
+                  <>
+                    <Input id="modelId" name="modelId" list="ai-model-options" value={modelId} onChange={(event) => setModelId(event.target.value)} aria-invalid={modelMissing} required />
+                    <datalist id="ai-model-options">{provider.models.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</datalist>
+                  </>
+                )}
+              </Field>
+            ) : null}
             {isCodex ? (
-              <Field>
-                <FieldLabel>{t("settings.ai.thinkingEffort")}</FieldLabel>
+              <Field data-invalid={reasoningEffortMissing ? "true" : undefined}>
+                <FieldLabel htmlFor="reasoning-effort">{t("settings.ai.thinkingEffort")}</FieldLabel>
                 <Select value={reasoningEffort} onValueChange={setReasoningEffort}>
-                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-full" id="reasoning-effort" aria-invalid={reasoningEffortMissing}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectGroup>{reasoningOptions.map((item) => <SelectItem value={item.id} key={item.id}>{item.label}</SelectItem>)}</SelectGroup>
                   </SelectContent>
@@ -169,52 +210,49 @@ function AiSettings({ controller }: { controller: DashboardController }) {
                 <FieldDescription>{reasoningOptions.find((item) => item.id === reasoningEffort)?.description || t("settings.ai.thinkingEffortDescription")}</FieldDescription>
               </Field>
             ) : null}
-            <Field>
-              <FieldLabel htmlFor="baseUrl">{t("settings.ai.baseUrl")}</FieldLabel>
-              <Input id="baseUrl" name="baseUrl" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={provider.baseUrl || "https://api.example.com/v1"} />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="apiKeyEnvVar">{t("settings.ai.apiKeyEnvVar")}</FieldLabel>
-              <Input id="apiKeyEnvVar" name="apiKeyEnvVar" value={apiKeyEnvVar} onChange={(event) => setApiKeyEnvVar(event.target.value)} placeholder={provider.apiKeyEnvVar || "OPTIONAL_API_KEY"} />
-            </Field>
-            <Field orientation="horizontal" className="sm:col-span-2">
-              <Checkbox checked={allowRemote} onCheckedChange={(checked) => setAllowRemote(checked === true)} id="allowRemoteHealthContext" />
-              <FieldContent>
-                <FieldTitle>{t("settings.ai.allowRemoteTitle")}</FieldTitle>
-                <FieldDescription>{t("settings.ai.allowRemoteDescription")}</FieldDescription>
-              </FieldContent>
-            </Field>
-            <Button className="sm:col-span-2 sm:justify-self-end" type="submit">{t("settings.ai.save")}</Button>
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
-
-function DataExport({ controller }: { controller: DashboardController }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("settings.export.title")}</CardTitle>
-        <CardDescription>{t("settings.export.description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={(event) => {
-          event.preventDefault();
-          const form = new FormData(event.currentTarget);
-          void controller.exportDatabase(String(form.get("exportPassphrase") || ""), String(form.get("confirmExportPassphrase") || ""));
-        }}>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="exportPassphrase">{t("settings.export.passphrase")}</FieldLabel>
-              <Input id="exportPassphrase" name="exportPassphrase" type="password" minLength={12} autoComplete="new-password" required />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="confirmExportPassphrase">{t("settings.export.confirmPassphrase")}</FieldLabel>
-              <Input id="confirmExportPassphrase" name="confirmExportPassphrase" type="password" minLength={12} autoComplete="new-password" required />
-            </Field>
-            <Button type="submit"><Download data-icon="inline-start" />{t("settings.export.submit")}</Button>
+            {showBaseUrl ? (
+              <Field data-invalid={baseUrlMissing ? "true" : undefined}>
+                <FieldLabel htmlFor="baseUrl">{t("settings.ai.baseUrl")}</FieldLabel>
+                <Input id="baseUrl" name="baseUrl" type="url" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder={provider.baseUrl || t("settings.ai.baseUrlPlaceholder")} aria-invalid={baseUrlMissing} required />
+              </Field>
+            ) : null}
+            {showApiKeyEnvVar ? (
+              <Field data-invalid={apiKeyEnvVarMissing || apiKeyEnvVarInvalid ? "true" : undefined}>
+                <FieldLabel htmlFor="apiKeyEnvVar">{t("settings.ai.apiKeyEnvVar")}</FieldLabel>
+                <Input
+                  id="apiKeyEnvVar"
+                  name="apiKeyEnvVar"
+                  value={apiKeyEnvVar}
+                  onChange={(event) => setApiKeyEnvVar(event.target.value)}
+                  placeholder={provider.apiKeyEnvVar || t("settings.ai.apiKeyEnvVarPlaceholder")}
+                  pattern="[A-Z_][A-Z0-9_]*"
+                  aria-invalid={apiKeyEnvVarMissing || apiKeyEnvVarInvalid}
+                  required={apiKeyEnvVarRequired}
+                />
+              </Field>
+            ) : null}
+            {showRemoteConsent ? (
+              <Field orientation="horizontal" className="sm:col-span-2">
+                <Checkbox aria-describedby="ai-remote-description" checked={allowRemote} onCheckedChange={(checked) => setAllowRemote(checked === true)} id="allowRemoteHealthContext" />
+                <FieldContent>
+                  <FieldLabel htmlFor="allowRemoteHealthContext">{t("settings.ai.allowRemoteTitle")}</FieldLabel>
+                  <FieldDescription id="ai-remote-description">{t("settings.ai.allowRemoteDescription")}</FieldDescription>
+                </FieldContent>
+              </Field>
+            ) : null}
+            {validationMessage ? (
+              <FieldDescription className="sm:col-span-2" id="ai-settings-validation" role="status" aria-live="polite">
+                {validationMessage}
+              </FieldDescription>
+            ) : null}
+            <Button
+              className="sm:col-span-2 sm:justify-self-end"
+              type="submit"
+              disabled={!settingsValid}
+              aria-describedby={validationMessage ? "ai-settings-validation" : undefined}
+            >
+              {t("settings.ai.save")}
+            </Button>
           </FieldGroup>
         </form>
       </CardContent>

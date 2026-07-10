@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildDeepResearchPrompt, buildLifestylePlan } from "../src/lifestyle-insights";
+import { buildDeepResearchBrief, buildDeepResearchPrompt, buildLifestylePlan } from "../src/lifestyle-insights";
 import type { DisplaySnapshot, UserState } from "../src/dashboard-model";
 
 const display: DisplaySnapshot = {
@@ -54,7 +54,7 @@ const userState: UserState = {
 test("buildLifestylePlan turns saved health data into actionable categories", () => {
   const plan = buildLifestylePlan(display, userState);
 
-  assert.deepEqual(plan.recommendations.map((item) => item.category), ["Breathing", "Exercise", "Activity", "Routine"]);
+  assert.deepEqual(plan.recommendations.map((item) => item.category), ["breathing", "exercise", "activity", "routine"]);
   assert.ok(plan.signals.some((signal) => signal.includes("marker")));
   assert.match(plan.prompt, /LDL cholesterol/u);
   assert.match(plan.prompt, /"age": 40/u);
@@ -62,7 +62,7 @@ test("buildLifestylePlan turns saved health data into actionable categories", ()
   assert.match(plan.prompt, /Example medication/u);
   assert.match(plan.prompt, /Apple Health/u);
   assert.match(plan.prompt, /untrusted user-entered data/u);
-  const json = plan.prompt.match(/<untrusted_health_data_json>\n([\s\S]+)\n<\/untrusted_health_data_json>/u)?.[1] || "";
+  const json = plan.prompt.slice(plan.prompt.indexOf("{"));
   assert.doesNotThrow(() => JSON.parse(json));
 });
 
@@ -75,6 +75,60 @@ test("buildDeepResearchPrompt includes all saved data sections", () => {
   assert.match(prompt, /Example medication/u);
   assert.match(prompt, /Apple Health/u);
   assert.match(prompt, /untrusted user-entered data/u);
-  const json = prompt.match(/<untrusted_health_data_json>\n([\s\S]+)\n<\/untrusted_health_data_json>/u)?.[1] || "";
+  const json = prompt.slice(prompt.indexOf("{"));
   assert.doesNotThrow(() => JSON.parse(json));
+});
+
+test("lifestyle and research use only the latest normalized marker for current guidance", () => {
+  const older = display.latestLabResults[0];
+  const supersededDisplay: DisplaySnapshot = {
+    ...display,
+    organs: display.organs.map((organ) => ({ ...organ, status: "normal" })),
+    latestLabResults: [
+      { ...older, id: 1, marker: "LDL cholesterol", measuredAt: "2026-06-01", status: "attention" },
+      { ...older, id: 2, marker: " ldl cholesterol ", measuredAt: "2026-07-01", status: "normal" },
+    ],
+    recentSymptoms: [],
+    conditions: [],
+  };
+
+  const plan = buildLifestylePlan(supersededDisplay, userState);
+  const brief = buildDeepResearchBrief(supersededDisplay, userState);
+  const markerCoverage = plan.coverage.find((item) => item.label === "Markers");
+  const exercise = plan.recommendations.find((item) => item.category === "exercise");
+  const routine = plan.recommendations.find((item) => item.category === "routine");
+
+  assert.equal(markerCoverage?.value, "1");
+  assert.equal(plan.signals.some((signal) => signal.includes("needs attention")), false);
+  assert.equal(brief.signals.some((signal) => signal.includes("needs attention")), false);
+  assert.equal(exercise?.priority, "normal");
+  assert.equal(routine?.priority, "normal");
+
+  const payload = JSON.parse(brief.prompt.slice(brief.prompt.indexOf("{")));
+  assert.equal(payload.labs.length, 2);
+});
+
+test("old severe symptoms stay in history without driving current guidance", () => {
+  const historicalDisplay: DisplaySnapshot = {
+    ...display,
+    organs: display.organs.map((organ) => ({ ...organ, status: "normal" })),
+    latestLabResults: display.latestLabResults.map((lab) => ({ ...lab, status: "normal" })),
+    recentSymptoms: [{ ...display.recentSymptoms[0], observedAt: "2000-01-01", severity: 5 }],
+    conditions: [],
+  };
+
+  const plan = buildLifestylePlan(historicalDisplay, userState);
+  const brief = buildDeepResearchBrief(historicalDisplay, userState);
+  const breathing = plan.recommendations.find((item) => item.category === "breathing");
+  const exercise = plan.recommendations.find((item) => item.category === "exercise");
+  const symptomCoverage = plan.coverage.find((item) => item.label === "Symptoms");
+
+  assert.equal(plan.signals.some((signal) => signal.includes("severe symptom")), false);
+  assert.equal(brief.signals.some((signal) => signal.includes("severe symptom")), false);
+  assert.equal(breathing?.priority, "normal");
+  assert.equal(exercise?.priority, "normal");
+  assert.equal(symptomCoverage?.value, "1");
+
+  const payload = JSON.parse(brief.prompt.slice(brief.prompt.indexOf("{")));
+  assert.equal(payload.symptoms.length, 1);
 });

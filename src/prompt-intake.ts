@@ -1,4 +1,4 @@
-import type { ExtractedResult, HealthStatus, RegimenInput } from "./dashboard-model";
+import type { ExtractedResult, ExtractedResultStatus, RegimenInput } from "./dashboard-model";
 
 export type PromptIntakeAction =
   | { kind: "chat" }
@@ -121,10 +121,11 @@ function cleanMarker(value: string): string {
     .replace(/\b\w/gu, (letter) => letter.toUpperCase());
 }
 
-function resultStatus(text: string): HealthStatus {
-  if (/\b(attention|urgent|critical)\b/iu.test(text)) return "attention";
-  if (/\b(high|low|elevated|abnormal|monitor)\b/iu.test(text)) return "monitor";
-  return "normal";
+function resultStatus(text: string): ExtractedResultStatus {
+  if (/\b(attention|urgent|critical|discuss soon)\b/iu.test(text)) return "attention";
+  if (/\b(monitor|watch)\b/iu.test(text)) return "monitor";
+  if (/\b(routine|no follow-up)\b/iu.test(text)) return "normal";
+  return "";
 }
 
 function resultDate(text: string, today: string): string {

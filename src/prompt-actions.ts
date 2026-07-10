@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { toast } from "sonner";
 import { runAiPrompt } from "./ai-actions";
 import type { AiSettings } from "./ai-sdk-config";
-import { setActiveAiConversation, startNewAiConversation } from "./ai-conversation";
+import { mergeAiConversationState, setActiveAiConversation, startNewAiConversation } from "./ai-conversation";
 import { todayString } from "./dashboard-format";
 import type { NavKey, RegimenInput, UserState } from "./dashboard-model";
 import { t } from "./i18n";
@@ -15,7 +15,10 @@ type PromptActionsOptions = {
   aiPendingConversationId: string;
   aiSettings: AiSettings;
   documentIntake: Pick<ReturnType<typeof useDocumentIntake>, "prepareDocumentResult" | "preparePromptResults">;
-  persistUserState: (next: UserState) => Promise<void>;
+  persistUserState: (next: UserState) => Promise<boolean>;
+  databaseEpoch: number;
+  isDatabaseCurrent: (epoch: number) => boolean;
+  getUserState: () => UserState;
   selectedOrganKey: string;
   setAiPendingConversationId: (id: string) => void;
   setRegimenDraft: Dispatch<SetStateAction<RegimenDraft | null>>;
@@ -75,20 +78,23 @@ export function makePromptActions(options: PromptActionsOptions) {
       aiSettings: options.aiSettings,
       userState: options.userState,
       onPending: async (nextState, conversationId, notice) => {
+        if (!options.isDatabaseCurrent(options.databaseEpoch)) return;
         options.setUserState(nextState);
         options.setAiPendingConversationId(conversationId);
         toast.info(notice);
         await options.persistUserState(nextState);
       },
     });
+    if (!options.isDatabaseCurrent(options.databaseEpoch)) return;
     options.setAiPendingConversationId("");
-    options.setUserState((current) => {
-      const next = { ...current, aiConversations: result.userState.aiConversations, activeAiConversationId: result.userState.activeAiConversationId };
-      void options.persistUserState(next);
-      return next;
-    });
-    if (result.toastKind === "success") toast.success(result.toastMessage);
-    else toast.error(result.toastMessage);
+    const next = mergeAiConversationState(options.getUserState(), result.userState);
+    options.setUserState(next);
+    const persisted = await options.persistUserState(next);
+    if (result.toastKind === "success") {
+      if (persisted) toast.success(result.toastMessage);
+    } else {
+      toast.error(result.toastMessage);
+    }
   }
 
   return { selectAiConversation, startAiConversation, submitAiPrompt };

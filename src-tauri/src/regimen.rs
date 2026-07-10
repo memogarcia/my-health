@@ -61,7 +61,12 @@ pub fn add_regimen_item(
     input: AddRegimenItemInput,
     state: tauri::State<'_, AppState>,
 ) -> Result<RegimenItem, String> {
-    validate_regimen_input(&input.kind, &input.name, &input.start_date, &input.stop_date)?;
+    validate_regimen_input(
+        &input.kind,
+        &input.name,
+        &input.start_date,
+        &input.stop_date,
+    )?;
 
     database::with_connection(&state, |conn| {
         let id = insert_regimen_item(conn, &input)?;
@@ -77,22 +82,35 @@ pub fn update_regimen_item(
     if input.id <= 0 {
         return Err("id is required".into());
     }
-    validate_regimen_input(&input.kind, &input.name, &input.start_date, &input.stop_date)?;
+    validate_regimen_input(
+        &input.kind,
+        &input.name,
+        &input.start_date,
+        &input.stop_date,
+    )?;
     database::with_connection(&state, |conn| update_regimen_item_in_conn(conn, &input))
 }
 
 #[tauri::command]
 pub fn delete_regimen_item(id: i64, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    database::with_connection(&state, |conn| soft_delete_row(conn, "regimen_items", id, "Regimen item"))
+    database::with_connection(&state, |conn| {
+        soft_delete_row(conn, "regimen_items", id, "Regimen item")
+    })
 }
 
 #[tauri::command]
-pub fn stop_regimen_item(id: i64, state: tauri::State<'_, AppState>) -> Result<RegimenItem, String> {
+pub fn stop_regimen_item(
+    id: i64,
+    state: tauri::State<'_, AppState>,
+) -> Result<RegimenItem, String> {
     database::with_connection(&state, |conn| set_regimen_active(conn, id, false))
 }
 
 #[tauri::command]
-pub fn reactivate_regimen_item(id: i64, state: tauri::State<'_, AppState>) -> Result<RegimenItem, String> {
+pub fn reactivate_regimen_item(
+    id: i64,
+    state: tauri::State<'_, AppState>,
+) -> Result<RegimenItem, String> {
     database::with_connection(&state, |conn| set_regimen_active(conn, id, true))
 }
 
@@ -105,11 +123,22 @@ pub fn list_regimen_items(conn: &Connection) -> rusqlite::Result<Vec<RegimenItem
     rows.collect()
 }
 
-fn validate_regimen_input(kind: &str, name: &str, start_date: &str, stop_date: &str) -> Result<(), String> {
+fn validate_regimen_input(
+    kind: &str,
+    name: &str,
+    start_date: &str,
+    stop_date: &str,
+) -> Result<(), String> {
     validate_kind(kind)?;
     validate_required("name", name)?;
     validate_optional_iso_date("startDate", start_date)?;
     validate_optional_iso_date("stopDate", stop_date)?;
+    if !start_date.trim().is_empty()
+        && !stop_date.trim().is_empty()
+        && stop_date.trim() < start_date.trim()
+    {
+        return Err("stopDate cannot be before startDate".into());
+    }
     Ok(())
 }
 
@@ -134,7 +163,10 @@ fn insert_regimen_item(conn: &Connection, input: &AddRegimenItemInput) -> Result
     Ok(conn.last_insert_rowid())
 }
 
-fn update_regimen_item_in_conn(conn: &Connection, input: &UpdateRegimenItemInput) -> Result<RegimenItem, String> {
+fn update_regimen_item_in_conn(
+    conn: &Connection,
+    input: &UpdateRegimenItemInput,
+) -> Result<RegimenItem, String> {
     let changed = conn
         .execute(
             "UPDATE regimen_items
@@ -179,7 +211,11 @@ fn set_regimen_active(conn: &Connection, id: i64, active: bool) -> Result<Regime
         .execute(
             "UPDATE regimen_items
              SET active = ?1,
-                 stop_date = CASE WHEN ?1 = 1 THEN '' ELSE date('now') END,
+                 stop_date = CASE
+                   WHEN ?1 = 1 THEN ''
+                   WHEN start_date <> '' AND start_date > date('now', 'localtime') THEN start_date
+                   ELSE date('now', 'localtime')
+                 END,
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = ?2 AND deleted_at = ''",
             params![if active { 1 } else { 0 }, id],
@@ -199,7 +235,10 @@ fn get_regimen_item(conn: &Connection, id: i64) -> rusqlite::Result<RegimenItem>
 fn regimen_select_sql(tail: &str) -> String {
     format!(
         "SELECT id, kind, name, dose, unit, frequency, start_date, stop_date, reason, notes,
-                CASE WHEN active = 1 AND (stop_date = '' OR stop_date >= date('now')) THEN 1 ELSE 0 END AS computed_active
+                CASE WHEN active = 1
+                       AND (start_date = '' OR start_date <= date('now', 'localtime'))
+                       AND (stop_date = '' OR stop_date >= date('now', 'localtime'))
+                     THEN 1 ELSE 0 END AS computed_active
          FROM regimen_items {tail}"
     )
 }
@@ -311,6 +350,7 @@ mod tests {
     #[test]
     fn rejects_invalid_kind() {
         assert!(validate_regimen_input("device", "Item", "", "").is_err());
+        assert!(validate_regimen_input("medication", "Item", "2026-07-10", "2026-07-09").is_err());
     }
 
     fn test_connection() -> Connection {
@@ -339,6 +379,7 @@ mod tests {
 
     fn today() -> String {
         let conn = Connection::open_in_memory().unwrap();
-        conn.query_row("SELECT date('now')", [], |row| row.get(0)).unwrap()
+        conn.query_row("SELECT date('now', 'localtime')", [], |row| row.get(0))
+            .unwrap()
     }
 }

@@ -51,7 +51,7 @@
   --accent-foreground: oklch(0.22 0.025 230);
   --destructive: oklch(0.55 0.2 30);
   --border: oklch(0.9 0.01 225);
-  --input: oklch(0.84 0.012 225);
+  --input: oklch(0.66 0.012 225);
   --ring: oklch(0.62 0.08 186);
   --radius: 0.625rem;
   --sidebar: oklch(0.19 0.03 235);
@@ -243,6 +243,12 @@ html[data-platform="macos"] .app-sidebar { padding-top: 2.7rem; }
   letter-spacing: -0.01em;
   line-height: 1.25;
 }
+.app-page-title h1:focus { outline: none; }
+.app-page-title h1:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid color-mix(in srgb, var(--ring) 70%, transparent);
+  outline-offset: 3px;
+}
 .app-page-title p { margin: 0; color: var(--muted-foreground); font-size: 0.76rem; }
 .app-bar-actions { display: flex; align-items: center; gap: 0.5rem; }
 .workspace {
@@ -256,6 +262,7 @@ html[data-platform="macos"] .app-sidebar { padding-top: 2.7rem; }
 .workspace[data-nav="plan"],
 .workspace[data-nav="lifestyle"],
 .workspace[data-nav="research"],
+.workspace[data-nav="documents"],
 .workspace[data-nav="settings"] { padding-bottom: 1.1rem; }
 
 /* ===== Overview hero + stat tiles ===== */
@@ -347,9 +354,9 @@ html[data-platform="macos"] .app-sidebar { padding-top: 2.7rem; }
   z-index: 2;
   left: calc(var(--x) * 1%);
   top: calc(var(--y) * 1%);
-  width: 18px !important;
-  height: 18px !important;
-  min-height: 18px !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-height: 24px !important;
   padding: 0 !important;
   transform: translate(-50%, -50%);
   border: 2px solid white !important;

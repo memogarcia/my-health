@@ -44,7 +44,8 @@ All writes require an unlocked connection.
 Tables:
 
 - `organs` includes `display_order` for backend/frontend ordering.
-- `lab_reports` includes `updated_at` and `deleted_at` for report management.
+- `lab_reports` includes the encrypted source document bytes plus `updated_at`
+  and `deleted_at` for report management.
 - `lab_results` includes derived numeric/range fields plus `updated_at` and `deleted_at`.
 - `symptoms` includes `updated_at` and `deleted_at`.
 - `conditions` includes `updated_at` and `deleted_at`.
@@ -60,7 +61,22 @@ Enums:
 - Regimen kind: `medication`, `supplement`
 
 `lab_results.flag` is derived in Rust from numeric value and reference range.
-The renderer does not set it.
+The renderer does not set it. The UI presents that range position separately
+from the user-selected follow-up priority stored in `lab_results.status`.
+New manual and document-import rows require an explicit follow-up-priority
+choice; the renderer never silently defaults that field to `normal`.
+Schema installation backfills those derived numeric, range-bound, and flag
+fields for older rows that predate them.
+
+Current organ status uses one shared model in Rust and the renderer:
+
+- the latest result for each normalized marker within that organ;
+- symptoms observed from the inclusive 30-day local-date lookback through today;
+- conditions whose status is `current`.
+
+Historical rows still count toward record totals and remain visible in history,
+but superseded results, older symptoms, and managed or past conditions do not
+keep an organ in `monitor` or `attention` indefinitely.
 
 Schema changes must be additive migrations guarded by `PRAGMA table_info`.
 
@@ -82,6 +98,7 @@ Dashboard and records:
 - `update_lab_result`
 - `delete_lab_result`
 - `add_lab_results`
+- `import_lab_results_document`
 - `list_lab_reports`
 - `unlink_lab_report`
 - `delete_lab_report`
@@ -99,10 +116,8 @@ Dashboard and records:
 
 Documents and AI:
 
-- `save_document_copy`
 - `ask_llm`
 - `get_codex_options`
-- `analyze_document`
 
 Settings and user state:
 
@@ -119,9 +134,14 @@ dates, enum values, ranges, and secret-shape rules before writes.
 Provider settings live in `src/ai-sdk-config.ts` and persist in `ai_settings`.
 API key values are never stored; settings store environment-variable names.
 
-The live execution path is Codex CLI through `src-tauri/src/codex_cli.rs`.
+The live chat execution path is Codex CLI through `src-tauri/src/codex_cli.rs`.
 Other providers are visible as planned/configuration-only entries and cannot be
 selected from chat until Rust-backed execution exists.
+
+Dropped PDFs and images are reviewed through manual structured entry. They are
+never exposed to Codex CLI because its read-only sandbox does not confine file
+reads to the working directory. Remote chat consent is revalidated in Rust
+immediately before each invocation.
 
 AI output is advisory only. Remote health context requires explicit opt-in.
 See `AI.md` for provider details.
@@ -149,8 +169,9 @@ Backend:
 - `records.rs`, `records/parse.rs`, `records/reports.rs`, `records/symptoms.rs` - lab, report, and symptom validation/storage.
 - `conditions.rs` - condition validation/storage.
 - `regimen.rs` - medication and supplement validation/storage.
-- `document_files.rs` - saved document copies and shared upload validation.
-- `codex_cli.rs` - Codex prompt, timeout, cleanup, and document extraction path.
+- `document_files.rs` - document signature, size, type, and filename validation.
+- `codex_cli.rs` - consent-checked Codex chat, model discovery, stdin, timeout,
+  output draining, and per-request cleanup.
 - `ai_settings.rs` - AI settings validation.
 
 ## Invariants
@@ -159,7 +180,8 @@ Backend:
 - Browser-only storage is not used for health records.
 - Raw API keys never enter persisted settings.
 - Remote AI context is opt-in, never automatic.
-- PDF/image intake is review-first, then save; unknown extracted dates/statuses must be resolved first.
+- PDF/image intake is manual-review-first, then atomically saved with its source
+  bytes inside encrypted SQLite.
 - Charts use saved structured data only; they are record-review aids, not diagnostic quality scores.
 - Rust validates before every write.
 - New Tauri commands must be registered in `lib.rs`.

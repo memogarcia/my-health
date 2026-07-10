@@ -1,9 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { getAiProvider } from "../ai-sdk-config";
+import { getAiProvider, hasEnabledCodexModel } from "../ai-sdk-config";
 import { t } from "../i18n";
 import { buildDeepResearchBrief, type CoverageItem } from "../lifestyle-insights";
 import type { DashboardController } from "../use-dashboard-controller";
@@ -36,17 +36,42 @@ function DeepResearchTab({ controller }: { controller: DashboardController }) {
   const brief = useMemo(() => buildDeepResearchBrief(controller.display, controller.userState), [controller.display, controller.userState]);
   const provider = getAiProvider(controller.aiSettings.providerId);
   const pending = Boolean(controller.aiPendingConversationId);
+  const aiAvailable = hasEnabledCodexModel(controller.aiSettings);
+  const [reviewedPrompt, setReviewedPrompt] = useState("");
+  const promptReviewed = reviewedPrompt === brief.prompt;
+  const canStart = aiAvailable && promptReviewed && !pending;
+  const readinessMessage = !aiAvailable
+    ? t("research.setupRequired")
+    : promptReviewed
+      ? t("research.promptReviewed")
+      : t("research.reviewRequired");
+
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1.5">
           <div className="flex items-center gap-2">
-            <Button type="button" disabled={pending} onClick={() => void controller.submitAiPrompt(brief.prompt)}>
+            <Button
+              type="button"
+              disabled={!canStart}
+              aria-describedby="research-readiness"
+              onClick={() => {
+                if (canStart) void controller.submitAiPrompt(brief.prompt);
+              }}
+            >
               {pending ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Send data-icon="inline-start" />}
               {pending ? t("research.starting") : t("research.start")}
             </Button>
             <Badge variant="outline">{provider.label}</Badge>
+            {!aiAvailable ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => controller.setSelectedNav("settings")}>
+                {t("settings.ai.open")}
+              </Button>
+            ) : null}
           </div>
+          <p className="text-xs leading-relaxed text-muted-foreground" id="research-readiness" role="status" aria-live="polite">
+            {readinessMessage}
+          </p>
           <p className="text-xs leading-relaxed text-muted-foreground">
             {t("research.advisory")}
           </p>
@@ -54,12 +79,18 @@ function DeepResearchTab({ controller }: { controller: DashboardController }) {
         <CoverageLine items={brief.coverage} />
       </div>
       <DataCoverageBars items={brief.coverage.map((item) => ({ key: item.label, label: item.label, count: Number(item.value) || 0 }))} />
-      <details className="group rounded-lg border border-border bg-card">
+      <details
+        key={brief.prompt}
+        className="group rounded-lg border border-border bg-card"
+        onToggle={(event) => {
+          if (event.currentTarget.open) setReviewedPrompt(brief.prompt);
+        }}
+      >
         <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-muted-foreground hover:text-foreground">
           {t("research.reviewPrompt")}
         </summary>
         <div className="border-t border-border px-4 py-3">
-          <Textarea className="min-h-[26rem] resize-none font-mono text-xs leading-relaxed" readOnly value={brief.prompt} />
+          <Textarea aria-label={t("research.reviewPrompt")} className="min-h-[26rem] resize-none font-mono text-xs leading-relaxed" readOnly value={brief.prompt} />
         </div>
       </details>
     </div>

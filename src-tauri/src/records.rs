@@ -1,17 +1,22 @@
 use rusqlite::{params, Connection, OptionalExtension, Row};
 use serde::{Deserialize, Serialize};
 
-use crate::database::{self, AppState};
+use crate::{
+    database::{self, AppState},
+    document_files,
+};
 pub(crate) mod parse;
+mod recommendations;
 pub(crate) mod reports;
 pub(crate) mod symptoms;
+use parse::{
+    derive_flag_from_reference, parse_lab_number, parse_reference_range, validate_iso_date,
+    validate_reference_range, validate_required, validate_status,
+};
+pub use recommendations::{build_recommendations, Recommendation};
+use reports::{insert_lab_report, LabReportInput};
 pub use reports::{list_lab_reports_for_snapshot, LabReportEntry};
 pub use symptoms::{list_recent_symptoms, SymptomEntry};
-use reports::{insert_lab_report, LabReportInput};
-use parse::{
-    derive_flag, parse_lab_number, parse_reference_range, validate_iso_date, validate_required,
-    validate_status,
-};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -82,11 +87,14 @@ pub struct AddLabResultsBatchInput {
     report: Option<LabReportInput>,
 }
 
-#[derive(Serialize)]
-pub struct Recommendation {
-    pub title: String,
-    pub body: String,
-    pub priority: String,
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportLabResultsDocumentInput {
+    results: Vec<LabResultSeed>,
+    report: LabReportInput,
+    file_name: String,
+    file_bytes: Vec<u8>,
+    db_path: String,
 }
 
 #[tauri::command]
@@ -100,12 +108,17 @@ pub fn add_lab_result(
         &input.value,
         &input.status,
         &input.measured_at,
+        &input.reference_range,
     )?;
 
     database::with_connection(&state, |conn| {
-        let report_id = insert_lab_report(conn, input.report.as_ref())?;
+        let transaction = conn
+            .unchecked_transaction()
+            .map_err(|error| error.to_string())?;
+        ensure_organ(&transaction, &input.organ_key)?;
+        let report_id = insert_lab_report(&transaction, input.report.as_ref())?;
         let id = insert_lab_result(
-            conn,
+            &transaction,
             report_id,
             &input.organ_key,
             &input.marker,
@@ -116,7 +129,9 @@ pub fn add_lab_result(
             &input.notes,
             &input.reference_range,
         )?;
-        get_lab_result(conn, id).map_err(|error| error.to_string())
+        let saved = get_lab_result(&transaction, id).map_err(|error| error.to_string())?;
+        transaction.commit().map_err(|error| error.to_string())?;
+        Ok(saved)
     })
 }
 
@@ -139,43 +154,88 @@ pub fn add_lab_results(
             &seed.value,
             &seed.status,
             &seed.measured_at,
+            &seed.reference_range,
         )
         .map_err(|message| format!("{label}: {message}"))?;
     }
 
     database::with_connection(&state, |conn| {
-        conn.execute("BEGIN", []).map_err(|error| error.to_string())?;
-        let outcome = (|| -> Result<Vec<LabResult>, String> {
-            let report_id = insert_lab_report(conn, input.report.as_ref())?;
-            let mut saved = Vec::with_capacity(input.results.len());
-            for seed in &input.results {
-                let id = insert_lab_result(
-                    conn,
-                    report_id,
-                    &seed.organ_key,
-                    &seed.marker,
-                    &seed.value,
-                    &seed.unit,
-                    &seed.status,
-                    &seed.measured_at,
-                    &seed.notes,
-                    &seed.reference_range,
-                )?;
-                saved.push(get_lab_result(conn, id).map_err(|error| error.to_string())?);
-            }
-            Ok(saved)
-        })();
-        match outcome {
-            Ok(saved) => {
-                conn.execute("COMMIT", []).map_err(|error| error.to_string())?;
-                Ok(saved)
-            }
-            Err(error) => {
-                let _ = conn.execute("ROLLBACK", []);
-                Err(error)
-            }
-        }
+        save_lab_results(conn, &input.results, input.report.as_ref(), None)
     })
+}
+
+#[tauri::command]
+pub fn import_lab_results_document(
+    input: ImportLabResultsDocumentInput,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<LabResult>, String> {
+    validate_lab_results(&input.results)?;
+    let validated = document_files::validate_document_upload(&input.file_name, &input.file_bytes)?;
+    let mut report = input.report;
+    report.source_name = validated.safe_file_name;
+    report.local_copy_path = None;
+    database::with_connection_at_path(&state, &input.db_path, |conn| {
+        save_lab_results(conn, &input.results, Some(&report), Some(&input.file_bytes))
+    })
+}
+
+fn validate_lab_results(results: &[LabResultSeed]) -> Result<(), String> {
+    if results.is_empty() {
+        return Err("No results to save".into());
+    }
+    for (index, seed) in results.iter().enumerate() {
+        validate_lab_input(
+            &seed.organ_key,
+            &seed.marker,
+            &seed.value,
+            &seed.status,
+            &seed.measured_at,
+            &seed.reference_range,
+        )
+        .map_err(|message| format!("Result {}: {message}", index + 1))?;
+    }
+    Ok(())
+}
+
+fn save_lab_results(
+    conn: &Connection,
+    results: &[LabResultSeed],
+    report: Option<&LabReportInput>,
+    document_bytes: Option<&[u8]>,
+) -> Result<Vec<LabResult>, String> {
+    let transaction = conn
+        .unchecked_transaction()
+        .map_err(|error| error.to_string())?;
+    for seed in results {
+        ensure_organ(&transaction, &seed.organ_key)?;
+    }
+    let report_id = insert_lab_report(&transaction, report)?;
+    if let (Some(report_id), Some(bytes)) = (report_id, document_bytes) {
+        transaction
+            .execute(
+                "UPDATE lab_reports SET document_bytes = ?1 WHERE id = ?2",
+                params![bytes, report_id],
+            )
+            .map_err(|error| error.to_string())?;
+    }
+    let mut saved = Vec::with_capacity(results.len());
+    for seed in results {
+        let id = insert_lab_result(
+            &transaction,
+            report_id,
+            &seed.organ_key,
+            &seed.marker,
+            &seed.value,
+            &seed.unit,
+            &seed.status,
+            &seed.measured_at,
+            &seed.notes,
+            &seed.reference_range,
+        )?;
+        saved.push(get_lab_result(&transaction, id).map_err(|error| error.to_string())?);
+    }
+    transaction.commit().map_err(|error| error.to_string())?;
+    Ok(saved)
 }
 
 #[tauri::command]
@@ -192,6 +252,7 @@ pub fn update_lab_result(
         &input.value,
         &input.status,
         &input.measured_at,
+        &input.reference_range,
     )?;
 
     database::with_connection(&state, |conn| update_lab_result_in_conn(conn, &input))
@@ -199,9 +260,10 @@ pub fn update_lab_result(
 
 #[tauri::command]
 pub fn delete_lab_result(id: i64, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    database::with_connection(&state, |conn| soft_delete_row(conn, "lab_results", id, "Lab result"))
+    database::with_connection(&state, |conn| {
+        soft_delete_row(conn, "lab_results", id, "Lab result")
+    })
 }
-
 
 pub fn list_latest_lab_results(conn: &Connection) -> rusqlite::Result<Vec<LabResult>> {
     let mut stmt = conn.prepare(
@@ -218,70 +280,22 @@ pub fn list_latest_lab_results(conn: &Connection) -> rusqlite::Result<Vec<LabRes
     rows.collect()
 }
 
-
-pub fn build_recommendations(conn: &Connection) -> rusqlite::Result<Vec<Recommendation>> {
-    let lab_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM lab_results WHERE deleted_at = ''",
-        [],
-        |row| row.get(0),
-    )?;
-    let attention_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM lab_results WHERE status = 'attention' AND deleted_at = ''",
-        [],
-        |row| row.get(0),
-    )?;
-    let symptom_count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM symptoms WHERE deleted_at = ''",
-        [],
-        |row| row.get(0),
-    )?;
-
-    let mut items = Vec::new();
-    if attention_count > 0 {
-        items.push(Recommendation {
-            title: "Review attention items".into(),
-            body: "Bring flagged lab results to a qualified clinician before changing treatment."
-                .into(),
-            priority: "attention".into(),
-        });
-    }
-    if symptom_count > 0 {
-        items.push(Recommendation {
-            title: "Track symptom patterns".into(),
-            body: "Add date, severity, and context so trends are visible over time.".into(),
-            priority: "monitor".into(),
-        });
-    }
-    if lab_count == 0 {
-        items.push(Recommendation {
-            title: "Add baseline labs".into(),
-            body: "Start with recent blood work so organ panels have history to compare.".into(),
-            priority: "normal".into(),
-        });
-    }
-    items.push(Recommendation {
-        title: "Keep data local".into(),
-        body: "Store sensitive health details in this local database and use encrypted exports for backups.".into(),
-        priority: "normal".into(),
-    });
-    Ok(items)
-}
-
 fn validate_lab_input(
     _organ_key: &str,
     marker: &str,
     value: &str,
     status: &str,
     measured_at: &str,
+    reference_range: &str,
 ) -> Result<(), String> {
     validate_required("marker", marker)?;
     validate_required("value", value)?;
     validate_required("measuredAt", measured_at)?;
     validate_iso_date("measuredAt", measured_at)?;
     validate_status(status)?;
+    validate_reference_range(reference_range)?;
     Ok(())
 }
-
 
 #[allow(clippy::too_many_arguments)]
 fn insert_lab_result(
@@ -299,7 +313,7 @@ fn insert_lab_result(
     ensure_organ(conn, organ_key)?;
     let value_number = parse_lab_number(value);
     let (reference_low, reference_high) = parse_reference_range(reference_range);
-    let flag = derive_flag(value_number, reference_low, reference_high);
+    let flag = derive_flag_from_reference(value_number, reference_range);
     conn.execute(
         "INSERT INTO lab_results (
            report_id, organ_key, marker, value, value_number, unit, status, flag,
@@ -326,12 +340,14 @@ fn insert_lab_result(
     Ok(conn.last_insert_rowid())
 }
 
-
-fn update_lab_result_in_conn(conn: &Connection, input: &UpdateLabResultInput) -> Result<LabResult, String> {
+fn update_lab_result_in_conn(
+    conn: &Connection,
+    input: &UpdateLabResultInput,
+) -> Result<LabResult, String> {
     ensure_organ(conn, &input.organ_key)?;
     let value_number = parse_lab_number(&input.value);
     let (reference_low, reference_high) = parse_reference_range(&input.reference_range);
-    let flag = derive_flag(value_number, reference_low, reference_high);
+    let flag = derive_flag_from_reference(value_number, &input.reference_range);
 
     let changed = conn
         .execute(
@@ -373,7 +389,6 @@ fn update_lab_result_in_conn(conn: &Connection, input: &UpdateLabResultInput) ->
     get_lab_result(conn, input.id).map_err(|error| error.to_string())
 }
 
-
 pub(crate) fn ensure_organ(conn: &Connection, organ_key: &str) -> Result<(), String> {
     ensure_organ_name_hint(organ_key)?;
     let found: Option<i64> = conn
@@ -384,7 +399,9 @@ pub(crate) fn ensure_organ(conn: &Connection, organ_key: &str) -> Result<(), Str
         )
         .optional()
         .map_err(|error| error.to_string())?;
-    found.map(|_| ()).ok_or_else(|| "organKey is not valid".into())
+    found
+        .map(|_| ())
+        .ok_or_else(|| "organKey is not valid".into())
 }
 
 fn ensure_organ_name_hint(organ_key: &str) -> Result<(), String> {
@@ -407,13 +424,14 @@ pub(crate) fn soft_delete_row(
     let sql = format!(
         "UPDATE {table} SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?1 AND deleted_at = ''"
     );
-    let changed = conn.execute(&sql, params![id]).map_err(|error| error.to_string())?;
+    let changed = conn
+        .execute(&sql, params![id])
+        .map_err(|error| error.to_string())?;
     if changed == 0 {
         return Err(format!("{label} not found"));
     }
     Ok(())
 }
-
 
 fn get_lab_result(conn: &Connection, id: i64) -> rusqlite::Result<LabResult> {
     conn.query_row(
@@ -428,7 +446,6 @@ fn get_lab_result(conn: &Connection, id: i64) -> rusqlite::Result<LabResult> {
         map_lab_result,
     )
 }
-
 
 fn map_lab_result(row: &Row<'_>) -> rusqlite::Result<LabResult> {
     Ok(LabResult {
@@ -450,7 +467,6 @@ fn map_lab_result(row: &Row<'_>) -> rusqlite::Result<LabResult> {
         reference_high: row.get(15)?,
     })
 }
-
 
 #[cfg(test)]
 mod tests;

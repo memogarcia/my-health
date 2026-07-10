@@ -3,6 +3,7 @@ import type { LabResult } from "../../dashboard-model";
 import { formatDate } from "../../dashboard-format";
 import { buildNumericLabSeries, pickDefaultLabSeries } from "../../charts/lab-series";
 import { t } from "../../i18n";
+import { LabFlagBadge, LabFollowUpBadge } from "../lab-result-context";
 import { ReferenceRangeStrip } from "./reference-range-strip";
 
 export function OrganTrendPreview({ labs, onViewAll }: { labs: LabResult[]; onViewAll: () => void }) {
@@ -23,9 +24,10 @@ export function OrganTrendPreview({ labs, onViewAll }: { labs: LabResult[]; onVi
       <div className="mt-3 grid gap-2">
         <div className="flex items-baseline justify-between gap-3">
           <strong className="text-xl tnum">{latest.value} {latest.unit}</strong>
-          <span className={`text-xs font-medium status-${latest.status}`}>{t(`status.${latest.status}`)}</span>
+          <LabFollowUpBadge status={latest.status} />
         </div>
-        <ReferenceRangeStrip compact value={latest.numericValue} low={latest.referenceLow} high={latest.referenceHigh} status={latest.status} />
+        <LabFlagBadge flag={latest.flag} />
+        <ReferenceRangeStrip compact value={latest.numericValue} low={latest.referenceLow} high={latest.referenceHigh} flag={latest.flag} referenceRange={latest.referenceRange} />
         <p className="text-xs text-muted-foreground">{delta == null ? t("charts.organ.firstReading") : t("charts.organ.delta", { value: `${delta > 0 ? "+" : ""}${formatNumber(delta)} ${latest.unit}` })}</p>
       </div>
     </section>

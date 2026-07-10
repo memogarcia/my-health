@@ -9,6 +9,7 @@ const BASELINE_PATH = 'scripts/i18n-baseline.json';
 const EXTENSIONS = new Set(['.html', '.js', '.jsx', '.ts', '.tsx']);
 const EXCLUDED_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', 'coverage', 'src-tauri', 'i18n']);
 const TRANSLATABLE_ATTRIBUTES = new Set(['aria-label', 'aria-description', 'placeholder', 'title', 'alt']);
+const USER_FACING_OBJECT_PROPERTIES = new Set(['action', 'body', 'description', 'statusLabel', 'title']);
 const IGNORED_STRINGS = new Set(['true', 'false', 'null', 'undefined', 'button', 'dialog', 'img', 'input', 'label', 'main', 'nav', 'section', 'span']);
 
 function isExcludedPath(filePath) {
@@ -109,6 +110,12 @@ function scanJsxFile(file) {
       const name = node.left.name.text;
       if (name === 'textContent' || name === 'innerText') {
         for (const value of expressionStrings(node.right)) addViolation(violations, file, value, node.right.getStart(source), 'dom-text');
+      }
+    }
+    if (ts.isPropertyAssignment(node)) {
+      const name = ts.isIdentifier(node.name) || ts.isStringLiteral(node.name) ? node.name.text : '';
+      if (USER_FACING_OBJECT_PROPERTIES.has(name)) {
+        for (const value of expressionStrings(node.initializer)) addViolation(violations, file, value, node.initializer.getStart(source), 'object-copy');
       }
     }
     ts.forEachChild(node, visit);

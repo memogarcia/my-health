@@ -1,4 +1,4 @@
-import type React from "react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
@@ -24,6 +24,7 @@ export function DocumentsPage({ controller }: { controller: DashboardController 
             accept={resultDocumentAccept}
             description={t("documents.pdfDescription")}
             icon={<FileText />}
+            inputId="document-result-file"
             label={t("documents.pdfLabel")}
             onFile={controller.prepareDocumentResult}
           />
@@ -31,6 +32,7 @@ export function DocumentsPage({ controller }: { controller: DashboardController 
             accept=".xml,application/xml,text/xml"
             description={t("documents.appleDescription")}
             icon={<Sparkles />}
+            inputId="apple-health-export-file"
             label={t("documents.appleLabel")}
             onFile={(file) => void controller.importAppleHealthFile(file)}
           />
@@ -47,15 +49,19 @@ function DocumentDrop({
   accept,
   description,
   icon,
+  inputId,
   label,
   onFile,
 }: {
   accept: string;
   description: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
+  inputId: string;
   label: string;
   onFile: (file: File) => void;
 }) {
+  const descriptionId = `${inputId}-description`;
+
   function handleFile(file: File | undefined): void {
     if (file) onFile(file);
   }
@@ -74,11 +80,13 @@ function DocumentDrop({
     >
       <div className="grid place-items-center gap-2 text-center">
         <span className="grid size-12 place-items-center rounded-lg bg-muted text-primary">{icon}</span>
-        <FieldLabel>{label}</FieldLabel>
-        <FieldDescription>{description}</FieldDescription>
+        <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
+        <FieldDescription id={descriptionId}>{description}</FieldDescription>
       </div>
       <Input
         accept={accept}
+        aria-describedby={descriptionId}
+        id={inputId}
         type="file"
         onChange={(event) => {
           handleFile(event.currentTarget.files?.[0]);

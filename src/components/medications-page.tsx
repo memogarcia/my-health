@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pencil, RotateCcw, Square, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -74,9 +74,9 @@ function AddRegimenForm({ controller }: { controller: DashboardController }) {
             ) : null}
             <div className="grid gap-4 sm:grid-cols-[0.8fr_1.2fr]">
               <Field>
-                <FieldLabel>{t("medications.kind")}</FieldLabel>
+                <FieldLabel htmlFor="regimen-kind">{t("medications.kind")}</FieldLabel>
                 <Select name="kind" defaultValue={draft?.kind || "supplement"}>
-                  <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-describedby="regimen-kind-description" className="w-full" id="regimen-kind"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
                       <SelectItem value="medication">{t("medications.kind.medication")}</SelectItem>
@@ -84,7 +84,7 @@ function AddRegimenForm({ controller }: { controller: DashboardController }) {
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                <FieldDescription>{t("medications.kindDescription")}</FieldDescription>
+                <FieldDescription id="regimen-kind-description">{t("medications.kindDescription")}</FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="regimen-name">{t("medications.name")}</FieldLabel>
@@ -112,8 +112,8 @@ function AddRegimenForm({ controller }: { controller: DashboardController }) {
               </Field>
               <Field>
                 <FieldLabel htmlFor="regimen-stop">{t("medications.stopDate")}</FieldLabel>
-                <Input id="regimen-stop" name="stopDate" type="date" defaultValue={draft?.stopDate || ""} />
-                <FieldDescription>{t("medications.stopDescription")}</FieldDescription>
+                <Input aria-describedby="regimen-stop-description" id="regimen-stop" name="stopDate" type="date" defaultValue={draft?.stopDate || ""} />
+                <FieldDescription id="regimen-stop-description">{t("medications.stopDescription")}</FieldDescription>
               </Field>
             </div>
             <Field>
@@ -216,6 +216,13 @@ function RegimenItemRow({ controller, item, muted }: { controller: DashboardCont
 }
 
 function RegimenEditForm({ controller, item, onCancel }: { controller: DashboardController; item: RegimenItem; onCancel: () => void }) {
+  const firstFieldRef = useRef<HTMLButtonElement>(null);
+  const idPrefix = `regimen-edit-${item.id}`;
+
+  useEffect(() => {
+    firstFieldRef.current?.focus();
+  }, []);
+
   return (
     <form className="grid gap-3 rounded-lg border border-border bg-card px-3 py-3" onSubmit={(event) => {
       event.preventDefault();
@@ -223,9 +230,9 @@ function RegimenEditForm({ controller, item, onCancel }: { controller: Dashboard
     }}>
       <div className="grid gap-4 sm:grid-cols-[0.8fr_1.2fr]">
         <Field>
-          <FieldLabel>{t("medications.kind")}</FieldLabel>
+          <FieldLabel htmlFor={`${idPrefix}-kind`}>{t("medications.kind")}</FieldLabel>
           <Select name="kind" defaultValue={item.kind}>
-            <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full" id={`${idPrefix}-kind`} ref={firstFieldRef}><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectGroup>
                 <SelectItem value="medication">{t("medications.kind.medication")}</SelectItem>
@@ -235,21 +242,21 @@ function RegimenEditForm({ controller, item, onCancel }: { controller: Dashboard
           </Select>
         </Field>
         <Field>
-          <FieldLabel htmlFor={`regimen-edit-name-${item.id}`}>{t("medications.name")}</FieldLabel>
-          <Input id={`regimen-edit-name-${item.id}`} name="name" defaultValue={item.name} required />
+          <FieldLabel htmlFor={`${idPrefix}-name`}>{t("medications.name")}</FieldLabel>
+          <Input id={`${idPrefix}-name`} name="name" defaultValue={item.name} required />
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field><FieldLabel>{t("medications.dose")}</FieldLabel><Input name="dose" defaultValue={item.dose} /></Field>
-        <Field><FieldLabel>{t("medications.unit")}</FieldLabel><Input name="unit" defaultValue={item.unit} /></Field>
-        <Field><FieldLabel>{t("medications.frequency")}</FieldLabel><Input name="frequency" defaultValue={item.frequency} /></Field>
+        <Field><FieldLabel htmlFor={`${idPrefix}-dose`}>{t("medications.dose")}</FieldLabel><Input id={`${idPrefix}-dose`} name="dose" defaultValue={item.dose} /></Field>
+        <Field><FieldLabel htmlFor={`${idPrefix}-unit`}>{t("medications.unit")}</FieldLabel><Input id={`${idPrefix}-unit`} name="unit" defaultValue={item.unit} /></Field>
+        <Field><FieldLabel htmlFor={`${idPrefix}-frequency`}>{t("medications.frequency")}</FieldLabel><Input id={`${idPrefix}-frequency`} name="frequency" defaultValue={item.frequency} /></Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field><FieldLabel>{t("medications.startDate")}</FieldLabel><Input name="startDate" type="date" defaultValue={item.startDate} /></Field>
-        <Field><FieldLabel>{t("medications.stopDate")}</FieldLabel><Input name="stopDate" type="date" defaultValue={item.stopDate} /></Field>
+        <Field><FieldLabel htmlFor={`${idPrefix}-start-date`}>{t("medications.startDate")}</FieldLabel><Input id={`${idPrefix}-start-date`} name="startDate" type="date" defaultValue={item.startDate} /></Field>
+        <Field><FieldLabel htmlFor={`${idPrefix}-stop-date`}>{t("medications.stopDate")}</FieldLabel><Input id={`${idPrefix}-stop-date`} name="stopDate" type="date" defaultValue={item.stopDate} /></Field>
       </div>
-      <Field><FieldLabel>{t("medications.reason")}</FieldLabel><Input name="reason" defaultValue={item.reason} /></Field>
-      <Field><FieldLabel>{t("common.notes")}</FieldLabel><Textarea name="notes" defaultValue={item.notes} /></Field>
+      <Field><FieldLabel htmlFor={`${idPrefix}-reason`}>{t("medications.reason")}</FieldLabel><Input id={`${idPrefix}-reason`} name="reason" defaultValue={item.reason} /></Field>
+      <Field><FieldLabel htmlFor={`${idPrefix}-notes`}>{t("common.notes")}</FieldLabel><Textarea id={`${idPrefix}-notes`} name="notes" defaultValue={item.notes} /></Field>
       <div className="flex justify-end gap-2">
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>{t("common.cancel")}</Button>
         <Button type="submit" size="sm">{t("common.save")}</Button>

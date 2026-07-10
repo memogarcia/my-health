@@ -1,6 +1,13 @@
 import { t } from "./i18n";
 
-const MAX_USER_TEXT_CHARS = 2_000;
+const MAX_USER_TEXT_CHARS = 32_000;
+
+/**
+ * A symptom affects the current organ state from the day it is logged through
+ * the inclusive 30-day lookback boundary. Older and future-dated symptoms stay
+ * in history without affecting the current state.
+ */
+export const CURRENT_SYMPTOM_LOOKBACK_DAYS = 30;
 
 export type HealthStatus = "normal" | "monitor" | "attention";
 export type ExtractedResultStatus = HealthStatus | "";
@@ -168,7 +175,7 @@ export type ExtractedResult = {
   notes: string;
 };
 
-export type DocumentAnalysisStatus = "analyzing" | "ready" | "error";
+export type DocumentAnalysisStatus = "ready" | "error";
 
 export type DocumentAnalysis = {
   status: DocumentAnalysisStatus;
@@ -234,12 +241,6 @@ export const statusLabel: Record<HealthStatus, string> = {
 
 export const organOrder = ["brain", "thyroid", "lungs", "heart", "liver", "spleen", "stomach", "pancreas", "kidneys", "intestines", "bladder", "blood", "bones", "skin", "reproductive"] as const;
 
-const statusRank: Record<HealthStatus, number> = {
-  normal: 0,
-  monitor: 1,
-  attention: 2,
-};
-
 const organVisuals: Record<string, OrganVisual> = {
   brain: { color: "#e87982", x: 50, y: 13 },
   thyroid: { color: "#7c5cc4", x: 50, y: 23 },
@@ -282,18 +283,37 @@ export function getOrganVisual(key: string): OrganVisual {
   return organVisuals[key] || { color: "#219d8a", x: 50, y: 50 };
 }
 
-function highestStatus(statuses: HealthStatus[]): HealthStatus {
-  return statuses.reduce((highest, status) => (statusRank[status] > statusRank[highest] ? status : highest), "normal");
-}
-
-export function deriveOrganStatus(input: { labs: LabResult[]; symptoms: SymptomEntry[]; conditions: ConditionEntry[] }): HealthStatus {
-  if (input.labs.some((lab) => lab.status === "attention") || input.symptoms.some((symptom) => symptom.severity >= 4)) return "attention";
+export function deriveOrganStatus(
+  input: { labs: LabResult[]; symptoms: SymptomEntry[]; conditions: ConditionEntry[] },
+  today = localToday(),
+): HealthStatus {
+  const labs = latestLabsByMarker(input.labs);
+  const symptoms = input.symptoms.filter((symptom) => isCurrentSymptom(symptom, today));
+  if (labs.some((lab) => lab.status === "attention") || symptoms.some((symptom) => symptom.severity >= 4)) return "attention";
   if (
-    input.labs.some((lab) => lab.status === "monitor") ||
-    input.symptoms.some((symptom) => symptom.severity >= 2) ||
+    labs.some((lab) => lab.status === "monitor") ||
+    symptoms.some((symptom) => symptom.severity >= 2) ||
     input.conditions.some((condition) => condition.status === "current")
   ) return "monitor";
   return "normal";
+}
+
+/** Latest result for each normalized marker within its organ. */
+export function latestLabsByMarker(labs: LabResult[]): LabResult[] {
+  const latest = new Map<string, LabResult>();
+  for (const lab of labs) {
+    const key = `${lab.organKey}|${lab.marker.trim().toLowerCase()}`;
+    const current = latest.get(key);
+    if (!current || lab.measuredAt > current.measuredAt || (lab.measuredAt === current.measuredAt && lab.id > current.id)) {
+      latest.set(key, lab);
+    }
+  }
+  return [...latest.values()];
+}
+
+export function isCurrentSymptom(symptom: SymptomEntry, today = localToday()): boolean {
+  const cutoff = shiftIsoDate(today, -CURRENT_SYMPTOM_LOOKBACK_DAYS);
+  return symptom.observedAt >= cutoff && symptom.observedAt <= today;
 }
 
 export function buildDisplaySnapshot(snapshot: DashboardSnapshot | null): DisplaySnapshot {
@@ -305,7 +325,7 @@ export function buildDisplaySnapshot(snapshot: DashboardSnapshot | null): Displa
     const labs = latestLabResults.filter((lab) => lab.organKey === organ.key);
     const symptoms = recentSymptoms.filter((symptom) => symptom.organKey === organ.key);
     const organConditions = conditions.filter((condition) => condition.organKey === organ.key);
-    return { ...organ, status: highestStatus([organ.status, deriveOrganStatus({ labs, symptoms, conditions: organConditions })]), labCount: labs.length, symptomCount: symptoms.length };
+    return { ...organ, status: deriveOrganStatus({ labs, symptoms, conditions: organConditions }), labCount: labs.length, symptomCount: symptoms.length };
   });
 
   return {
@@ -320,10 +340,26 @@ export function buildDisplaySnapshot(snapshot: DashboardSnapshot | null): Displa
   };
 }
 
+function localToday(): string {
+  const today = new Date();
+  return formatDateParts(today.getFullYear(), today.getMonth() + 1, today.getDate());
+}
+
+function shiftIsoDate(value: string, days: number): string {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return formatDateParts(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
+}
+
+function formatDateParts(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 export function normalizeUserState(value: Partial<UserState> = {}): UserState {
   const profile: Partial<UserProfile> = value.profile || {};
   const aiConversations = Array.isArray(value.aiConversations)
-    ? value.aiConversations.map(normalizeAiConversation).filter((entry) => entry.id).slice(0, 30)
+    ? value.aiConversations.map(normalizeAiConversation).filter((entry) => entry.id)
     : [];
   const activeAiConversationId =
     typeof value.activeAiConversationId === "string" && aiConversations.some((entry) => entry.id === value.activeAiConversationId)
@@ -379,7 +415,7 @@ function normalizeAiConversation(entry: Partial<AiConversation>): AiConversation
     createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
     updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : "",
     messages: Array.isArray(entry.messages)
-      ? entry.messages.map(normalizeAiConversationMessage).filter((message) => message.id && message.content).slice(-40)
+      ? entry.messages.map(normalizeAiConversationMessage).filter((message) => message.id && message.content)
       : [],
   };
 }
