@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import type { Dispatch, SetStateAction } from "react";
-import type { ConditionInput, HealthStatus, PendingDocument, RegimenInput } from "./dashboard-model";
+import type { BiologicalAgeReportInput, ConditionInput, HealthStatus, PendingDocument, RegimenInput } from "./dashboard-model";
 import { t } from "./i18n";
 import type { RegimenDraft } from "./prompt-actions";
 
@@ -100,6 +100,18 @@ export function makeRecordActions(options: RecordActionOptions) {
     return mutate(active ? "reactivate_regimen_item" : "stop_regimen_item", { id }, active ? t("toast.regimenReactivated") : t("toast.regimenStopped"), options.loadDashboard);
   }
 
+  async function addBiologicalAgeReport(input: BiologicalAgeReportInput): Promise<boolean> {
+    return mutate("add_biological_age_report", { input }, t("toast.biologicalAgeSaved"), options.loadDashboard);
+  }
+
+  async function updateBiologicalAgeReport(input: BiologicalAgeReportInput & { id: number }): Promise<boolean> {
+    return mutate("update_biological_age_report", { input }, t("toast.biologicalAgeUpdated"), options.loadDashboard);
+  }
+
+  async function deleteBiologicalAgeReport(id: number): Promise<boolean> {
+    return mutate("delete_biological_age_report", { id }, t("toast.biologicalAgeDeleted"), options.loadDashboard);
+  }
+
   async function unlinkLabReport(id: number): Promise<boolean> {
     return mutate("unlink_lab_report", { id }, t("toast.reportUnlinked"), options.loadDashboard);
   }
@@ -122,6 +134,9 @@ export function makeRecordActions(options: RecordActionOptions) {
     updateRegimenItem,
     deleteRegimenItem,
     setRegimenItemActive,
+    addBiologicalAgeReport,
+    updateBiologicalAgeReport,
+    deleteBiologicalAgeReport,
     unlinkLabReport,
     deleteLabReport,
   };
