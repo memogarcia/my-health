@@ -3,9 +3,10 @@
 Me Health Dashboard is a private desktop app for tracking personal health
 records on your own computer.
 
-You can add lab results, symptoms, conditions, medications, supplements, and
-documents, then review them by body system. The app stores health data locally
-in an encrypted SQLite database. There is no hosted service.
+You can add lab results, symptoms, conditions, medications, supplements,
+biological-age reports, and documents, then review them by body system. The app
+stores health data locally in an encrypted SQLite database. There is no hosted
+service.
 
 This project is not medical advice, diagnosis, treatment, or emergency triage.
 Use it as a personal tracking tool and discuss health decisions with a
