@@ -5,11 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { getAiProvider, hasEnabledCodexModel } from "../ai-sdk-config";
 import { navGroups, navItems, type NavKey } from "../dashboard-model";
-import { resultDocumentAccept } from "../document-intake";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { AddResultDropdown } from "./add-result-dropdown";
-import { AlertTriangle, FileText, Lock, NotebookPen, Send, Sparkles } from "./health-icons";
+import { AlertTriangle, Lock, NotebookPen, Send, Sparkles } from "./health-icons";
 import { navIcons } from "./health-icons";
 
 type Props = {
@@ -22,7 +21,8 @@ export function AppShell({ controller, children }: Props) {
   const pageTitleRef = useRef(null as HTMLHeadingElement | null);
   const workspaceRef = useRef(null as HTMLElement | null);
   const previousNavRef = useRef(controller.selectedNav);
-  const showHealthActions = controller.selectedNav === "body" || controller.selectedNav === "labs" || controller.selectedNav === "symptoms" || controller.selectedNav === "medications";
+  const showHealthActions = controller.selectedNav === "body";
+  const showCompactAiPrompt = controller.selectedNav !== "settings" && controller.selectedNav !== "plan" && controller.selectedNav !== "research" && controller.selectedNav !== "documents";
 
   useEffect(() => {
     workspaceRef.current?.scrollTo({ top: 0 });
@@ -85,8 +85,8 @@ export function AppShell({ controller, children }: Props) {
         <main ref={workspaceRef} className="workspace" data-nav={controller.selectedNav} aria-labelledby="app-page-title">
           <Notice controller={controller} />
           {children}
-          {controller.selectedNav === "settings" || controller.selectedNav === "plan" || controller.selectedNav === "research" || controller.selectedNav === "documents" ? null : <CompactAiPrompt controller={controller} />}
         </main>
+        {showCompactAiPrompt ? <CompactAiPrompt controller={controller} /> : null}
       </div>
     </div>
   );
@@ -138,8 +138,6 @@ function Notice({ controller }: { controller: DashboardController }) {
 
 function CompactAiPrompt({ controller }: { controller: DashboardController }) {
   const [prompt, setPrompt] = useState("");
-  const [file, setFile] = useState(null as File | null);
-  const fileInputRef = useRef(null as HTMLInputElement | null);
   const available = hasEnabledCodexModel(controller.aiSettings);
   const pending = Boolean(controller.aiPendingConversationId);
   const provider = getAiProvider(controller.aiSettings.providerId);
@@ -164,10 +162,8 @@ function CompactAiPrompt({ controller }: { controller: DashboardController }) {
       aria-label={t("appShell.askAiLabel")}
       onSubmit={(event) => {
         event.preventDefault();
-        void controller.submitAiPrompt(prompt, file || undefined);
-        if (!file) setPrompt("");
-        setFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
+        void controller.submitAiPrompt(prompt);
+        setPrompt("");
       }}
     >
       <span className="hidden items-center gap-2 text-sm font-medium text-muted-foreground sm:flex">
@@ -187,17 +183,7 @@ function CompactAiPrompt({ controller }: { controller: DashboardController }) {
         rows={1}
         value={prompt}
       />
-      <input
-        ref={fileInputRef}
-        accept={resultDocumentAccept}
-        hidden
-        type="file"
-        onChange={(event) => setFile(event.currentTarget.files?.[0] || null)}
-      />
-      <Button type="button" variant={file ? "secondary" : "ghost"} size="icon" disabled={pending} onClick={() => fileInputRef.current?.click()} title={file?.name || t("appShell.attachResultFile")} aria-label={file?.name || t("appShell.attachResultFile")}>
-        <FileText />
-      </Button>
-      <Button type="submit" disabled={pending || (!prompt.trim() && !file)}>
+      <Button type="submit" disabled={pending || !prompt.trim()}>
         <Send data-icon="inline-start" />
         {t("common.send")}
       </Button>

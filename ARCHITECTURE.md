@@ -158,6 +158,8 @@ Renderer:
 - `dashboard-model.ts` - shared types, organ visuals, snapshot shaping.
 - `tauri-runtime.ts` - native-runtime guard.
 - `components/` - pages and UI primitives.
+- `components/body/` - body source rail, stable anatomy coordinate plane,
+  selected-organ inspector, and display-status helpers.
 - `components/charts/` - SVG chart components for labs, symptoms, regimen periods, document coverage, and AI context coverage.
 - `charts/` - pure chart data transforms and scale utilities.
 - `i18n.ts`, `i18n/locales/en.json` - typed UI copy catalog.

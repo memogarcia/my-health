@@ -12,10 +12,10 @@ export function OrganTrendPreview({ labs, onViewAll }: { labs: LabResult[]; onVi
   const latest = selected.latest;
   const delta = selected.previous ? latest.numericValue - selected.previous.numericValue : null;
   return (
-    <section className="organ-trend-card rounded-xl border bg-card p-4">
+    <section className="organ-trend-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">{t("charts.organ.title")}</p>
+          <p className="text-xs font-medium text-muted-foreground">{t("charts.organ.title")}</p>
           <h3 className="truncate text-base font-semibold">{selected.marker}</h3>
           <p className="text-xs text-muted-foreground">{formatDate(latest.measuredAt)}</p>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +28,15 @@ export function ConditionsCard({ controller }: { controller: DashboardController
         <CardAction><span className="text-xs text-muted-foreground">{controller.organConditions.length}</span></CardAction>
       </CardHeader>
       <CardContent className="grid gap-3">
-        <ConditionForm controller={controller} />
+        <details className="group rounded-md border border-border bg-muted/20">
+          <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium">
+            <Plus aria-hidden="true" className="transition-transform group-open:rotate-45" />
+            {t("conditions.add")}
+          </summary>
+          <div className="border-t border-border p-3">
+            <ConditionForm controller={controller} />
+          </div>
+        </details>
         {controller.organConditions.length ? (
           <div className="grid gap-2">
             {controller.organConditions.map((condition) => <ConditionRow condition={condition} controller={controller} key={condition.id} />)}
@@ -40,19 +48,13 @@ export function ConditionsCard({ controller }: { controller: DashboardController
 }
 
 function ConditionForm({ controller }: { controller: DashboardController }) {
-  const [organKey, setOrganKey] = useState(controller.selectedOrganKey);
-
-  useEffect(() => {
-    setOrganKey(controller.selectedOrganKey);
-  }, [controller.selectedOrganKey]);
-
   return (
     <form className="grid gap-2" onSubmit={(event) => {
       event.preventDefault();
       const form = event.currentTarget;
       const data = new FormData(form);
       void controller.addCondition({
-        organKey: String(data.get("organKey") || controller.selectedOrganKey),
+        organKey: controller.selectedOrganKey,
         name: String(data.get("name") || ""),
         status: String(data.get("status") || "current") as ConditionStatus,
         diagnosedAt: String(data.get("diagnosedAt") || ""),
@@ -60,11 +62,9 @@ function ConditionForm({ controller }: { controller: DashboardController }) {
       }).then((saved) => {
         if (!saved) return;
         form.reset();
-        setOrganKey(controller.selectedOrganKey);
       });
     }}>
       <div className="grid gap-2">
-        <OrganSelect id="condition-organ" organs={controller.display.organs} value={organKey} onChange={setOrganKey} description={t("intake.organDescription")} />
         <Field>
           <FieldLabel className="sr-only" htmlFor="condition-name">{t("conditions.condition")}</FieldLabel>
           <Input id="condition-name" name="name" placeholder={t("conditions.placeholder.name")} required />

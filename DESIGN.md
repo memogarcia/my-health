@@ -7,7 +7,9 @@ enums themselves (`normal` | `monitor` | `attention`, etc.) are defined in
 live in `PRODUCT.md`.
 
 Source of truth for tokens is `src/styles.css` (Tailwind v4 `@theme inline` +
-CSS custom properties) and `src/components.css`. Update both together.
+CSS custom properties). Shell and body-workbench layout lives in
+`src/layout.css`; component and chart details live in `src/components.css`.
+Update the relevant file and this document together.
 
 ## Foundations
 
@@ -40,15 +42,16 @@ hex/oklch values in components.
 
 ### Health status semantics (authoritative visual mapping)
 
-Status never relies on color alone. Each status has a color, a label
-(`statusLabel` in `dashboard-model.ts`), and an icon/dot.
+Status never relies on color alone. Record statuses use `statusLabel` in
+`dashboard-model.ts`; the UI-only empty state uses `status.noData`. Each state
+has a color, a label, and an icon/dot.
 
 | Status | Token | Value | Meaning |
 | --- | --- | --- | --- |
 | `normal` | `--status-normal` | `#1c7259` | Routine / no current follow-up |
 | `monitor` | `--status-monitor` | `#9a540f` | Monitor over time |
 | `attention` | `--status-attention` | `#b64235` | Discuss soon |
-| (empty) | `--status-empty` | `oklch(0.66 0.02 235)` | No data yet |
+| (empty) | `--status-empty` | `oklch(0.48 0.02 235)` | No data yet |
 
 Lab flag (`low`/`high`/`normal`/`unknown`) renders as neutral directional context
 on result rows, trends, and detail views, not as a fourth status color. Follow-up
@@ -64,38 +67,44 @@ kidneys `#b46a78`. Reuse these; do not invent organ colors per component.
 ### Radius and shadow
 
 - `--radius: 0.625rem`. Derived: `--radius-sm`, `--radius-md`, `--radius-lg`,
-  `--radius-xl`. Use `--radius-xl` for the anatomy stage and hero, `--radius`
-  for cards and tiles.
+  `--radius-xl`. Use `--radius-xl` for the connected body workbench and
+  `--radius` for cards and controls.
 - `--shadow-floating` for popovers and elevated panels.
 
 ### Typography
 
 - `--font-family-sans` (body) and `--font-family-heading` mapped through
   `@theme` to `--font-sans` / `--font-heading`.
-- Headings use tighter tracking (`letter-spacing: -0.02em` on hero, `-0.01em`
-  on organ card titles) and `text-wrap: balance`.
+- Headings use restrained tracking (`-0.01em` to `-0.02em`) and a compact,
+  fixed product-UI scale.
 - Numeric lab values use the `.tnum` utility (`tabular-nums`) so columns align.
 
 ## Layout
 
 ### App shell
 
-Sidebar + main grid (`app-shell`). Sidebar holds brand, grouped nav, and an
-encrypted-records footer. Main holds a draggable title bar, page header with
-title/description and actions, then the workspace.
+Sidebar + main grid (`app-shell`). The 200px sidebar holds brand, grouped nav,
+and an encrypted-records footer. Main is a three-row native shell: draggable
+page bar, scrollable workspace, then the persistent text-only AI dock. The dock
+participates in layout and must never cover records.
 
-- `body-workspace-grid`: `240px minmax(420px, 1fr) 336px` — organ rail,
-  anatomy stage, detail rail.
-- Overview hero sits above the grid: `minmax(0, 1fr) auto` with stat tiles.
-- The global daily-log history sits below the grid; it must not appear inside
-  the selected-organ detail rail.
+- `body-workbench`: `204px minmax(320px, 1fr) 316px` - organ rail, stable
+  anatomy plane, selected-organ inspector.
+- A compact status strip sits above the workbench. It replaces the previous
+  hero and stat tiles.
+- The inspector is one continuous pane with dividers. Selected-organ content
+  must not become a stack of separate floating cards.
+- The global daily-log history sits below the workbench; it must not appear
+  inside the selected-organ inspector.
 
 ### Responsive breakpoints
 
-- `≤ 1180px`: detail rail wraps to full width; anatomy stage relaxes to a
-  fixed `560px` min-height.
-- `≤ 900px`: sidebar collapses to a 68px icon rail (labels, group labels,
-  and shortcuts hidden); body workspace becomes single column.
+- `≤ 1180px`: organs become a horizontal source strip above the map while the
+  anatomy plane and inspector remain adjacent.
+- `≤ 900px`: sidebar collapses to a 64px icon rail (labels, group labels, and
+  shortcuts hidden). The map and inspector still remain adjacent at the native
+  820px minimum width.
+- `≤ 760px`: the workbench may stack for unsupported smaller render targets.
 
 The native window minimum is `820px`, so both responsive states are reachable
 through normal window resizing.
@@ -105,10 +114,12 @@ conflict with them.
 
 ### Anatomy stage
 
-The body map is an image with absolutely-positioned hotspots. Hotspots are
-24px circles using `--organ-color`, a white border, and a soft ring. They scale
-to 1.25 on hover, focus-visible, and selected. Labels appear above the hotspot
-(`label-below` flips them). Keep hotspots keyboard-focusable; they are
+The body map uses a centered 3:4 portrait coordinate plane cut from the 3:2
+source image. Hotspot X coordinates are remapped into that fixed crop, so the
+image and controls share the same geometry at every supported window size.
+Hotspots have a 40px keyboard and pointer target with an 18px visible dot using
+`--organ-color`, a white border, and a soft ring. Labels appear above the
+hotspot (`label-below` flips them). Keep hotspots keyboard-focusable; they are
 `<button>`s.
 
 ## Components
@@ -139,17 +150,18 @@ and accessible title/label.
 
 Easing tokens (`:root`): `--ease-out-quart`, `--ease-out-quint`, `--ease-out-expo`.
 Duration tokens (`--dur-feedback`, `--dur-state`) drive hotspot and label
-transitions. Keep motion short and purposeful — feedback for selection and
-state changes, not decoration. Respect `prefers-reduced-motion`.
+transitions. Keep motion short and limited to state feedback. Do not animate
+page entry or pulse health indicators continuously. Respect
+`prefers-reduced-motion`.
 
 ## Accessibility
 
 - Visible focus: `focus-visible:ring` using `--ring`. Hotspots and nav buttons
   show a ring on keyboard focus.
 - Status is not color-only: label + icon/dot accompany every status color.
-- Targets are at least 24px on hotspots; nav buttons have comfortable padding.
-- Selected organ controls expose `aria-pressed`, and organ detail changes use a
-  polite live region.
+- Hotspot targets are 40px; nav buttons have comfortable padding.
+- Selected organ controls expose `aria-pressed`. A concise hidden live region
+  announces only the new organ and status rather than the full inspector tree.
 - The active nav item sets `aria-current="page"`; nav has `aria-label`.
 - Route changes reset workspace scroll and focus the new page heading.
 - Drag regions (`data-tauri-drag-region`) are marked `aria-hidden` so they do

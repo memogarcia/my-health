@@ -1,61 +1,13 @@
-/* Motion layer: keyframes + choreography. Imported by styles.css and gated so
-   every effect collapses to an instant state under prefers-reduced-motion. */
-
-@keyframes rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes hotspot-pulse {
-  0% { opacity: 0.5; transform: scale(1); }
-  70%, 100% { opacity: 0; transform: scale(2.1); }
-}
-@keyframes dot-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
+/* Motion is limited to state feedback. The app opens directly into the task,
+   with no page choreography or continuously pulsing health indicators. */
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Page-level entrance: replays only when a nav switch mounts new nodes. */
-  .workspace > *:not(.ai-prompt-bar) { animation: rise var(--dur-enter) var(--ease-out-quint) both; }
-  .workspace > *:nth-child(2) { animation-delay: 40ms; }
-  .workspace > *:nth-child(3) { animation-delay: 80ms; }
-
-  .ai-prompt-bar { animation: fade-in 500ms var(--ease-out-quint) both; }
-
-  /* Attention hotspots breathe; presentation, not an alarm. */
-  .hotspot.status-attention::after {
-    position: absolute;
-    inset: -2px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--organ-color) 55%, transparent);
-    content: "";
-    animation: hotspot-pulse 2.4s var(--ease-out-quart) infinite;
-  }
-
   .app-nav-button {
     transition:
       color var(--dur-state) var(--ease-out-quart),
-      box-shadow var(--dur-state) var(--ease-out-quart),
-      transform var(--dur-feedback) var(--ease-out-quart);
+      background-color var(--dur-state) var(--ease-out-quart),
+      box-shadow var(--dur-state) var(--ease-out-quart);
   }
-  .app-nav-button::before,
-  .app-nav-button::after {
-    transition:
-      opacity var(--dur-state) var(--ease-out-quart),
-      transform var(--dur-state) var(--ease-out-quart);
-  }
-  .app-nav-button svg { transition: transform var(--dur-feedback) var(--ease-out-quart); }
-  .app-nav-button:hover,
-  .app-nav-button:focus-visible,
-  .app-nav-button[aria-current="page"] { transform: translateX(2px); }
-  .app-nav-button:active { transform: translateX(1px) scale(0.99); }
-  .app-nav-button:hover svg,
-  .app-nav-button:focus-visible svg,
-  .app-nav-button[aria-current="page"] svg { transform: translateX(2px); }
 }
 
 @media (prefers-reduced-motion: reduce) {

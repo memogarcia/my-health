@@ -2,28 +2,19 @@ import type React from "react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { statusLabel, type HealthStatus } from "../dashboard-model";
+import { t } from "../i18n";
 
-export function StatusDot({ status, className }: { status: HealthStatus; className?: string }) {
+export type VisualHealthStatus = HealthStatus | "empty";
+
+export function StatusDot({ status, className }: { status: VisualHealthStatus; className?: string }) {
   return <span className={cn("status-dot", `status-${status}`, className)} aria-hidden="true" />;
 }
 
-export function StatusBadge({ status, children }: { status: HealthStatus; children?: React.ReactNode }) {
+export function StatusBadge({ status, children }: { status: VisualHealthStatus; children?: React.ReactNode }) {
   return (
     <Badge variant="outline" className={cn("health-status-badge", `status-${status}`)}>
-      {children || statusLabel[status]}
+      {children || (status === "empty" ? t("status.noData") : statusLabel[status])}
     </Badge>
-  );
-}
-
-export function StatTile({ count, label, status }: { count: number; label: string; status: HealthStatus }) {
-  return (
-    <div className={cn("stat-tile", count > 0 && `status-${status}`)}>
-      <small>{label}</small>
-      <strong>
-        {count}
-        <StatusDot status={status} className={count > 0 ? undefined : "status-empty"} />
-      </strong>
-    </div>
   );
 }
 

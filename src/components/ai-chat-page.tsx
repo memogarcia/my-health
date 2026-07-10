@@ -8,10 +8,9 @@ import { hasEnabledCodexModel } from "../ai-sdk-config";
 import { getActiveAiConversation } from "../ai-conversation";
 import { formatDate } from "../dashboard-format";
 import type { AiConversation, AiConversationMessage } from "../dashboard-model";
-import { resultDocumentAccept } from "../document-intake";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
-import { FileText, LoaderCircle, Plus, Send, Sparkles } from "./health-icons";
+import { LoaderCircle, Plus, Send, Sparkles } from "./health-icons";
 
 const MarkdownOutput = lazy(() => import("./markdown-output").then((module) => ({ default: module.MarkdownOutput })));
 
@@ -140,21 +139,17 @@ function ConversationMessage({ message }: { message: AiConversationMessage }) {
 
 function ConversationComposer({ controller }: { controller: DashboardController }) {
   const [prompt, setPrompt] = useState("");
-  const [file, setFile] = useState(null as File | null);
-  const fileInputRef = useRef(null as HTMLInputElement | null);
   const configured = hasEnabledCodexModel(controller.aiSettings);
   const pending = Boolean(controller.aiPendingConversationId);
   const inputDisabled = pending || !configured;
-  const sendDisabled = inputDisabled || (!prompt.trim() && !file);
+  const sendDisabled = inputDisabled || !prompt.trim();
   return (
     <form onSubmit={(event) => {
       event.preventDefault();
       if (sendDisabled) return;
-      void controller.submitAiPrompt(prompt, file || undefined);
-      if (!file) setPrompt("");
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-2">
+      void controller.submitAiPrompt(prompt);
+      setPrompt("");
+    }} className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
       {!configured ? (
         <div className="col-span-full flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/35 px-3 py-2">
           <p className="text-sm text-muted-foreground" id="chat-ai-availability">{t("chat.setupRequired")}</p>
@@ -175,16 +170,6 @@ function ConversationComposer({ controller }: { controller: DashboardController 
         rows={2}
         value={prompt}
       />
-      <input
-        ref={fileInputRef}
-        accept={resultDocumentAccept}
-        hidden
-        type="file"
-        onChange={(event) => setFile(event.currentTarget.files?.[0] || null)}
-      />
-      <Button type="button" variant={file ? "secondary" : "outline"} size="icon" disabled={inputDisabled} onClick={() => fileInputRef.current?.click()} title={file?.name || t("appShell.attachResultFile")} aria-label={file?.name || t("appShell.attachResultFile")}>
-        <FileText />
-      </Button>
       <Button type="submit" disabled={sendDisabled} aria-describedby={!configured ? "chat-ai-availability" : undefined}>
         {pending ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Send data-icon="inline-start" />}
         {pending ? t("common.sending") : t("common.send")}
