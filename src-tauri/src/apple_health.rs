@@ -3,9 +3,9 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-mod validation;
 #[cfg(test)]
 mod tests;
+mod validation;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -72,9 +72,7 @@ pub fn import_apple_health_sync_batch(
     db_path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<AppleHealthSyncResult, String> {
-    database::with_connection_at_path(&state, &db_path, |conn| {
-        import_batch_in_conn(conn, &input)
-    })
+    database::with_connection_at_path(&state, &db_path, |conn| import_batch_in_conn(conn, &input))
 }
 
 fn status_in_conn(conn: &Connection) -> Result<AppleHealthSyncStatus, String> {
@@ -85,12 +83,7 @@ fn status_in_conn(conn: &Connection) -> Result<AppleHealthSyncStatus, String> {
                SUM(CASE WHEN deleted_at <> '' THEN 1 ELSE 0 END)
              FROM health_samples",
             [],
-            |row| {
-                Ok((
-                    row.get::<_, Option<i64>>(0)?,
-                    row.get::<_, Option<i64>>(1)?,
-                ))
-            },
+            |row| Ok((row.get::<_, Option<i64>>(0)?, row.get::<_, Option<i64>>(1)?)),
         )
         .map_err(|error| error.to_string())?;
     let (synced_type_count, synced_device_count, last_success_at) = conn

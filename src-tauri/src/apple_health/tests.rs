@@ -51,11 +51,9 @@ fn imports_updates_and_deletes_anchored_samples() {
     assert_eq!(value, 4_500.0);
     assert!(deleted_at.is_empty());
     let anchor: String = conn
-        .query_row(
-            "SELECT anchor FROM healthkit_sync_state",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT anchor FROM healthkit_sync_state", [], |row| {
+            row.get(0)
+        })
         .unwrap();
     assert_eq!(anchor, "anchor-2");
 }

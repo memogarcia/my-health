@@ -52,10 +52,7 @@ pub(super) fn validate_batch(input: &AppleHealthSyncBatch) -> Result<(), String>
     Ok(())
 }
 
-fn validate_sample(
-    type_identifier: &str,
-    sample: &AppleHealthSampleInput,
-) -> Result<(), String> {
+fn validate_sample(type_identifier: &str, sample: &AppleHealthSampleInput) -> Result<(), String> {
     validate_uuid("sample UUID", &sample.uuid)?;
     validate_rfc3339("startAt", &sample.start_at)?;
     validate_rfc3339("endAt", &sample.end_at)?;
