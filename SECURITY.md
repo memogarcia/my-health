@@ -37,11 +37,17 @@ See `AI.md` for provider details.
 ## Documents
 
 Imported document bytes are stored inside the SQLCipher-encrypted database in
-the same transaction as their structured result rows. Documents are never
-placed in a Codex workspace or sent to a remote model.
+the same transaction as their structured result rows. When remote health
+context is enabled, a document selected for result extraction is copied into a
+permission-restricted, per-request Codex workspace and sent to the configured
+model. Rust validates its signature, size, saved consent, and selected model
+before execution. The temporary workspace is removed after the request.
 
 ## Known Limits
 
+- Codex CLI read-only mode prevents writes but does not confine filesystem reads
+  to the ephemeral document workspace. Document content is treated as untrusted
+  and user configuration is ignored, but this is not an OS-level read sandbox.
 - Previously imported sidecar files from older development builds are not
   automatically deleted; remove them manually after confirming an encrypted
   export contains the corresponding report.

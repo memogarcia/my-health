@@ -64,4 +64,6 @@ such as LM Studio and Ollama are shown as planned/configuration-only until a
 Rust execution path is added.
 
 Configure AI in Settings after the app is running. API keys are referenced by
-environment variable name and are not stored in the database.
+environment variable name and are not stored in the database. Enabling remote
+health context also allows selected PDF and image reports to be sent to Codex
+for draft result extraction; every extracted row must be reviewed before saving.

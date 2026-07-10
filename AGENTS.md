@@ -50,9 +50,10 @@ Full spec in `ARCHITECTURE.md` → "AI Configuration" and "AI Boundary".
   persisted settings is a standing rule, not a temporary one.
 - The only live prompt path is the Codex CLI (`codex exec`), gated by
   `hasEnabledCodexModel` (provider + `allowRemoteHealthContext` + model).
-- Dropped images/PDFs are validated locally, entered/reviewed as structured
-  rows, then stored inside encrypted SQLite with their results. They are never
-  exposed to Codex because its read-only sandbox does not confine file reads.
+- Dropped images/PDFs are validated locally, sent to Codex for extraction only
+  when `allowRemoteHealthContext` is enabled, reviewed as structured rows, then
+  stored inside encrypted SQLite with their accepted results. Rust revalidates
+  consent and the selected model before every extraction.
 
 ## Medical Safety and Privacy
 

@@ -32,8 +32,9 @@ else supports reading and adding data around it.
   review entered values, and read trends over time.
 - **Symptoms and conditions** — log severity and dates against an organ.
 - **Medications and supplements** — track active and stopped regimen items.
-- **Documents** — drop a PDF or image, enter and review its measurements, then
-  save the source bytes and structured results inside encrypted SQLite.
+- **Documents** — drop a PDF or image, extract draft measurements with the
+  configured opt-in AI, review them, then save the source bytes and accepted
+  structured results inside encrypted SQLite.
 - **Assistant** — advisory AI chat and deep research, gated by an explicit
   remote-context opt-in.
 

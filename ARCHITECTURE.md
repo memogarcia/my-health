@@ -119,6 +119,7 @@ Dashboard and records:
 Documents and AI:
 
 - `ask_llm`
+- `analyze_document`
 - `get_codex_options`
 
 Settings and user state:
@@ -140,10 +141,13 @@ The live chat execution path is Codex CLI through `src-tauri/src/codex_cli.rs`.
 Other providers are visible as planned/configuration-only entries and cannot be
 selected from chat until Rust-backed execution exists.
 
-Dropped PDFs and images are reviewed through manual structured entry. They are
-never exposed to Codex CLI because its read-only sandbox does not confine file
-reads to the working directory. Remote chat consent is revalidated in Rust
-immediately before each invocation.
+Dropped PDFs and images are sent to Codex only after Rust validates the file,
+the saved provider and model, and the remote-health opt-in. Each request uses a
+permission-restricted ephemeral workspace and a JSON output schema. Supported
+images use Codex CLI image attachments; PDFs are read from the request workspace.
+Extracted rows remain drafts until the user reviews and accepts them.
+Codex runs with `--ignore-user-config` and treats document contents as untrusted,
+but its read-only sandbox is not an OS-level filesystem read boundary.
 
 AI output is advisory only. Remote health context requires explicit opt-in.
 See `AI.md` for provider details.
@@ -174,7 +178,8 @@ Backend:
 - `conditions.rs` - condition validation/storage.
 - `regimen.rs` - medication and supplement validation/storage.
 - `document_files.rs` - document signature, size, type, and filename validation.
-- `codex_cli.rs` - consent-checked Codex chat, model discovery, stdin, timeout,
+- `codex_cli.rs`, `codex_cli/document_analysis.rs` - consent-checked Codex chat
+  and document extraction, model discovery, structured output, stdin, timeout,
   output draining, and per-request cleanup.
 - `ai_settings.rs` - AI settings validation.
 
@@ -184,8 +189,8 @@ Backend:
 - Browser-only storage is not used for health records.
 - Raw API keys never enter persisted settings.
 - Remote AI context is opt-in, never automatic.
-- PDF/image intake is manual-review-first, then atomically saved with its source
-  bytes inside encrypted SQLite.
+- PDF/image intake is consent-gated AI extraction followed by mandatory manual
+  review, then atomically saved with its source bytes inside encrypted SQLite.
 - Charts use saved structured data only; they are record-review aids, not diagnostic quality scores.
 - Rust validates before every write.
 - New Tauri commands must be registered in `lib.rs`.

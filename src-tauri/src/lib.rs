@@ -210,6 +210,7 @@ pub fn run() {
             records::reports::unlink_lab_report,
             records::reports::delete_lab_report,
             codex_cli::ask_llm,
+            codex_cli::document_analysis::analyze_document,
             codex_cli::get_codex_options,
             get_ai_settings,
             save_ai_settings,

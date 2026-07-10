@@ -1,7 +1,12 @@
 use crate::database::{self, AppState};
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
-use std::{path::Path, process::Command, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+    time::Duration,
+};
+pub(crate) mod document_analysis;
 mod process;
 use process::{codex_bin, run_command_with_timeout, CodexWorkspace};
 const MAX_PROMPT_CHARS: usize = 32_000;
@@ -39,12 +44,18 @@ pub struct CodexReasoningEffortOption {
 struct CodexRunOptions {
     model_id: Option<String>,
     reasoning_effort: Option<String>,
+    image_path: Option<PathBuf>,
+    output_schema_path: Option<PathBuf>,
+    output_limit: usize,
 }
 impl CodexRunOptions {
     fn from_parts(model_id: Option<String>, reasoning_effort: Option<String>) -> Self {
         Self {
             model_id: clean_model_id(model_id),
             reasoning_effort: clean_reasoning_effort(reasoning_effort),
+            image_path: None,
+            output_schema_path: None,
+            output_limit: MAX_OUTPUT_CHARS,
         }
     }
 }
@@ -76,22 +87,29 @@ fn run_codex(
     app: &tauri::AppHandle,
     options: CodexRunOptions,
 ) -> Result<String, String> {
-    let prompt = normalize_prompt(&prompt)?;
     let workspace = CodexWorkspace::create(app)?;
+    run_codex_in_workspace(prompt, workspace.path(), options)
+}
+fn run_codex_in_workspace(
+    prompt: String,
+    workspace: &Path,
+    options: CodexRunOptions,
+) -> Result<String, String> {
+    let prompt = normalize_prompt(&prompt)?;
     let output = run_command_with_timeout(
-        codex_exec_command(workspace.path(), &options),
+        codex_exec_command(workspace, &options),
         CODEX_TIMEOUT,
         Some(prompt.as_bytes()),
     )
     .map_err(|error| format!("Could not run Codex CLI: {error}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     if output.status.success() {
-        return Ok(truncate(stdout.trim(), MAX_OUTPUT_CHARS));
+        return Ok(truncate(stdout.trim(), options.output_limit));
     }
     let stderr = String::from_utf8_lossy(&output.stderr);
     Err(truncate(
         format!("Codex CLI failed. {}", stderr.trim()).trim(),
-        MAX_OUTPUT_CHARS,
+        options.output_limit,
     ))
 }
 fn codex_exec_command(workspace: &Path, options: &CodexRunOptions) -> Command {
@@ -112,6 +130,12 @@ fn codex_exec_command(workspace: &Path, options: &CodexRunOptions) -> Command {
         command
             .arg("-c")
             .arg(format!("model_reasoning_effort=\"{reasoning_effort}\""));
+    }
+    if let Some(image_path) = &options.image_path {
+        command.arg("--image").arg(image_path);
+    }
+    if let Some(schema_path) = &options.output_schema_path {
+        command.arg("--output-schema").arg(schema_path);
     }
     command.arg("-").env("NO_COLOR", "1");
     command
@@ -363,7 +387,9 @@ mod tests {
 
     #[test]
     fn adds_selected_model_and_effort_to_codex_exec() {
-        let options = CodexRunOptions::from_parts(Some("gpt-5.5".into()), Some("xhigh".into()));
+        let mut options = CodexRunOptions::from_parts(Some("gpt-5.5".into()), Some("xhigh".into()));
+        options.image_path = Some(Path::new("/tmp/work/result.png").to_path_buf());
+        options.output_schema_path = Some(Path::new("/tmp/work/schema.json").to_path_buf());
         let command = codex_exec_command(Path::new("/tmp/work"), &options);
         let args = command
             .get_args()
@@ -374,6 +400,12 @@ mod tests {
             .windows(2)
             .any(|pair| pair[0] == "--model" && pair[1] == "gpt-5.5"));
         assert!(args.contains(&"model_reasoning_effort=\"xhigh\"".to_string()));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--image" && pair[1] == "/tmp/work/result.png"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--output-schema" && pair[1] == "/tmp/work/schema.json"));
         assert_eq!(args.last().map(String::as_str), Some("-"));
     }
 

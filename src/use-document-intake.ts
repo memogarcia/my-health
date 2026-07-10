@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
-import type { AiSettings } from "./ai-sdk-config";
+import { hasEnabledCodexModel, type AiSettings } from "./ai-sdk-config";
 import type { DocumentAnalysis, ExtractedResult, NavKey, PendingDocument } from "./dashboard-model";
-import { createEmptyExtractedResult, MAX_DOCUMENT_BYTES } from "./document-analysis";
+import { createEmptyExtractedResult, MAX_DOCUMENT_BYTES, parseExtractedResults } from "./document-analysis";
 import { pendingDocumentFromFile } from "./document-intake";
 import { t } from "./i18n";
 
@@ -49,9 +49,50 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
     setPendingDocument(result.document);
     options.setSelectedNav("documents");
     options.openDocumentDialog();
-    analysisTokenRef.current += 1;
-    setDocumentAnalysis({ status: "ready", results: [createEmptyExtractedResult(options.selectedOrganKey)], error: "" });
-    toast.info(t("toast.extractManual"));
+    void analyzeDocumentResult(file);
+  }
+
+  async function analyzeDocumentResult(file: File): Promise<void> {
+    const token = (analysisTokenRef.current += 1);
+    if (!hasEnabledCodexModel(options.aiSettings)) {
+      const message = t("document.noLlmEnabled");
+      setDocumentAnalysis({ status: "error", results: [], error: message });
+      toast.error(message);
+      return;
+    }
+    if (file.size > MAX_DOCUMENT_BYTES) {
+      const message = t("toast.fileTooLarge");
+      setDocumentAnalysis({ status: "error", results: [], error: message });
+      toast.error(message);
+      return;
+    }
+    setDocumentAnalysis({ status: "analyzing", results: [], error: "" });
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const raw = await invoke<string>("analyze_document", {
+        input: {
+          fileName: file.name,
+          fileBytes: Array.from(bytes),
+          modelId: options.aiSettings.modelId,
+          reasoningEffort: options.aiSettings.reasoningEffort,
+        },
+      });
+      if (token !== analysisTokenRef.current) return;
+      const results = parseExtractedResults(raw);
+      if (results.length === 0) {
+        const message = t("document.extractError");
+        setDocumentAnalysis({ status: "error", results: [], error: message });
+        toast.warning(t("toast.extractManual"));
+        return;
+      }
+      setDocumentAnalysis({ status: "ready", results, error: "" });
+      toast.success(t(results.length === 1 ? "toast.extractedResult" : "toast.extractedResults", { count: results.length }));
+    } catch (error) {
+      if (token !== analysisTokenRef.current) return;
+      const message = error instanceof Error ? error.message : String(error);
+      setDocumentAnalysis({ status: "error", results: [], error: message });
+      toast.error(t("toast.documentAnalysisFailed"));
+    }
   }
 
   function updateDocumentResult(id: string, patch: Partial<ExtractedResult>): void {

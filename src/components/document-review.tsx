@@ -10,7 +10,7 @@ import { Trash2 } from "lucide-react";
 import type { ExtractedResult, ExtractedResultStatus, PendingDocument } from "../dashboard-model";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
-import { AlertTriangle, FileText, Plus, Send } from "./health-icons";
+import { AlertTriangle, FileText, LoaderCircle, Plus, Send } from "./health-icons";
 import { followUpPriorityLabel } from "./lab-result-context";
 import { OrganSelect } from "./organ-select";
 
@@ -32,13 +32,18 @@ export function DocumentReview({ controller }: { controller: DashboardController
   return (
     <div className="grid gap-4">
       {document ? <DocumentSummary document={document} /> : <PromptDraftSummary />}
+      {analysis.status === "analyzing" ? (
+        <div aria-live="polite" className="flex items-center gap-2 text-sm text-muted-foreground">
+          <LoaderCircle className="animate-spin" />{t("intake.document.analyzing")}
+        </div>
+      ) : null}
       {analysis.status === "error" && analysis.error ? (
         <Alert>
           <AlertTriangle />
           <AlertDescription>{analysis.error}</AlertDescription>
         </Alert>
       ) : null}
-      {analysis.results.length === 0 ? (
+      {analysis.status !== "analyzing" && analysis.results.length === 0 ? (
         <Alert>
           <AlertTriangle />
           <AlertDescription>{t("intake.document.noResults")}</AlertDescription>
@@ -49,12 +54,12 @@ export function DocumentReview({ controller }: { controller: DashboardController
           <ResultRowEditor key={result.id} controller={controller} result={result} />
         ))}
       </div>
-      <Button variant="outline" size="sm" className="justify-self-start" onClick={() => controller.addDocumentResultRow()}>
+      <Button variant="outline" size="sm" className="justify-self-start" onClick={() => controller.addDocumentResultRow()} disabled={analysis.status === "analyzing"}>
         <Plus data-icon="inline-start" />{t("intake.document.addResult")}
       </Button>
       <DialogFooter>
         <Button variant="ghost" onClick={() => controller.closeDialog()}>{t("common.cancel")}</Button>
-        <Button onClick={() => void controller.acceptDocumentResults()} disabled={analysis.results.some(needsReview)}>
+        <Button onClick={() => void controller.acceptDocumentResults()} disabled={analysis.status === "analyzing" || analysis.results.length === 0 || analysis.results.some(needsReview)}>
           <Send data-icon="inline-start" />{t("intake.document.accept")}
         </Button>
       </DialogFooter>

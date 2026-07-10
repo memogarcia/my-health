@@ -175,7 +175,7 @@ export type ExtractedResult = {
   notes: string;
 };
 
-export type DocumentAnalysisStatus = "ready" | "error";
+export type DocumentAnalysisStatus = "ready" | "analyzing" | "error";
 
 export type DocumentAnalysis = {
   status: DocumentAnalysisStatus;

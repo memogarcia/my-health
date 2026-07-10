@@ -37,14 +37,22 @@ failing against a non-live provider.
 
 Codex chat runs with an ephemeral, per-request workspace and a timeout. Prompts
 are sent over stdin, and Rust rechecks the saved provider, model, database, and
-remote-health opt-in before execution. Dropped documents are never given to
-Codex because read-only mode does not confine filesystem reads; document intake
-uses local validation and manual structured review instead.
+remote-health opt-in before execution. Document extraction uses the same checks,
+copies one validated PDF or image into the ephemeral workspace, asks Codex for
+schema-constrained structured results, and removes the workspace afterward.
+The user must review every extracted row before it is saved.
+
+Codex CLI's read-only sandbox prevents writes but does not confine reads to the
+request workspace. Extraction ignores user configuration and labels document
+content as untrusted, but users should only enable remote extraction when they
+accept that Codex runs with the CLI's normal local read boundary.
 
 ## Privacy Rules
 
 - Local LLM providers are preferred.
 - Remote health context is opt-in and off by default.
+- Enabling remote health context allows selected documents to be sent to Codex
+  when the user adds them for extraction.
 - API keys are never stored directly.
 - Settings store API key environment variable names, such as `OPENAI_API_KEY`.
 - Raw API key fields and raw-looking key values are rejected by the Rust backend.
