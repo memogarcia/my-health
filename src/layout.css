@@ -241,7 +241,7 @@ html[data-platform="macos"] .app-sidebar { padding-top: 2.65rem; }
   container-type: size;
   position: relative;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -254,7 +254,6 @@ html[data-platform="macos"] .app-sidebar { padding-top: 2.65rem; }
   width: min(100cqw, 75cqh);
   aspect-ratio: 3 / 4;
   justify-self: center;
-  perspective: 1100px;
   touch-action: none;
   user-select: none;
 }

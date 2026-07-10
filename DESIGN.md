@@ -119,13 +119,10 @@ conflict with them.
 
 ### Anatomy stage
 
-The body stage restores the clinical anatomical image as a centered 3:4 crop.
-Its front and reverse faces form one CSS 3D scene: horizontal drag rotates the
-scene continuously around its Y axis, and vertical drag tilts it. Hotspots and
-saved note pins live on the same transformed face as the image, so they remain
-registered to anatomy rather than floating over a separate sliding sprite. The
-saved Profile sex value `female` selects a matching women’s clinical anatomy
-image; all other values retain the default model.
+The body stage displays a centered static clinical anatomical image. Hotspots
+and saved note pins remain accessible HTML controls over the image. The saved
+Profile sex value `female` selects the women's clinical anatomy image; all other
+values retain the default model.
 
 ## Components
 
