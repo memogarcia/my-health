@@ -64,6 +64,11 @@ Tables:
 - `symptoms` includes `updated_at` and `deleted_at`.
 - `conditions` includes `updated_at` and `deleted_at`.
 - `regimen_items` includes `updated_at`, `deleted_at`, and active/stop-date state.
+- `biological_age_reports` stores provider, collection date, chronological age,
+  overall biological-age estimate, optional percentile, notes, and soft-delete
+  timestamps.
+- `biological_age_scores` stores the available system ages for each report using
+  a fixed system-key allowlist and a report-scoped primary key.
 - `ai_settings`
 - `user_state`
 
@@ -74,12 +79,14 @@ timestamps, optional staged progress, and an error message. Developer entries
 are bounded metadata and truncated errors, not prompt or result payloads. This
 is JSON state, not a new SQLite table or a separate hosted queue.
 
-Enums:
+Enums and fixed values:
 
 - Health status: `normal`, `monitor`, `attention`
 - Lab flag: `low`, `normal`, `high`, `unknown`
 - Condition status: `current`, `managed`, `past`
 - Regimen kind: `medication`, `supplement`
+- Biological-age system keys: `lungs`, `metabolic`, `musculoskeletal`, `blood`,
+  `liver`, `inflammation`, `kidneys`, `heart`, `hormone`, `immune`, `brain`
 
 `lab_results.flag` is derived in Rust from numeric value and reference range.
 The renderer does not set it. The UI presents that range position separately
@@ -88,6 +95,11 @@ New manual and document-import rows require an explicit follow-up-priority
 choice; the renderer never silently defaults that field to `normal`.
 Schema installation backfills those derived numeric, range-bound, and flag
 fields for older rows that predate them.
+
+Biological-age reports are stored as provider outputs. The app does not infer a
+clinical status from a system age, and it does not normalize scores across
+providers or assay versions. Comparisons are meaningful only when the user
+confirms that report methods are compatible.
 
 Current organ status uses one shared model in Rust and the renderer:
 
@@ -134,6 +146,9 @@ Dashboard and records:
 - `delete_regimen_item`
 - `stop_regimen_item`
 - `reactivate_regimen_item`
+- `add_biological_age_report`
+- `update_biological_age_report`
+- `delete_biological_age_report`
 
 Documents and AI:
 
@@ -190,8 +205,10 @@ Renderer:
 - `use-dashboard-controller.ts` - state, navigation, dialogs, settings, and all Tauri calls.
 - `use-dashboard-record-actions.ts` - record mutation command wrappers.
 - `dashboard-model.ts` - shared types, organ visuals, snapshot shaping.
+- `genetics-model.ts` - biological-age report types, fixed system labels, and form parsing.
 - `tauri-runtime.ts` - native-runtime guard.
 - `components/` - pages and UI primitives.
+- `components/genetics-page.tsx`, `components/genetic-report-form.tsx` - biological-age report review and entry.
 - `components/ui/date-picker.tsx` - shared ISO-date picker composed from the
   shadcn Calendar and Popover primitives.
 - `components/job-center.tsx` - persisted document-analysis and AI work queue
@@ -199,9 +216,10 @@ Renderer:
 - `components/developer-page.tsx` - local Codex call metadata and event log.
 - `components/body/` - body source rail, stable anatomy coordinate plane,
   selected-organ inspector, and display-status helpers.
-- `components/charts/` - SVG chart components for labs, symptoms, regimen periods, document coverage, and AI context coverage.
+- `components/charts/` - SVG chart components for labs, symptoms, regimen periods,
+  document coverage, AI context coverage, and biological-age comparisons.
 - `charts/` - pure chart data transforms and scale utilities.
-- `i18n.ts`, `i18n/locales/en.json` - typed UI copy catalog.
+- `i18n.ts`, `i18n/locales/en.json`, `i18n/genetics.en.ts` - typed UI copy catalogs.
 - `document-intake.ts`, `document-rendering.ts`, `use-document-intake.ts`,
   `components/document-review.tsx` - validated document rendering and review flow.
 - `developer-diagnostics.ts`, `use-developer-diagnostics.ts` - bounded local
@@ -215,6 +233,7 @@ Backend:
 - `records.rs`, `records/parse.rs`, `records/reports.rs`, `records/symptoms.rs` - lab, report, and symptom validation/storage.
 - `conditions.rs` - condition validation/storage.
 - `regimen.rs` - medication and supplement validation/storage.
+- `genetics.rs` - biological-age validation, CRUD, and system-score storage.
 - `document_files.rs` - document signature, size, type, and filename validation.
 - `codex_cli.rs`, `codex_cli/document_analysis.rs` - provider-aware chat,
   consent-checked Codex document extraction, model discovery, structured output,
@@ -232,6 +251,7 @@ Backend:
 - Remote AI context is opt-in, never automatic.
 - PDF/image intake is consent-gated AI extraction followed by mandatory manual
   review, then atomically saved with its source bytes inside encrypted SQLite.
+- Biological-age estimates remain attributed provider outputs and never become automatic diagnoses or organ-status signals.
 - Charts use saved structured data only; they are record-review aids, not diagnostic quality scores.
 - Rust validates before every write.
 - New Tauri commands must be registered in `lib.rs`.
