@@ -101,6 +101,7 @@ function NavButton({ controller, navKey }: { controller: DashboardController; na
   const active = navKey === controller.selectedNav;
   const index = navItems.findIndex((nav) => nav.key === navKey);
   const isMac = document.documentElement.dataset.platform === "macos";
+  const shortcut = index >= 0 && index < 9 ? `${isMac ? "⌘" : "^"}${index + 1}` : "";
   return (
     <Button
       aria-current={active ? "page" : undefined}
@@ -113,7 +114,7 @@ function NavButton({ controller, navKey }: { controller: DashboardController; na
     >
       <Icon data-icon="inline-start" />
       <span>{item.label}</span>
-      <kbd aria-hidden="true">{isMac ? "⌘" : "^"}{index + 1}</kbd>
+      {shortcut ? <kbd aria-hidden="true">{shortcut}</kbd> : null}
     </Button>
   );
 }
