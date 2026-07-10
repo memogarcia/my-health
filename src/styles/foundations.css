@@ -1,0 +1,167 @@
+:root {
+  color: oklch(0.24 0.018 310);
+  background: oklch(0.968 0.006 305);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --ink: oklch(0.24 0.018 310);
+  --muted: oklch(0.49 0.018 305);
+  --quiet: oklch(0.64 0.012 305);
+  --canvas: oklch(0.968 0.006 305);
+  --surface: oklch(0.995 0.002 305);
+  --surface-soft: oklch(0.945 0.008 305);
+  --sidebar-neutral: oklch(0.955 0.008 315);
+  --plum: oklch(0.42 0.1 342);
+  --plum-deep: oklch(0.34 0.09 342);
+  --accent: oklch(0.54 0.19 355);
+  --accent-strong: oklch(0.47 0.18 355);
+  --accent-ink: oklch(0.43 0.15 350);
+  --accent-soft: oklch(0.93 0.025 350);
+  --normal: oklch(0.59 0.13 165);
+  --monitor: oklch(0.71 0.14 78);
+  --attention: oklch(0.6 0.19 28);
+  --focus: oklch(0.65 0.14 260);
+  --hairline: color-mix(in oklch, var(--ink) 10%, transparent);
+  --shadow-float: 0 2px 6px oklch(0.2 0.03 310 / 0.11);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: var(--surface-soft);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--muted);
+  --destructive: var(--attention);
+  --border: var(--hairline);
+  --input: var(--quiet);
+  --ring: var(--focus);
+  --radius: 0.75rem;
+  --radius-sm: 0.625rem;
+  --radius-xl: 1rem;
+  --sidebar: var(--sidebar-neutral);
+  --sidebar-muted: var(--muted);
+  --sidebar-line: oklch(1 0 0 / 0.09);
+  --status-normal: var(--normal);
+  --status-monitor: var(--monitor);
+  --status-attention: var(--attention);
+  --status-empty: var(--quiet);
+  --elev-1: 0 1px 3px oklch(0.2 0.03 310 / 0.08);
+  --elev-2: var(--shadow-float);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-quint: var(--ease-out);
+  --dur-feedback: 120ms;
+  --dur-state: 200ms;
+  --font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.8125rem;
+  --fs-base: 0.875rem;
+  --fs-md: 0.9375rem;
+  --fs-lg: 1.0625rem;
+  --fs-xl: 1.25rem;
+  --fs-2xl: 1.5rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+}
+
+* { box-sizing: border-box; }
+html, body, #app { height: 100%; margin: 0; }
+body { min-width: 820px; overflow: hidden; }
+button, input, select, textarea { font: inherit; }
+button, summary { -webkit-tap-highlight-color: transparent; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 3px solid color-mix(in oklch, var(--focus) 55%, transparent);
+  outline-offset: 2px;
+}
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { text-wrap: balance; }
+p { text-wrap: pretty; }
+
+.squircle {
+  border-radius: 14px;
+  corner-shape: superellipse(1.6);
+}
+.icon { display: block; flex: 0 0 auto; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.brand-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 11px;
+  corner-shape: superellipse(1.7);
+  color: white;
+  background: var(--accent);
+  box-shadow: 0 2px 5px oklch(0.2 0.08 350 / 0.2);
+}
+.primary-button, .secondary-button, .glass-button, .icon-button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 12px;
+  cursor: default;
+  transition: transform 180ms var(--ease-out), background 180ms ease, box-shadow 180ms ease;
+}
+.primary-button { padding: 0 15px; color: white; background: var(--accent); font-size: 13px; font-weight: 650; }
+.primary-button:hover { background: var(--accent-strong); }
+.primary-button:active, .secondary-button:active, .glass-button:active { transform: scale(0.97); }
+.primary-button:disabled { cursor: not-allowed; opacity: 0.42; }
+.secondary-button { padding: 0 14px; color: var(--ink); background: var(--surface-soft); font-size: 13px; font-weight: 600; }
+.secondary-button:hover { background: color-mix(in oklch, var(--surface-soft) 80%, var(--plum) 8%); }
+.icon-button { width: 36px; padding: 0; color: var(--muted); background: transparent; }
+.icon-button:hover { color: var(--ink); background: var(--surface-soft); }
+code { font-family: "SF Mono", ui-monospace, monospace; font-size: 0.82em; }
+
+.loading-screen, .centered-screen {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  background: radial-gradient(circle at 50% 40%, oklch(0.99 0.01 310), var(--canvas));
+}
+.loading-screen { align-content: center; gap: 18px; }
+.loading-line { width: 64px; height: 3px; overflow: hidden; border-radius: 999px; background: var(--surface-soft); }
+.loading-line::after { display: block; width: 45%; height: 100%; content: ""; border-radius: inherit; background: var(--accent); animation: loading 1s var(--ease-out) infinite alternate; }
+.message-card { max-width: 520px; padding: 32px; background: var(--surface); box-shadow: var(--shadow-float); }
+.message-card h1 { margin: 20px 0 8px; font-size: 24px; }
+.message-card p { margin-top: 10px; color: var(--muted); font-size: 14px; line-height: 1.55; }
+@keyframes loading { to { transform: translateX(80px); } }
+
+.gate-screen { display: grid; min-height: 100%; grid-template-columns: minmax(320px, 0.9fr) minmax(440px, 1.1fr); background: var(--canvas); }
+.gate-intro { display: flex; min-height: 100%; flex-direction: column; padding: 58px 56px 48px; color: white; background: radial-gradient(circle at 18% 12%, oklch(0.5 0.13 335), transparent 35%), var(--plum-deep); }
+.gate-logo { display: flex; align-items: center; gap: 11px; font-size: 18px; }
+.gate-copy { margin: auto 0 48px; max-width: 460px; }
+.gate-lock { display: grid; width: 48px; height: 48px; margin-bottom: 24px; place-items: center; border-radius: 15px; corner-shape: superellipse(1.6); color: oklch(0.88 0.06 340); background: oklch(1 0 0 / 0.1); }
+.gate-copy h1 { max-width: 10ch; font-size: 42px; line-height: 1.02; letter-spacing: -0.035em; }
+.gate-copy p { max-width: 44ch; margin-top: 18px; color: oklch(0.87 0.02 325); font-size: 15px; line-height: 1.55; }
+.gate-points { display: flex; margin: 0; padding: 0; gap: 8px; list-style: none; }
+.gate-points li { padding: 8px 10px; border-radius: 999px; color: oklch(0.92 0.015 330); background: oklch(1 0 0 / 0.08); font-size: 11px; }
+.gate-form { width: min(460px, calc(100% - 64px)); margin: auto; padding: 38px; background: var(--surface); box-shadow: var(--shadow-float); }
+.gate-form h2 { font-size: 22px; letter-spacing: -0.02em; }
+.gate-form > div > p { margin-top: 7px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.gate-form label, .capture-form label { display: grid; margin-top: 18px; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.gate-form input, .capture-form input, .capture-form select, .capture-form textarea {
+  width: 100%; min-height: 40px; padding: 9px 11px; border: 0; border-radius: 11px; color: var(--ink); background: var(--surface-soft); font-size: 14px; font-weight: 450;
+}
+.input-with-button { display: flex; align-items: center; border-radius: 11px; background: var(--surface-soft); }
+.input-with-button input { background: transparent; }
+.gate-form > .primary-button { width: 100%; margin-top: 22px; }
+.gate-actions { display: grid; margin-top: 10px; grid-template-columns: 1fr 1fr; gap: 8px; }
+.gate-form details { margin-top: 20px; color: var(--muted); font-size: 11px; }
+.gate-form details code { display: block; margin-top: 8px; word-break: break-all; }
+.form-error { padding: 10px 12px; border-radius: 10px; color: oklch(0.45 0.16 25); background: oklch(0.93 0.04 25); font-size: 12px; }
+.form-validation { margin-top: 9px; color: oklch(0.46 0.11 35); font-size: 11px; line-height: 1.4; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

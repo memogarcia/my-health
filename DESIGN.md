@@ -1,152 +1,187 @@
 # Design
 
-This is the visual source of truth for Me Health Dashboard. It has been reset
-for a new UI/UX direction. No current layout, palette, typography system,
-component style, motion language, or visual asset is approved by this file.
+This file owns the visual and interaction system for Me Health Dashboard.
 
-The previous interface is documented in `FEATURES.md` so the next interface
-can recover the product behavior without inheriting the old visual structure.
-The renderer is intentionally blank while this design is rebuilt.
+## Product scene
 
-## Design status
+One person reviews private health records on a Mac before an appointment or
+after receiving a result. They need to understand what changed, where it
+belongs in the body, and what they may want to discuss with a clinician. The
+interface should recede behind that review.
 
-- **Status:** reset, ready for exploration.
-- **Audience:** one person reviewing sensitive health information on a local
-  desktop machine.
-- **Product register:** private desktop tool, not a marketing surface.
-- **Primary source for behavior:** `FEATURES.md`.
-- **Product intent and safety:** `PRODUCT.md`.
-- **Technical/runtime constraints:** `ARCHITECTURE.md`.
-- **Privacy and security constraints:** `SECURITY.md` and `AI.md`.
+## Product model
 
-## Non-negotiables
+The app has four workspaces rather than a page for every data type.
 
-These are product constraints, not visual decisions:
+1. **Overview** uses the body as navigation. Selecting an organ changes the
+   health record at the right without leaving the scene.
+2. **Timeline** combines results, symptoms, conditions, regimen changes, body
+   notes, and daily logs into one chronological record. Filters narrow the
+   record without creating separate products.
+3. **Library** keeps source material and guided tools together: health files,
+   regimen, fasting, breathing, and research.
+4. **Assistant** is a conversation workspace. AI is also available from the
+   persistent capture surface where it is useful.
 
-- The supported runtime is the native Tauri app. A raw browser/Vite URL is not
-  a supported product surface.
-- Health records remain in the local SQLCipher-encrypted SQLite database unless
-  the user explicitly opts into the relevant remote AI context.
-- AI output is advisory. The interface must not present it as diagnosis,
-  treatment, or emergency triage.
-- Health status must communicate meaning with text and accessible semantics,
-  never color alone.
-- Health data must be readable, reviewable, and editable. Dense information is
-  allowed when it improves scanning and record review.
-- Every user-facing string must use the typed i18n catalog.
-- Existing shadcn primitives, controller methods, Rust commands, and persisted
-  data contracts should be reused unless the redesign requires a deliberate
-  change.
+Settings and developer diagnostics are utilities. They do not compete with the
+health-review workspaces.
 
-## Reset boundary
+## Interaction principles
 
-The redesign starts at the rendered application surface. The native runtime
-bootstrap, Rust backend, storage schema, command layer, feature helpers, tests,
-and feature inventory remain available. The previous React page components and
-CSS have been deleted; they are not design authority or a recovery mechanism.
+- Start from the body or the timeline, not from a dashboard of summary cards.
+- Keep the selected organ visible while its latest signals are read.
+- Preserve chronology. Dates are the main organizing structure for medical
+  history.
+- Put capture near review. Add Result, Log symptom, Daily log, and the bottom
+  prompt stay available without covering the record.
+- Use progressive disclosure for editing, conditions, genetic context, and
+  destructive file actions.
+- Keep AI advisory and visibly separate from saved medical facts.
 
-When a new surface is implemented:
+## Navigation
 
-1. Define its user goal and information hierarchy here.
-2. Define the visual and interaction rules here before spreading them into
-   components.
-3. Implement from the rules using existing product contracts.
-4. Verify the exact native Tauri screen and update this file with decisions that
-   proved durable.
+The 64 px icon rail contains Overview, Timeline, Library, and Assistant.
 
-## Open design work
+- The active workspace uses a berry-tinted squircle and a three-pixel window
+  edge marker.
+- Settings, diagnostics, and encrypted-local status stay at the bottom.
+- Tooltips and accessible labels provide the text labels; the rail does not
+  expand into a destination catalog.
+- Command-1 through Command-4 map to the four workspaces.
 
-The following decisions are intentionally unanswered:
+## Layout
 
-### Product scene
+### Overview
 
-- Where is the app used: desk, bedside, clinical review, or another setting?
-- Is the dominant mode quick daily check-in, longitudinal review, data entry,
-  or a deliberate combination?
-- Which action should be reachable first after unlock?
+Overview follows a desktop three-pane reading model:
 
-### Information architecture
+- body-system index;
+- anatomy or body-surface stage;
+- selected-organ record.
 
-- What is the smallest useful top-level navigation model for the feature set in
-  `FEATURES.md`?
-- Which features belong in the primary workspace, and which belong in a
-  secondary utility area?
-- What is the relationship between body-system context and global history?
-- How should ongoing AI work, document review, and errors stay visible without
-  competing with health records?
+The anatomy image owns the available height. The organ index is independently
+scrollable. The selected-organ record uses normal document flow and hairline
+separators rather than nested cards.
 
-### Visual language
+### Timeline
 
-- Choose a physical scene and ambient-light assumption.
-- Choose a color strategy and define semantic status roles.
-- Choose one product typeface system and a fixed UI scale.
-- Define surface, border, radius, shadow, icon, and density rules.
-- Decide whether the anatomy representation is a primary control, a secondary
-  visualization, or a replaceable view.
+Timeline is a centered reading column. A single vertical rule connects events.
+Date labels occupy a stable left column and never repeat for adjacent events on
+the same day. Status appears at the far edge so titles and values scan cleanly.
 
-### Interaction and layout
+Results and Symptoms may enter a management mode for sorting, charts, editing,
+and deletion. Returning to the timeline restores chronological context.
 
-- Define the first-run and unlock experience.
-- Define the empty, loading, error, offline, consent, and review states for
-  every feature group.
-- Define desktop window behavior and the minimum supported size.
-- Define keyboard navigation, focus movement, drag/drop behavior, and dialogs.
-- Define how users select and edit one record versus a group of records.
+### Library
 
-### Motion and accessibility
+Library uses a stable 228 px index and one detail canvas. It does not add page
+navigation to the global rail.
 
-- Motion may communicate state or progress, but must not delay work.
-- Every animated state needs a reduced-motion behavior.
-- Define focus, contrast, target-size, screen-reader, and non-color status rules
-  before finalizing the component system.
+- Documents uses one three-source intake strip, a compact clinical-context
+  disclosure, import coverage, and a saved-file archive.
+- Regimen uses one split composition: editor on the left, history and active
+  items on the right.
+- Settings uses a label column and a control column, matching native Mac
+  preference layouts.
 
-## Future system template
+## Visual system
 
-Fill these sections as the new UI is designed. Until they contain a deliberate
-decision, implementation should not infer one from the old renderer.
+### Color
 
-### Foundations
+All colors are OKLCH tokens in `src/styles/foundations.css`.
 
-- Color tokens:
-- Semantic status mapping:
-- Typography:
-- Spacing and density:
-- Radius and borders:
-- Elevation:
-- Iconography:
+- Canvas and chrome are chroma-neutral with a slight violet bias.
+- Berry is reserved for active navigation, primary actions, and selected AI
+  controls.
+- Normal is green, Monitor is amber, and Attention is vermilion.
+- Every health status includes text and position in addition to color.
+- Large dark colored sidebars are not part of the product identity.
 
-### Shell
+### Typography
 
-- Window and title-bar behavior:
-- Primary navigation:
-- Secondary navigation:
-- Global actions:
-- Persistent status and job feedback:
+- Use the native Apple system stack, led by SF Pro on macOS.
+- One family serves labels, prose, controls, and data.
+- Product headings use fixed sizes from 15 to 27 px.
+- Body copy is 10 to 13 px depending on density and meets WCAG AA contrast.
+- Numeric health values use tabular figures where alignment matters.
 
-### Feature surfaces
+### Shape
 
-- Body and organ workspace:
-- Labs and results:
-- Symptoms and conditions:
-- Medications and supplements:
-- Daily context:
-- Fasting and breathing:
-- Documents and imports:
-- Assistant and research:
-- Settings and data export:
-- Developer diagnostics:
+- Squircle geometry uses `corner-shape: superellipse(1.6)` when available.
+- General surfaces use 9 to 14 px fallback radii.
+- Pills are reserved for statuses, counts, and compact segmented controls.
+- The anatomy stage, timeline, and preference sheets are structural planes,
+  not giant rounded cards.
 
-### Components
+### Materials and elevation
 
-For each shared component, record its purpose and default, hover, focus,
-active, disabled, loading, error, empty, and responsive states.
+- Opaque content surfaces carry health data.
+- Translucency is limited to native-style chrome over the anatomy image and the
+  top/bottom bars.
+- Selected list rows use a shallow three-pixel shadow at most.
+- Cards never combine a decorative outline with a wide diffuse shadow.
 
-### Verification checklist
+### Motion
 
-- The native Tauri app renders the intended screen after unlock.
-- No raw browser session is used as product verification.
-- Keyboard and assistive-technology paths are usable.
-- Status meaning survives grayscale and color-vision differences.
-- Long labels, dates, units, empty data, and errors fit without clipping.
-- Reduced motion is honored.
-- `FEATURES.md` still matches the behavior exposed by the new UI.
+- Feedback and state transitions run from 120 to 200 ms with ease-out curves.
+- Anatomy rotation communicates the selected body view.
+- Modal capture settles vertically over 180 ms.
+- No orchestrated page-load animation is used.
+- `prefers-reduced-motion` reduces transitions to immediate changes.
+
+## Components
+
+### Body index
+
+Each row includes status dot, organ name, and system. Selection updates the
+anatomy hotspot and right-side record together.
+
+### Anatomy stage
+
+- Internal and Surface are a two-option segmented control.
+- Organ hotspots expand only for the current selection.
+- Surface mode supports front, right, back, and left controls plus horizontal
+  drag.
+- Exact-area body notes are created only in Surface mode and remain anchored to
+  their saved view.
+
+### Organ record
+
+The record starts with system, name, follow-up status, plain-language context,
+and counts. Result and symptom capture follow. Recent signals, conditions, and
+daily context are separated by hairlines.
+
+### Capture
+
+Result, symptom, daily-log, body-note, and document-review capture use the same
+modal vocabulary. Save buttons name the record being saved. Required fields
+have visible focus and validation states.
+
+### Empty and loading states
+
+- Loading uses skeleton shapes that match the destination.
+- Empty timeline copy explains which record types will appear.
+- Empty health states never invent normal results or reassuring medical facts.
+- AI-disabled states link to Settings and never generate substitute analysis.
+
+## Accessibility and responsive behavior
+
+- Minimum supported window size is 820 by 680.
+- At the minimum width, the organ index becomes denser but remains visible; the
+  anatomy and selected-organ record do not reorder or disappear.
+- Tables and matrices scroll inside their own surface.
+- Every icon-only control has an accessible label and tooltip.
+- Focus uses a visible blue halo.
+- Reduced motion is supported.
+- Health status never relies on color alone.
+
+## Verification checklist
+
+- Run `bun run typecheck`, `bun run test`, and `bun run check`.
+- Run `bun run tauri:dev` in the native desktop runtime.
+- Verify Overview, Timeline, all Library sections, Assistant, Settings, and
+  diagnostics with real empty states.
+- Verify organ selection, Surface drag, exact-area notes, capture dialogs,
+  record management, timers, document review, AI enabled and disabled states,
+  keyboard focus, reduced motion, and the 820 by 680 minimum window.
+- Build the production `.app` and `.dmg` with `bun run tauri:build`.

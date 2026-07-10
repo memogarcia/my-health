@@ -1,0 +1,4 @@
+.anatomy-static-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; pointer-events: none; }
+.anatomy-interaction-layer { position: absolute; inset: 0; }
+.anatomy-note-surface { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; cursor: crosshair; border: 0; background: transparent; }
+.body-note-pin { position: absolute; z-index: 3; left: calc(var(--x) * 1%); top: calc(var(--y) * 1%); width: 12px; height: 12px; transform: translate(-50%, -50%); border: 2px solid var(--card); border-radius: 999px; background: var(--primary); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 28%, transparent); }
