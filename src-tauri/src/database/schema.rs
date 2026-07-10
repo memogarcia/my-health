@@ -74,6 +74,28 @@ CREATE TABLE IF NOT EXISTS conditions (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted_at TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS biological_age_reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  report_name TEXT NOT NULL,
+  provider TEXT NOT NULL DEFAULT '',
+  collected_at TEXT NOT NULL,
+  chronological_age REAL NOT NULL CHECK (chronological_age BETWEEN 0 AND 150),
+  overall_age REAL NOT NULL CHECK (overall_age BETWEEN 0 AND 150),
+  percentile REAL CHECK (percentile IS NULL OR percentile BETWEEN 0 AND 100),
+  notes TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS biological_age_scores (
+  report_id INTEGER NOT NULL REFERENCES biological_age_reports(id) ON DELETE CASCADE,
+  system_key TEXT NOT NULL CHECK (system_key IN (
+    'lungs', 'metabolic', 'musculoskeletal', 'blood', 'liver', 'inflammation',
+    'kidneys', 'heart', 'hormone', 'immune', 'brain'
+  )),
+  age REAL NOT NULL CHECK (age BETWEEN 0 AND 150),
+  PRIMARY KEY (report_id, system_key)
+);
 CREATE TABLE IF NOT EXISTS ai_settings (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   settings TEXT NOT NULL DEFAULT '{}',
