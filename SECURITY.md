@@ -19,6 +19,32 @@ or exploit details in public issues.
 - Mutations go through the Rust backend after the database is unlocked.
 - Browser-only storage is not used for health records.
 
+## Apple Health
+
+The Apple Health sync foundation stores normalized samples, source provenance,
+deletion tombstones, and opaque anchored-query cursors in the same encrypted
+SQLCipher database as the rest of the health record.
+
+- The Rust boundary accepts only an explicit allowlist of HealthKit identifiers.
+- Batches are bounded to 5,000 samples and 5,000 deletions.
+- UUIDs, RFC 3339 timestamps, finite numeric values, sample kinds, text lengths,
+  and metadata shape are validated before any transaction starts.
+- HealthKit UUIDs are used for idempotent upserts and deletion reconciliation.
+- The next anchor is committed only with the associated samples and tombstones.
+- Status output exposes counts and timestamps, not anchor values or sample data.
+- A database-path guard rejects writes if the active database changes during a sync.
+- Apple Health data is not added to developer diagnostics or remote AI context automatically.
+
+The current repository does not yet contain a live iOS HealthKit plugin. The
+existing `export.xml` import saves only a local count/date summary. A future
+native bridge must request read-only permissions first and send normalized data
+to Rust only after the main database is unlocked.
+
+The app deliberately does not store the SQLCipher passphrase. Therefore,
+HealthKit background delivery cannot write directly to the main database while
+it is locked. Any future background staging design must use a separate bounded,
+device-protected encrypted queue and must not weaken the main database key model.
+
 ## Secrets
 
 AI API keys are not stored in the database. AI settings store environment
@@ -51,6 +77,7 @@ errors. Prompt text, extracted result rows, and API keys are excluded.
 
 ## Known Limits
 
+- The native HealthKit bridge and iOS entitlement/provisioning work are not yet implemented.
 - Codex CLI read-only mode prevents writes but does not confine filesystem reads
   to the ephemeral document workspace. Document content is treated as untrusted
   and user configuration is ignored, but this is not an OS-level read sandbox.

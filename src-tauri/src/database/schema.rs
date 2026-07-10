@@ -100,6 +100,39 @@ CREATE TABLE IF NOT EXISTS regimen_items (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted_at TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS health_samples (
+  healthkit_uuid TEXT PRIMARY KEY,
+  type_identifier TEXT NOT NULL,
+  sample_kind TEXT NOT NULL CHECK (sample_kind IN ('quantity', 'category', 'workout')),
+  start_at TEXT NOT NULL,
+  end_at TEXT NOT NULL,
+  numeric_value REAL,
+  category_value INTEGER,
+  unit TEXT NOT NULL DEFAULT '',
+  workout_activity_type INTEGER,
+  duration_seconds REAL,
+  total_energy_kcal REAL,
+  total_distance_meters REAL,
+  source_name TEXT NOT NULL DEFAULT '',
+  source_bundle_id TEXT NOT NULL DEFAULT '',
+  source_version TEXT NOT NULL DEFAULT '',
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS health_samples_type_start_idx
+  ON health_samples(type_identifier, start_at);
+CREATE INDEX IF NOT EXISTS health_samples_source_idx
+  ON health_samples(source_bundle_id, start_at);
+CREATE TABLE IF NOT EXISTS healthkit_sync_state (
+  device_id TEXT NOT NULL,
+  type_identifier TEXT NOT NULL,
+  anchor TEXT NOT NULL,
+  last_success_at TEXT NOT NULL DEFAULT '',
+  last_error TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (device_id, type_identifier)
+);
 "#;
 
 pub(super) fn migrate_legacy_document_copies(conn: &Connection) -> rusqlite::Result<()> {
