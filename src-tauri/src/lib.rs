@@ -7,11 +7,13 @@ mod codex_cli;
 mod conditions;
 mod database;
 mod document_files;
+mod genetics;
 mod records;
 mod regimen;
 use ai_settings::validate_ai_settings;
 use conditions::ConditionEntry;
 use database::{AppState, DatabaseStatus};
+use genetics::BiologicalAgeReport;
 use records::{LabReportEntry, LabResult, Recommendation, SymptomEntry};
 use regimen::RegimenItem;
 
@@ -27,6 +29,7 @@ struct DashboardSnapshot {
     recent_symptoms: Vec<SymptomEntry>,
     conditions: Vec<ConditionEntry>,
     regimen_items: Vec<RegimenItem>,
+    biological_age_reports: Vec<BiologicalAgeReport>,
     ai_recommendations: Vec<Recommendation>,
     lab_reports: Vec<LabReportEntry>,
 }
@@ -55,6 +58,8 @@ fn get_dashboard_snapshot(state: tauri::State<'_, AppState>) -> Result<Dashboard
                 .map_err(|error| error.to_string())?,
             conditions: conditions::list_conditions(conn).map_err(|error| error.to_string())?,
             regimen_items: regimen::list_regimen_items(conn).map_err(|error| error.to_string())?,
+            biological_age_reports: genetics::list_biological_age_reports(conn)
+                .map_err(|error| error.to_string())?,
             ai_recommendations: records::build_recommendations(conn)
                 .map_err(|error| error.to_string())?,
             lab_reports: records::list_lab_reports_for_snapshot(conn)
@@ -204,6 +209,9 @@ pub fn run() {
             regimen::delete_regimen_item,
             regimen::stop_regimen_item,
             regimen::reactivate_regimen_item,
+            genetics::add_biological_age_report,
+            genetics::update_biological_age_report,
+            genetics::delete_biological_age_report,
             records::add_lab_results,
             records::import_lab_results_document,
             records::reports::list_lab_reports,
