@@ -16,6 +16,7 @@ import { IntakeDialog } from "./components/intake-dialog";
 const AiChatPage = lazy(() => import("./components/ai-chat-page").then((module) => ({ default: module.AiChatPage })));
 const ResearchPage = lazy(() => import("./components/deep-research-page").then((module) => ({ default: module.ResearchPage })));
 const DocumentsPage = lazy(() => import("./components/documents-page").then((module) => ({ default: module.DocumentsPage })));
+const GeneticsPage = lazy(() => import("./components/genetics-page").then((module) => ({ default: module.GeneticsPage })));
 const HistoryPage = lazy(() => import("./components/history-page").then((module) => ({ default: module.HistoryPage })));
 const MedicationsPage = lazy(() => import("./components/medications-page").then((module) => ({ default: module.MedicationsPage })));
 const SettingsPage = lazy(() => import("./components/settings-page").then((module) => ({ default: module.SettingsPage })));
@@ -95,6 +96,7 @@ export function App() {
       {controller.selectedNav === "research" ? <LazyPage><ResearchPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "documents" ? <LazyPage><DocumentsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "medications" ? <LazyPage><MedicationsPage controller={controller} /></LazyPage> : null}
+      {controller.selectedNav === "genetics" ? <LazyPage><GeneticsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "settings" ? <LazyPage><SettingsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "developer" ? <LazyPage><DeveloperPage controller={controller} /></LazyPage> : null}
       <IntakeDialog controller={controller} />
