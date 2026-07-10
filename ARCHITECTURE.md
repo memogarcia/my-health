@@ -7,7 +7,9 @@ AI policy in `AI.md`, security posture in `SECURITY.md`, visual rules in
 ## Shape
 
 Me Health Dashboard is a Tauri-only desktop app. There is no hosted backend and
-no supported browser runtime.
+no supported browser runtime. The repository now includes the encrypted storage
+and Rust trust boundary needed by a future Tauri iOS HealthKit bridge, but no iOS
+target or live HealthKit plugin is enabled yet.
 
 - Renderer: React + TypeScript in `src/`.
 - Backend: Rust commands in `src-tauri/src/`.
@@ -64,6 +66,12 @@ Tables:
 - `symptoms` includes `updated_at` and `deleted_at`.
 - `conditions` includes `updated_at` and `deleted_at`.
 - `regimen_items` includes `updated_at`, `deleted_at`, and active/stop-date state.
+- `health_samples` stores normalized HealthKit quantity, category, and workout
+  samples. HealthKit UUID is the deduplication key; provenance, metadata,
+  timestamps, and deletion tombstones are retained.
+- `healthkit_sync_state` stores one opaque anchored-query cursor per device and
+  HealthKit type plus the last successful import time. Anchors are not returned
+  by the status command.
 - `ai_settings`
 - `user_state`
 
@@ -80,6 +88,7 @@ Enums:
 - Lab flag: `low`, `normal`, `high`, `unknown`
 - Condition status: `current`, `managed`, `past`
 - Regimen kind: `medication`, `supplement`
+- Apple Health sample kind: `quantity`, `category`, `workout`
 
 `lab_results.flag` is derived in Rust from numeric value and reference range.
 The renderer does not set it. The UI presents that range position separately
@@ -99,7 +108,8 @@ Historical rows still count toward record totals and remain visible in history,
 but superseded results, older symptoms, and managed or past conditions do not
 keep an organ in `monitor` or `attention` indefinitely.
 
-Schema changes must be additive migrations guarded by `PRAGMA table_info`.
+Schema changes must be additive. New tables use `CREATE TABLE IF NOT EXISTS`;
+new columns are guarded by `PRAGMA table_info`.
 
 ## Commands
 
@@ -135,6 +145,11 @@ Dashboard and records:
 - `stop_regimen_item`
 - `reactivate_regimen_item`
 
+Apple Health sync foundation:
+
+- `get_apple_health_sync_status`
+- `import_apple_health_sync_batch`
+
 Documents and AI:
 
 - `ask_llm`
@@ -150,6 +165,31 @@ Settings and user state:
 
 Inputs use camelCase from the renderer. Rust validates required fields, ISO
 dates, enum values, ranges, and secret-shape rules before writes.
+
+## Apple Health Boundary
+
+The existing `export.xml` flow is a bounded renderer worker that stores only an
+import summary in encrypted `user_state`. It does not populate `health_samples`
+and is independent of the native synchronization contract.
+
+A future Tauri iOS Swift plugin owns `HKHealthStore`, user authorization,
+`HKAnchoredObjectQuery`, and `HKObserverQuery`. It sends normalized batches to
+`import_apple_health_sync_batch` only after the main SQLCipher database is
+unlocked. The Rust command:
+
+- accepts only the documented allowlist of HealthKit identifiers;
+- accepts no more than 5,000 samples and 5,000 deletions per batch;
+- validates UUIDs, RFC 3339 timestamps, finite values, sample kinds, provenance,
+  and bounded metadata before opening a transaction;
+- upserts by HealthKit UUID and applies deletion tombstones;
+- advances the opaque per-device/type anchor in the same transaction as the
+  sample writes, so a failed import cannot skip changes;
+- checks the active database path to reject writes after a database switch.
+
+The native bridge must use foreground catch-up synchronization first. The app
+does not store the SQLCipher passphrase, so background HealthKit delivery cannot
+write to the main database while it is locked. See `docs/apple-health-sync.md`
+for the bridge contract and iOS provisioning checklist.
 
 ## AI Boundary
 
@@ -212,6 +252,8 @@ Backend:
 
 - `lib.rs` - app setup, command registration, snapshot commands.
 - `database.rs` - SQLCipher database setup, unlock, migration, export.
+- `apple_health.rs` - allowlisted Apple Health batch validation, transactional
+  sample/tombstone persistence, anchor advancement, status, and unit tests.
 - `records.rs`, `records/parse.rs`, `records/reports.rs`, `records/symptoms.rs` - lab, report, and symptom validation/storage.
 - `conditions.rs` - condition validation/storage.
 - `regimen.rs` - medication and supplement validation/storage.
@@ -225,6 +267,10 @@ Backend:
 
 - Health data stays in encrypted local SQLite.
 - Browser-only storage is not used for health records.
+- Apple Health samples, provenance, tombstones, and anchors are not copied into
+  developer diagnostics or remote AI context automatically.
+- A HealthKit anchor advances only in the transaction that stores its associated
+  samples and deletions.
 - Background-job and developer diagnostic metadata are persisted with encrypted
   `user_state`; raw document bytes and health context stay governed by the
   existing intake and AI consent rules.
