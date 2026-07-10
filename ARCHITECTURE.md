@@ -156,9 +156,12 @@ dates, enum values, ranges, and secret-shape rules before writes.
 Provider settings live in `src/ai-sdk-config.ts` and persist in `ai_settings`.
 API key values are never stored; settings store environment-variable names.
 
-The live chat execution path is Codex CLI through `src-tauri/src/codex_cli.rs`.
-Other providers are visible as planned/configuration-only entries and cannot be
-selected from chat until Rust-backed execution exists.
+The live chat execution path is provider-aware through
+`src-tauri/src/codex_cli.rs`. Codex uses its CLI; Anthropic, Gemini, OpenAI, and
+OpenAI-compatible providers use Rust HTTP adapters. Local providers do not
+require remote-context consent. Remote providers require the saved opt-in, and
+Rust resolves API keys from environment-variable names without exposing key
+material to the renderer.
 
 Dropped PDFs and images are sent to Codex only after Rust validates the file,
 the saved provider and model, and the remote-health opt-in. Each request uses a
@@ -213,9 +216,9 @@ Backend:
 - `conditions.rs` - condition validation/storage.
 - `regimen.rs` - medication and supplement validation/storage.
 - `document_files.rs` - document signature, size, type, and filename validation.
-- `codex_cli.rs`, `codex_cli/document_analysis.rs` - consent-checked Codex chat
-  and document extraction, model discovery, structured output, stdin, timeout,
-  output draining, and per-request cleanup.
+- `codex_cli.rs`, `codex_cli/document_analysis.rs` - provider-aware chat,
+  consent-checked Codex document extraction, model discovery, structured output,
+  HTTP/CLI timeouts, output draining, and per-request cleanup.
 - `ai_settings.rs` - AI settings validation.
 
 ## Invariants
