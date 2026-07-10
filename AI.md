@@ -35,12 +35,18 @@ providers. Settings can save planned providers, but warns that they are not live
 The default state is "Not configured" so first use asks for setup instead of
 failing against a non-live provider.
 
-Codex chat runs with an ephemeral, per-request workspace and a timeout. Prompts
-are sent over stdin, and Rust rechecks the saved provider, model, database, and
-remote-health opt-in before execution. Document extraction uses the same checks,
-copies one validated PDF or image into the ephemeral workspace, asks Codex for
-schema-constrained structured results, and removes the workspace afterward.
-The user must review every extracted row before it is saved.
+Codex chat runs with an ephemeral, per-request workspace and a five-minute
+execution timeout. Prompts are sent over stdin, and Rust rechecks the saved
+provider, model, database, and remote-health opt-in before execution. Document
+extraction uses the same checks.
+Supported images are attached directly; PDFs are rendered locally into bounded
+page images before those images are attached. Codex returns
+schema-constrained structured results, and the ephemeral workspace is removed
+afterward. The user must review every extracted row before it is saved.
+
+The native Developer page shows bounded request metadata and lifecycle events
+for Codex calls, including timing and truncated errors. It excludes prompt
+content, extracted results, and secrets.
 
 Codex CLI's read-only sandbox prevents writes but does not confine reads to the
 request workspace. Extraction ignores user configuration and labels document

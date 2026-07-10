@@ -110,10 +110,32 @@ pub(super) fn run_command_with_timeout(
         if started.elapsed() >= timeout {
             let _ = child.kill();
             let _ = child.wait();
-            return Err(format!("Timed out after {} seconds", timeout.as_secs()));
+            let _ = stdout_reader.join();
+            let stderr = stderr_reader
+                .join()
+                .ok()
+                .and_then(Result::ok)
+                .unwrap_or_default();
+            let detail = String::from_utf8_lossy(&stderr).trim().to_string();
+            let suffix = if detail.is_empty() {
+                String::new()
+            } else {
+                format!(" CLI stderr: {}", truncate_output(&detail, 2_000))
+            };
+            return Err(format!(
+                "Timed out after {} seconds.{suffix}",
+                timeout.as_secs()
+            ));
         }
         thread::sleep(PROCESS_POLL_INTERVAL);
     }
+}
+
+fn truncate_output(value: &str, limit: usize) -> String {
+    if value.chars().count() <= limit {
+        return value.to_string();
+    }
+    format!("{}...", value.chars().take(limit).collect::<String>())
 }
 
 fn cleanup_stale_workspaces(root: &Path) {

@@ -5,7 +5,7 @@ import {
   buildCodexConversationPrompt,
   getActiveAiConversation,
 } from "./ai-conversation";
-import type { UserState } from "./dashboard-model";
+import type { DeveloperLogInput, LlmCallInput, LlmCallPatch, UserState } from "./dashboard-model";
 import { t } from "./i18n";
 
 export type AiPromptResult = {
@@ -21,6 +21,9 @@ export async function runAiPrompt(input: {
   aiSettings: AiSettings;
   userState: UserState;
   onPending: PendingHandler;
+  onDeveloperLog: (input: DeveloperLogInput) => void;
+  onLlmCallStart: (input: LlmCallInput) => string;
+  onLlmCallUpdate: (callId: string, patch: LlmCallPatch) => void;
 }) {
   const provider = getAiProvider(input.aiSettings.providerId);
   const userMessage = addAiConversationMessage({
@@ -72,9 +75,21 @@ export async function runAiPrompt(input: {
 
   await input.onPending(userState, userMessage.conversationId, t("toast.codexThinking"));
 
+  let callId = "";
   try {
     const conversation = getActiveAiConversation(userState);
     const codexPrompt = conversation ? buildCodexConversationPrompt(conversation) : input.prompt;
+    callId = input.onLlmCallStart({
+      kind: "chat",
+      command: "ask_llm",
+      inputLabel: t("developer.call.chat"),
+      modelId: input.aiSettings.modelId,
+      reasoningEffort: input.aiSettings.reasoningEffort,
+      promptChars: codexPrompt.length,
+      fileBytes: 0,
+      renderedPages: 0,
+    });
+    input.onDeveloperLog({ area: "chat", level: "info", message: t("developer.log.callStarted"), detail: t("developer.log.command", { command: "ask_llm" }) });
     const response = String((await invoke("ask_llm", {
       input: {
         prompt: codexPrompt,
@@ -82,6 +97,8 @@ export async function runAiPrompt(input: {
         reasoningEffort: input.aiSettings.reasoningEffort,
       },
     })) || "").trim() || t("ai.noResponse");
+    input.onLlmCallUpdate(callId, { status: "completed", outputChars: response.length });
+    input.onDeveloperLog({ area: "chat", level: "success", message: t("developer.log.callCompleted"), detail: t("developer.log.chars", { count: response.length }) });
     userState = addAiConversationMessage({
       userState,
       conversationId: userMessage.conversationId,
@@ -93,6 +110,8 @@ export async function runAiPrompt(input: {
     return { userState, toastMessage: t("toast.aiSaved"), toastKind: "success" };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (callId) input.onLlmCallUpdate(callId, { status: "failed", error: message });
+    input.onDeveloperLog({ area: "chat", level: "error", message: t("developer.log.callFailed"), detail: message });
     userState = addAiConversationMessage({
       userState,
       conversationId: userMessage.conversationId,

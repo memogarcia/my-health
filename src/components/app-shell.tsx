@@ -10,6 +10,7 @@ import type { DashboardController } from "../use-dashboard-controller";
 import { AddResultDropdown } from "./add-result-dropdown";
 import { AlertTriangle, Lock, NotebookPen, Send, Sparkles } from "./health-icons";
 import { navIcons } from "./health-icons";
+import { JobCenter } from "./job-center";
 
 type Props = {
   controller: DashboardController;
@@ -54,6 +55,7 @@ export function AppShell({ controller, children }: Props) {
           ))}
           <div className="mt-auto pt-2">
             <NavButton controller={controller} navKey="settings" />
+            <NavButton controller={controller} navKey="developer" />
           </div>
         </nav>
         <div className="app-sidebar-footer">
@@ -71,15 +73,16 @@ export function AppShell({ controller, children }: Props) {
             <h1 id="app-page-title" ref={pageTitleRef} tabIndex={-1}>{activeItem.label}</h1>
             <p>{activeItem.description}</p>
           </div>
-          {showHealthActions ? (
-            <div className="app-bar-actions">
+          <div className="app-bar-actions">
+            <JobCenter controller={controller} />
+            {showHealthActions ? (
               <Button type="button" variant="outline" size="sm" onClick={() => controller.openDialog("activity")}>
                 <NotebookPen data-icon="inline-start" />
                 {t("appShell.dailyLog")}
               </Button>
-              <AddResultDropdown controller={controller} />
-            </div>
-          ) : null}
+            ) : null}
+            {showHealthActions ? <AddResultDropdown controller={controller} /> : null}
+          </div>
         </header>
 
         <main ref={workspaceRef} className="workspace" data-nav={controller.selectedNav} aria-labelledby="app-page-title">

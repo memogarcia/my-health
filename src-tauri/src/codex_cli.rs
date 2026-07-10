@@ -11,7 +11,7 @@ mod process;
 use process::{codex_bin, run_command_with_timeout, CodexWorkspace};
 const MAX_PROMPT_CHARS: usize = 32_000;
 const MAX_OUTPUT_CHARS: usize = 8_000;
-const CODEX_TIMEOUT: Duration = Duration::from_secs(120);
+const CODEX_TIMEOUT: Duration = Duration::from_secs(300);
 const CODEX_MODEL_CATALOG_TIMEOUT: Duration = Duration::from_secs(20);
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,7 +44,7 @@ pub struct CodexReasoningEffortOption {
 struct CodexRunOptions {
     model_id: Option<String>,
     reasoning_effort: Option<String>,
-    image_path: Option<PathBuf>,
+    image_paths: Vec<PathBuf>,
     output_schema_path: Option<PathBuf>,
     output_limit: usize,
 }
@@ -53,7 +53,7 @@ impl CodexRunOptions {
         Self {
             model_id: clean_model_id(model_id),
             reasoning_effort: clean_reasoning_effort(reasoning_effort),
-            image_path: None,
+            image_paths: Vec::new(),
             output_schema_path: None,
             output_limit: MAX_OUTPUT_CHARS,
         }
@@ -131,7 +131,7 @@ fn codex_exec_command(workspace: &Path, options: &CodexRunOptions) -> Command {
             .arg("-c")
             .arg(format!("model_reasoning_effort=\"{reasoning_effort}\""));
     }
-    if let Some(image_path) = &options.image_path {
+    for image_path in &options.image_paths {
         command.arg("--image").arg(image_path);
     }
     if let Some(schema_path) = &options.output_schema_path {
@@ -388,7 +388,10 @@ mod tests {
     #[test]
     fn adds_selected_model_and_effort_to_codex_exec() {
         let mut options = CodexRunOptions::from_parts(Some("gpt-5.5".into()), Some("xhigh".into()));
-        options.image_path = Some(Path::new("/tmp/work/result.png").to_path_buf());
+        options.image_paths = vec![
+            Path::new("/tmp/work/page-1.png").to_path_buf(),
+            Path::new("/tmp/work/page-2.png").to_path_buf(),
+        ];
         options.output_schema_path = Some(Path::new("/tmp/work/schema.json").to_path_buf());
         let command = codex_exec_command(Path::new("/tmp/work"), &options);
         let args = command
@@ -402,7 +405,10 @@ mod tests {
         assert!(args.contains(&"model_reasoning_effort=\"xhigh\"".to_string()));
         assert!(args
             .windows(2)
-            .any(|pair| pair[0] == "--image" && pair[1] == "/tmp/work/result.png"));
+            .any(|pair| pair[0] == "--image" && pair[1] == "/tmp/work/page-1.png"));
+        assert!(args
+            .windows(2)
+            .any(|pair| pair[0] == "--image" && pair[1] == "/tmp/work/page-2.png"));
         assert!(args
             .windows(2)
             .any(|pair| pair[0] == "--output-schema" && pair[1] == "/tmp/work/schema.json"));
@@ -421,10 +427,11 @@ mod tests {
     #[test]
     fn run_command_with_timeout_fails_for_long_command() {
         let mut command = Command::new("sh");
-        command.arg("-c").arg("sleep 2");
+        command.arg("-c").arg("echo still-working >&2; sleep 2");
         let error =
             run_command_with_timeout(command, Duration::from_millis(100), None).unwrap_err();
         assert!(error.contains("Timed out"));
+        assert!(error.contains("still-working"));
     }
 
     #[test]

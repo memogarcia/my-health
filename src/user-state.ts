@@ -1,5 +1,5 @@
 import { todayString } from "./dashboard-format";
-import { type ActivityEntry, type UserProfile } from "./dashboard-model";
+import { normalizeUserState, type ActivityEntry, type UserProfile, type UserState } from "./dashboard-model";
 import { isApiKeyEnvVarName, normalizeAiSettings, type AiSettings } from "./ai-sdk-config";
 import { t } from "./i18n";
 
@@ -38,6 +38,28 @@ export function activityFromForm(form: FormData): ActivityEntry {
     activityName,
     durationMinutes: nonNegativeInteger(form, "durationMinutes"),
     notes,
+  };
+}
+
+export function restoreUserState(value: Partial<UserState>): UserState {
+  const normalized = normalizeUserState(value);
+  const interruptedAt = new Date().toISOString();
+  return {
+    ...normalized,
+    backgroundJobs: normalized.backgroundJobs.map((job) => job.status !== "running" ? job : {
+      ...job,
+      status: "failed",
+      progress: null,
+      finishedAt: interruptedAt,
+      error: t("jobs.interrupted"),
+    }),
+    llmCalls: normalized.llmCalls.map((call) => call.status !== "running" ? call : {
+      ...call,
+      status: "failed",
+      finishedAt: interruptedAt,
+      durationMs: Math.max(0, Date.parse(interruptedAt) - Date.parse(call.startedAt)),
+      error: t("developer.interrupted"),
+    }),
   };
 }
 

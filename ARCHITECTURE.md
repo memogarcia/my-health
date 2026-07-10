@@ -29,6 +29,18 @@ data requires the Tauri runtime and unlocked Rust database.
 6. Rust reads or writes SQLite through `database::with_connection`.
 7. The renderer reloads `get_dashboard_snapshot`.
 
+Long-running renderer actions also create a small persisted background-job
+record in `user_state`. The job center tracks document extraction and AI work
+across navigation and reloads; it does not replace the underlying Tauri
+command or claim model-reported progress when only staged progress is known.
+If the app closes while a renderer task is running, restore marks that job as
+interrupted instead of leaving a false-running row.
+
+The Developer page records bounded local diagnostics for these actions: LLM
+command, model, reasoning effort, timing, byte/page counts, output size, event
+messages, and truncated errors. Prompt text, extracted results, and secrets are
+not copied into diagnostics.
+
 Leaf components should not call `invoke()` directly.
 
 ## Storage
@@ -54,6 +66,13 @@ Tables:
 - `regimen_items` includes `updated_at`, `deleted_at`, and active/stop-date state.
 - `ai_settings`
 - `user_state`
+
+`user_state` stores profile/activity/import/conversation data plus recent
+`backgroundJobs`, `developerLogs`, and `llmCalls` entries. Each job has a kind
+(`document-analysis`, `deep-research`, or `ai-chat`), status, created/finished
+timestamps, optional staged progress, and an error message. Developer entries
+are bounded metadata and truncated errors, not prompt or result payloads. This
+is JSON state, not a new SQLite table or a separate hosted queue.
 
 Enums:
 
@@ -144,13 +163,21 @@ selected from chat until Rust-backed execution exists.
 Dropped PDFs and images are sent to Codex only after Rust validates the file,
 the saved provider and model, and the remote-health opt-in. Each request uses a
 permission-restricted ephemeral workspace and a JSON output schema. Supported
-images use Codex CLI image attachments; PDFs are read from the request workspace.
-Extracted rows remain drafts until the user reviews and accepts them.
+images use Codex CLI image attachments; PDFs are rendered locally into JPEG page
+images and attached without placing the original PDF in the Codex workspace.
+The rendered page payload remains bounded by the Rust byte limit. Extracted rows
+remain drafts until the user reviews and accepts them.
 Codex runs with `--ignore-user-config` and treats document contents as untrusted,
 but its read-only sandbox is not an OS-level filesystem read boundary.
 
 AI output is advisory only. Remote health context requires explicit opt-in.
 See `AI.md` for provider details.
+
+The renderer job center wraps the existing `analyze_document` and `ask_llm`
+commands. Document intake reports preparation, extraction, and review stages;
+AI work reports running/completed/failed state. A newer document request marks
+the older renderer job as replaced, while Rust remains the trust boundary for
+the actual request.
 
 ## Module Map
 
@@ -162,12 +189,20 @@ Renderer:
 - `dashboard-model.ts` - shared types, organ visuals, snapshot shaping.
 - `tauri-runtime.ts` - native-runtime guard.
 - `components/` - pages and UI primitives.
+- `components/ui/date-picker.tsx` - shared ISO-date picker composed from the
+  shadcn Calendar and Popover primitives.
+- `components/job-center.tsx` - persisted document-analysis and AI work queue
+  shown in the native app bar.
+- `components/developer-page.tsx` - local Codex call metadata and event log.
 - `components/body/` - body source rail, stable anatomy coordinate plane,
   selected-organ inspector, and display-status helpers.
 - `components/charts/` - SVG chart components for labs, symptoms, regimen periods, document coverage, and AI context coverage.
 - `charts/` - pure chart data transforms and scale utilities.
 - `i18n.ts`, `i18n/locales/en.json` - typed UI copy catalog.
-- `document-intake.ts`, `use-document-intake.ts`, `components/document-review.tsx` - dropped-file review flow.
+- `document-intake.ts`, `document-rendering.ts`, `use-document-intake.ts`,
+  `components/document-review.tsx` - validated document rendering and review flow.
+- `developer-diagnostics.ts`, `use-developer-diagnostics.ts` - bounded local
+  diagnostic models and persistence helpers.
 - `ai-sdk-config.ts`, `ai-actions.ts`, `ai-conversation.ts` - AI settings and chat helpers.
 
 Backend:
@@ -187,6 +222,9 @@ Backend:
 
 - Health data stays in encrypted local SQLite.
 - Browser-only storage is not used for health records.
+- Background-job and developer diagnostic metadata are persisted with encrypted
+  `user_state`; raw document bytes and health context stay governed by the
+  existing intake and AI consent rules.
 - Raw API keys never enter persisted settings.
 - Remote AI context is opt-in, never automatic.
 - PDF/image intake is consent-gated AI extraction followed by mandatory manual

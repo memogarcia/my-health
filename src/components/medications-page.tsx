@@ -16,6 +16,7 @@ import { regimenInputFromForm } from "../regimen-form";
 import type { DashboardController } from "../use-dashboard-controller";
 import { RegimenTimeline } from "./charts/regimen-timeline";
 import { Pill, Plus } from "./health-icons";
+import { DatePicker } from "./ui/date-picker";
 
 export function MedicationsPage({ controller }: { controller: DashboardController }) {
   const items = controller.display.regimenItems;
@@ -23,9 +24,9 @@ export function MedicationsPage({ controller }: { controller: DashboardControlle
   const stopped = items.filter((item) => !item.active);
 
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.1fr)]">
+    <div className="medications-page grid items-start gap-4 xl:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.1fr)]">
       <AddRegimenForm controller={controller} />
-      <section className="grid gap-4" aria-label={t("medications.listLabel")}>
+      <section className="medications-list grid gap-4" aria-label={t("medications.listLabel")}>
         <RegimenSummary activeCount={active.length} stoppedCount={stopped.length} />
         <RegimenTimeline items={items} />
         {items.length === 0 ? (
@@ -50,7 +51,7 @@ export function MedicationsPage({ controller }: { controller: DashboardControlle
 function AddRegimenForm({ controller }: { controller: DashboardController }) {
   const draft = controller.regimenDraft?.input;
   return (
-    <Card className="xl:sticky xl:top-4">
+    <Card className="medications-editor xl:sticky xl:top-4">
       <CardHeader>
         <CardTitle>{t("medications.addTitle")}</CardTitle>
         <CardDescription>{draft ? t("medications.draftDescription") : t("medications.defaultDescription")}</CardDescription>
@@ -108,11 +109,11 @@ function AddRegimenForm({ controller }: { controller: DashboardController }) {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="regimen-start">{t("medications.startDate")}</FieldLabel>
-                <Input id="regimen-start" name="startDate" type="date" defaultValue={draft?.startDate || ""} />
+                <DatePicker id="regimen-start" name="startDate" defaultValue={draft?.startDate || ""} clearable />
               </Field>
               <Field>
                 <FieldLabel htmlFor="regimen-stop">{t("medications.stopDate")}</FieldLabel>
-                <Input aria-describedby="regimen-stop-description" id="regimen-stop" name="stopDate" type="date" defaultValue={draft?.stopDate || ""} />
+                <DatePicker ariaDescribedBy="regimen-stop-description" id="regimen-stop" name="stopDate" defaultValue={draft?.stopDate || ""} clearable />
                 <FieldDescription id="regimen-stop-description">{t("medications.stopDescription")}</FieldDescription>
               </Field>
             </div>
@@ -140,7 +141,7 @@ function AddRegimenForm({ controller }: { controller: DashboardController }) {
 
 function RegimenSummary({ activeCount, stoppedCount }: { activeCount: number; stoppedCount: number }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
+    <div className="regimen-summary grid gap-2 sm:grid-cols-2">
       <div className="rounded-lg border border-border bg-card px-3 py-2.5">
         <p className="text-xs text-muted-foreground">{t("medications.active")}</p>
         <strong className="text-lg font-semibold tnum">{formatCount(activeCount)}</strong>
@@ -155,7 +156,7 @@ function RegimenSummary({ activeCount, stoppedCount }: { activeCount: number; st
 
 function RegimenList({ controller, items, title, muted }: { controller: DashboardController; items: RegimenItem[]; title: string; muted?: boolean }) {
   return (
-    <Card size="sm">
+    <Card className="regimen-list-surface" size="sm">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{t("medications.savedLocally", { count: formatCount(items.length) })}</CardDescription>
@@ -179,7 +180,7 @@ function RegimenItemRow({ controller, item, muted }: { controller: DashboardCont
     return <RegimenEditForm controller={controller} item={item} onCancel={() => setEditing(false)} />;
   }
   return (
-    <div className={cn("grid gap-3 rounded-lg border border-border bg-card px-3 py-3", muted && "bg-muted/30 opacity-75")}>
+    <div className={cn("regimen-row grid gap-3 rounded-lg border border-border bg-card px-3 py-3", muted && "bg-muted/30 opacity-75")}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2">
           <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-accent text-primary"><Pill /></span>
@@ -252,8 +253,8 @@ function RegimenEditForm({ controller, item, onCancel }: { controller: Dashboard
         <Field><FieldLabel htmlFor={`${idPrefix}-frequency`}>{t("medications.frequency")}</FieldLabel><Input id={`${idPrefix}-frequency`} name="frequency" defaultValue={item.frequency} /></Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field><FieldLabel htmlFor={`${idPrefix}-start-date`}>{t("medications.startDate")}</FieldLabel><Input id={`${idPrefix}-start-date`} name="startDate" type="date" defaultValue={item.startDate} /></Field>
-        <Field><FieldLabel htmlFor={`${idPrefix}-stop-date`}>{t("medications.stopDate")}</FieldLabel><Input id={`${idPrefix}-stop-date`} name="stopDate" type="date" defaultValue={item.stopDate} /></Field>
+        <Field><FieldLabel htmlFor={`${idPrefix}-start-date`}>{t("medications.startDate")}</FieldLabel><DatePicker id={`${idPrefix}-start-date`} name="startDate" defaultValue={item.startDate} clearable /></Field>
+        <Field><FieldLabel htmlFor={`${idPrefix}-stop-date`}>{t("medications.stopDate")}</FieldLabel><DatePicker id={`${idPrefix}-stop-date`} name="stopDate" defaultValue={item.stopDate} clearable /></Field>
       </div>
       <Field><FieldLabel htmlFor={`${idPrefix}-reason`}>{t("medications.reason")}</FieldLabel><Input id={`${idPrefix}-reason`} name="reason" defaultValue={item.reason} /></Field>
       <Field><FieldLabel htmlFor={`${idPrefix}-notes`}>{t("common.notes")}</FieldLabel><Textarea id={`${idPrefix}-notes`} name="notes" defaultValue={item.notes} /></Field>

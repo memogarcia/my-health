@@ -49,6 +49,9 @@ const userState: UserState = {
   appleHealthImports: [{ id: "h1", sourceName: "Apple Health", importedAt: "2026-07-04", recordCount: 10, workoutCount: 2, startedAt: "2026-07-01", endedAt: "2026-07-04" }],
   aiConversations: [],
   activeAiConversationId: "",
+  backgroundJobs: [],
+  developerLogs: [],
+  llmCalls: [],
 };
 
 test("buildLifestylePlan turns saved health data into actionable categories", () => {

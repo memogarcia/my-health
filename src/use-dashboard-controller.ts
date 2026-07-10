@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { normalizeAiSettings, type AiSettings, type CodexModelOption } from "./ai-sdk-config";
@@ -9,6 +9,9 @@ import { newLocalDatabasePath, pickExistingDatabase } from "./database-picker";
 import {
   buildDisplaySnapshot,
   normalizeUserState,
+  type BackgroundJob,
+  type BackgroundJobInput,
+  type BackgroundJobPatch,
   type DashboardSnapshot,
   type DialogKey,
   type HistoryTab,
@@ -20,11 +23,11 @@ import { t } from "./i18n";
 import { makePromptActions, type RegimenDraft } from "./prompt-actions";
 import { makeRecordActions, type ResultInput, type SymptomInput } from "./use-dashboard-record-actions";
 import { isTauriRuntime, TAURI_ONLY_MESSAGE } from "./tauri-runtime";
-import { activityFromForm, aiSettingsFromForm, profileFromForm } from "./user-state";
+import { activityFromForm, aiSettingsFromForm, profileFromForm, restoreUserState } from "./user-state";
 import { useDocumentIntake } from "./use-document-intake";
+import { makeDeveloperDiagnostics } from "./use-developer-diagnostics";
 
 export type { ResultInput, SymptomInput };
-
 type DialogName = Exclude<DialogKey, null>;
 
 export function useDashboardController() {
@@ -47,6 +50,57 @@ export function useDashboardController() {
   const databaseEpochRef = useRef(0);
   const userStateRef = useRef(userState);
   const userStateSaveQueueRef = useRef(Promise.resolve());
+
+  function setUserStateWithRef(next: SetStateAction<UserState>): void {
+    const resolved = typeof next === "function" ? next(userStateRef.current) : next;
+    userStateRef.current = resolved;
+    setUserState(resolved);
+  }
+
+  function startBackgroundJob(input: BackgroundJobInput): string {
+    const job: BackgroundJob = {
+      id: newBackgroundJobId(),
+      kind: input.kind,
+      title: input.title,
+      description: input.description,
+      status: "running",
+      progress: null,
+      createdAt: new Date().toISOString(),
+      finishedAt: "",
+      error: "",
+    };
+    const next = normalizeUserState({
+      ...userStateRef.current,
+      backgroundJobs: [job, ...userStateRef.current.backgroundJobs].slice(0, 24),
+    });
+    setUserStateWithRef(next);
+    void persistUserState(next);
+    return job.id;
+  }
+
+  function updateBackgroundJob(jobId: string, patch: BackgroundJobPatch): void {
+    const current = userStateRef.current;
+    if (!current.backgroundJobs.some((job) => job.id === jobId)) return;
+    const next = normalizeUserState({
+      ...current,
+      backgroundJobs: current.backgroundJobs.map((job) => job.id !== jobId ? job : {
+        ...job,
+        ...patch,
+        finishedAt: patch.status && patch.status !== "running" ? new Date().toISOString() : job.finishedAt,
+      }),
+    });
+    setUserStateWithRef(next);
+    void persistUserState(next);
+  }
+
+  function clearFinishedBackgroundJobs(): void {
+    const next = normalizeUserState({
+      ...userStateRef.current,
+      backgroundJobs: userStateRef.current.backgroundJobs.filter((job) => job.status === "running"),
+    });
+    setUserStateWithRef(next);
+    void persistUserState(next);
+  }
 
   useEffect(() => {
     userStateRef.current = userState;
@@ -87,6 +141,8 @@ export function useDashboardController() {
     if (nav === "documents") setActiveHistoryTab("files");
   }
 
+  const { clearDeveloperData, recordDeveloperLog, startLlmCall, updateLlmCall } = makeDeveloperDiagnostics({ getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
+
   const documentIntake = useDocumentIntake({
     aiSettings,
     databasePath: databaseStatus?.dbPath || "",
@@ -94,6 +150,8 @@ export function useDashboardController() {
     loadDashboard,
     setSelectedNav,
     openDocumentDialog: () => setActiveDialog("document"),
+    onJobStart: startBackgroundJob,
+    onJobUpdate: updateBackgroundJob, onDeveloperLog: recordDeveloperLog, onLlmCallStart: startLlmCall, onLlmCallUpdate: updateLlmCall,
   });
 
   function openDialog(key: DialogName): void {
@@ -186,9 +244,9 @@ export function useDashboardController() {
       }
       try {
         const state = await invoke<string>("get_user_state");
-        if (alive) setUserState(normalizeUserState(JSON.parse(state)));
+        if (alive) setUserStateWithRef(restoreUserState(JSON.parse(state)));
       } catch {
-        if (alive) setUserState(normalizeUserState());
+        if (alive) setUserStateWithRef(normalizeUserState());
       }
       if (alive) await loadDashboard(status);
     }
@@ -234,7 +292,7 @@ export function useDashboardController() {
       const settings = await invoke<string>("get_ai_settings").catch(() => "");
       const state = await invoke<string>("get_user_state").catch(() => "");
       setAiSettings(settings ? normalizeAiSettings(JSON.parse(settings)) : normalizeAiSettings());
-      setUserState(state ? normalizeUserState(JSON.parse(state)) : normalizeUserState());
+      setUserStateWithRef(state ? restoreUserState(JSON.parse(state)) : normalizeUserState());
       await loadDashboard(status);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : String(error));
@@ -249,8 +307,7 @@ export function useDashboardController() {
       setDatabaseStatus(status);
       setSnapshot(null);
       setAiSettings(normalizeAiSettings());
-      setUserState(normalizeUserState());
-      userStateRef.current = normalizeUserState();
+      setUserStateWithRef(normalizeUserState());
       setLoadError("");
       setSelectedOrganKey("heart");
       setSelectedNav("body");
@@ -281,7 +338,7 @@ export function useDashboardController() {
 
   async function saveProfile(form: FormData): Promise<void> {
     const next = normalizeUserState({ ...userState, profile: profileFromForm(form) });
-    setUserState(next);
+    setUserStateWithRef(next);
     setSelectedNav("settings");
     if (await persistUserState(next)) toast.success(t("toast.profileSaved"));
   }
@@ -300,7 +357,7 @@ export function useDashboardController() {
   async function addActivity(form: FormData): Promise<void> {
     const entry = activityFromForm(form);
     const next = normalizeUserState({ ...userState, activityEntries: [entry, ...userState.activityEntries] });
-    setUserState(next);
+    setUserStateWithRef(next);
     closeDialog();
     if (await persistUserState(next)) toast.success(t("toast.dailyLogSaved"));
   }
@@ -314,7 +371,7 @@ export function useDashboardController() {
         ...userState,
         appleHealthImports: [summary, ...userState.appleHealthImports],
       });
-      setUserState(next);
+      setUserStateWithRef(next);
       if (await persistUserState(next)) toast.success(t("toast.appleHealthSaved", { count: summary.recordCount }));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
@@ -357,11 +414,13 @@ export function useDashboardController() {
     setAiPendingConversationId,
     setRegimenDraft,
     setSelectedNav,
-    setUserState,
+    setUserState: setUserStateWithRef,
     userState,
     databaseEpoch: databaseEpochRef.current,
     isDatabaseCurrent: (epoch) => databaseEpochRef.current === epoch,
     getUserState: () => userStateRef.current,
+    onJobStart: startBackgroundJob,
+    onJobUpdate: updateBackgroundJob, onDeveloperLog: recordDeveloperLog, onLlmCallStart: startLlmCall, onLlmCallUpdate: updateLlmCall,
   });
 
   return {
@@ -386,6 +445,9 @@ export function useDashboardController() {
     regimenDraft,
     databaseStatus,
     aiPendingConversationId,
+    backgroundJobs: userState.backgroundJobs,
+    activeBackgroundJobCount: userState.backgroundJobs.filter((job) => job.status === "running").length,
+    developerLogs: userState.developerLogs, llmCalls: userState.llmCalls,
     codexModels,
     codexOptionsError,
     attentionMarkers,
@@ -412,6 +474,7 @@ export function useDashboardController() {
     addDocumentResultRow: documentIntake.addDocumentResultRow,
     acceptDocumentResults: documentIntake.acceptDocumentResults,
     exportDatabase,
+    clearFinishedBackgroundJobs, clearDeveloperData,
     startAiConversation: promptActions.startAiConversation,
     selectAiConversation: promptActions.selectAiConversation,
     submitAiPrompt: promptActions.submitAiPrompt,
@@ -420,3 +483,7 @@ export function useDashboardController() {
 }
 
 export type DashboardController = ReturnType<typeof useDashboardController>;
+
+function newBackgroundJobId(): string {
+  return globalThis.crypto?.randomUUID?.() || `job-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}

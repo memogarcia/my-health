@@ -18,7 +18,7 @@ import { DataExportSettings } from "./data-export-settings";
 
 export function SettingsPage({ controller }: { controller: DashboardController }) {
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+    <div className="settings-page grid items-start gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       <ProfileSettings controller={controller} />
       <div className="grid gap-4">
         <AiSettings controller={controller} />
@@ -32,7 +32,7 @@ function ProfileSettings({ controller }: { controller: DashboardController }) {
   const profile = controller.userState.profile;
   const fieldCount = [profile.age, profile.sex, profile.heightCm, profile.weightKg].filter(Boolean).length;
   return (
-    <Card>
+    <Card className="settings-surface settings-profile-surface">
       <CardHeader>
         <CardTitle>{t("settings.profile.title")}</CardTitle>
         <CardDescription>{fieldCount === 0 ? t("settings.profile.notSet") : t("settings.profile.fieldsSet", { count: fieldCount })}</CardDescription>
@@ -148,7 +148,7 @@ function AiSettings({ controller }: { controller: DashboardController }) {
   }
 
   return (
-    <Card>
+    <Card className="settings-surface settings-ai-surface">
       <CardHeader>
         <CardTitle>{t("settings.ai.title")}</CardTitle>
         <CardDescription>{provider.statusLabel}</CardDescription>

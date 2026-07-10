@@ -8,10 +8,13 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2 } from "lucide-react";
 import type { ExtractedResult, ExtractedResultStatus, PendingDocument } from "../dashboard-model";
+import { missingExtractedResultFields, type ExtractedResultField } from "../document-analysis";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { AlertTriangle, FileText, LoaderCircle, Plus, Send } from "./health-icons";
+import { StatusBadge, StatusDot } from "./health-status";
 import { followUpPriorityLabel } from "./lab-result-context";
+import { DatePicker } from "./ui/date-picker";
 import { OrganSelect } from "./organ-select";
 
 export function DocumentReview({ controller }: { controller: DashboardController }) {
@@ -50,8 +53,8 @@ export function DocumentReview({ controller }: { controller: DashboardController
         </Alert>
       ) : null}
       <div className="grid gap-3">
-        {analysis.results.map((result) => (
-          <ResultRowEditor key={result.id} controller={controller} result={result} />
+        {analysis.results.map((result, index) => (
+          <ResultRowEditor key={result.id} controller={controller} result={result} resultNumber={index + 1} />
         ))}
       </div>
       <Button variant="outline" size="sm" className="justify-self-start" onClick={() => controller.addDocumentResultRow()} disabled={analysis.status === "analyzing"}>
@@ -59,7 +62,7 @@ export function DocumentReview({ controller }: { controller: DashboardController
       </Button>
       <DialogFooter>
         <Button variant="ghost" onClick={() => controller.closeDialog()}>{t("common.cancel")}</Button>
-        <Button onClick={() => void controller.acceptDocumentResults()} disabled={analysis.status === "analyzing" || analysis.results.length === 0 || analysis.results.some(needsReview)}>
+        <Button onClick={() => void controller.acceptDocumentResults()} disabled={analysis.status === "analyzing" || analysis.results.length === 0}>
           <Send data-icon="inline-start" />{t("intake.document.accept")}
         </Button>
       </DialogFooter>
@@ -67,14 +70,21 @@ export function DocumentReview({ controller }: { controller: DashboardController
   );
 }
 
-function ResultRowEditor({ controller, result }: { controller: DashboardController; result: ExtractedResult }) {
+function ResultRowEditor({ controller, result, resultNumber }: { controller: DashboardController; result: ExtractedResult; resultNumber: number }) {
   const update = (patch: Partial<ExtractedResult>): void => controller.updateDocumentResult(result.id, patch);
-  const warning = needsReview(result);
+  const missingFields = missingExtractedResultFields(result);
+  const visualStatus = result.status || "empty";
   return (
-    <div className="grid gap-3 rounded-lg border bg-muted/30 p-3">
-      {warning ? <Alert><AlertTriangle /><AlertDescription>{t("intake.document.resolveFields")}</AlertDescription></Alert> : null}
+    <div className="document-result-card grid gap-3 rounded-lg border bg-muted/30 p-3" data-result-needs-review={missingFields.length > 0 ? "true" : undefined} data-result-status={visualStatus}>
+      {missingFields.length > 0 ? <Alert><AlertTriangle /><AlertDescription>{t("intake.document.resolveFields", { fields: missingFields.map(documentFieldLabel).join(", ") })}</AlertDescription></Alert> : null}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("intake.document.result")}</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-foreground">{t("intake.document.result")} {resultNumber}</span>
+          <StatusBadge status={visualStatus}>
+            <StatusDot status={visualStatus} className="size-1.5" />
+            {result.status ? followUpPriorityLabel(result.status) : t("intake.document.needsReview")}
+          </StatusBadge>
+        </div>
         <Button variant="ghost" size="sm" className="h-7 px-2 text-muted-foreground" onClick={() => controller.removeDocumentResult(result.id)} title={t("intake.document.removeResult")} aria-label={t("intake.document.removeResult")}>
           <Trash2 className="size-4" />
         </Button>
@@ -114,7 +124,7 @@ function ResultRowEditor({ controller, result }: { controller: DashboardControll
         </Field>
         <Field className="sm:col-span-2">
           <FieldLabel htmlFor={`date-${result.id}`}>{t("common.date")}</FieldLabel>
-          <Input id={`date-${result.id}`} type="date" value={result.measuredAt} onChange={(event) => update({ measuredAt: event.target.value })} />
+          <DatePicker id={`date-${result.id}`} value={result.measuredAt} onChange={(measuredAt) => update({ measuredAt })} />
         </Field>
       </div>
       <Field>
@@ -125,10 +135,13 @@ function ResultRowEditor({ controller, result }: { controller: DashboardControll
   );
 }
 
-
-function needsReview(result: ExtractedResult): boolean {
-  return !result.marker.trim() || !result.value.trim() || !result.measuredAt || !result.status;
+function documentFieldLabel(field: ExtractedResultField): string {
+  if (field === "marker") return t("intake.result.marker");
+  if (field === "value") return t("common.value");
+  if (field === "measuredAt") return t("common.date");
+  return t("lab.followUp.label");
 }
+
 
 function DocumentSummary({ document }: { document: PendingDocument }) {
   return (

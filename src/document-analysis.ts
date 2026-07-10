@@ -5,18 +5,21 @@ const VALID_ORGANS = new Set(defaultOrgans.map((organ) => organ.key));
 const VALID_STATUSES = new Set<ExtractedResultStatus>(["normal", "monitor", "attention"]);
 const MAX_RESULTS = 30;
 
+export type ExtractedResultField = "marker" | "value" | "measuredAt" | "status";
+
 /** Document bytes cross the Tauri trust boundary; keep IPC payloads bounded. */
 export const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
 
-export function parseExtractedResults(raw: string, fallbackOrgan = "blood"): ExtractedResult[] {
+export function parseExtractedResults(raw: string, fallbackOrgan = "blood", fallbackDate = todayString()): ExtractedResult[] {
   const parsed = parseJson(raw);
   const values = Array.isArray(parsed)
     ? parsed
     : parsed && typeof parsed === "object" && Array.isArray((parsed as { results?: unknown }).results)
       ? (parsed as { results: unknown[] }).results
       : [];
+  const defaultDate = normalizeDate(fallbackDate) || todayString();
   return values
-    .map((value) => normalizeExtractedResult(value, fallbackOrgan))
+    .map((value) => normalizeExtractedResult(value, fallbackOrgan, defaultDate))
     .filter((result): result is ExtractedResult => result !== null)
     .slice(0, MAX_RESULTS);
 }
@@ -35,7 +38,16 @@ export function createEmptyExtractedResult(organKey: string): ExtractedResult {
   };
 }
 
-function normalizeExtractedResult(value: unknown, fallbackOrgan: string): ExtractedResult | null {
+export function missingExtractedResultFields(result: ExtractedResult): ExtractedResultField[] {
+  const missing: ExtractedResultField[] = [];
+  if (!result.marker.trim()) missing.push("marker");
+  if (!result.value.trim()) missing.push("value");
+  if (!result.measuredAt) missing.push("measuredAt");
+  if (!result.status) missing.push("status");
+  return missing;
+}
+
+function normalizeExtractedResult(value: unknown, fallbackOrgan: string, fallbackDate: string): ExtractedResult | null {
   if (!value || typeof value !== "object") return null;
   const entry = value as Record<string, unknown>;
   const marker = str(entry.marker) || str(entry.name) || str(entry.test);
@@ -47,8 +59,16 @@ function normalizeExtractedResult(value: unknown, fallbackOrgan: string): Extrac
     value: str(entry.value) || str(entry.result),
     unit: str(entry.unit) || str(entry.units),
     referenceRange: str(entry.referenceRange) || str(entry.reference_range) || str(entry.range),
-    status: normalizeStatus(entry.status),
-    measuredAt: normalizeDate(entry.measuredAt ?? entry.date ?? entry.measured_at ?? entry.collectedAt),
+    status: normalizeStatus(entry.status) || normalizeStatus(entry.followUpPriority) || normalizeStatus(entry.priority),
+    measuredAt: normalizeDate(
+      entry.measuredAt
+        ?? entry.date
+        ?? entry.measured_at
+        ?? entry.collectedAt
+        ?? entry.collectionDate
+        ?? entry.reportDate
+        ?? entry.resultDate,
+    ) || fallbackDate,
     notes: str(entry.notes) || str(entry.note) || str(entry.comment),
   };
 }
@@ -81,8 +101,12 @@ function normalizeOrgan(value: unknown, fallback: string): string {
 }
 
 function normalizeStatus(value: unknown): ExtractedResultStatus {
-  const key = str(value).toLowerCase() as ExtractedResultStatus;
-  return VALID_STATUSES.has(key) ? key : "";
+  const key = str(value).toLowerCase().replace(/[\s_-]+/gu, " ");
+  if (VALID_STATUSES.has(key as ExtractedResultStatus)) return key as ExtractedResultStatus;
+  if (key === "routine" || key === "no follow up") return "normal";
+  if (key === "watch") return "monitor";
+  if (key === "discuss soon" || key === "urgent" || key === "critical") return "attention";
+  return "";
 }
 
 function normalizeDate(value: unknown): string {

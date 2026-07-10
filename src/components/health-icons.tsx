@@ -2,6 +2,7 @@ import {
   Activity,
   AlertTriangle,
   Bone,
+  Bug,
   Brain,
   Check,
   CheckCircle2,
@@ -44,6 +45,7 @@ export const navIcons: Record<NavKey, LucideIcon> = {
   research: Sparkles,
   documents: Folder,
   settings: Settings,
+  developer: Bug,
 };
 
 export const organIcons: Record<string, LucideIcon> = {
@@ -67,6 +69,7 @@ export const organIcons: Record<string, LucideIcon> = {
 export {
   Activity,
   AlertTriangle,
+  Bug,
   Check,
   CheckCircle2,
   ChevronRight,

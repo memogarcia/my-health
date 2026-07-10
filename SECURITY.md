@@ -38,10 +38,16 @@ See `AI.md` for provider details.
 
 Imported document bytes are stored inside the SQLCipher-encrypted database in
 the same transaction as their structured result rows. When remote health
-context is enabled, a document selected for result extraction is copied into a
-permission-restricted, per-request Codex workspace and sent to the configured
-model. Rust validates its signature, size, saved consent, and selected model
-before execution. The temporary workspace is removed after the request.
+context is enabled, a supported image or locally rendered PDF page is copied
+into a permission-restricted, per-request Codex workspace and sent to the
+configured model. Their original bytes are not placed in that workspace, and
+Rust bounds the total rendered page payload before execution. Rust validates
+signatures, sizes, saved consent, and the selected model. The workspace is
+removed afterward.
+
+The native Developer page stores only bounded diagnostic metadata in encrypted
+`user_state`: command, model, timing, counts, lifecycle messages, and truncated
+errors. Prompt text, extracted result rows, and API keys are excluded.
 
 ## Known Limits
 

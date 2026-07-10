@@ -416,3 +416,42 @@ html[data-platform="macos"] .app-sidebar { padding-top: 2.65rem; }
   .body-workspace-grid { grid-template-columns: minmax(0, 1fr); }
   .body-workspace-grid > :first-child { grid-column: 1; }
 }
+
+/* ===== Redesigned product surfaces =====
+   Keep the existing data components and interaction contracts, but give every
+   route the same connected workspace rhythm as the body view. */
+.app-shell { grid-template-columns: 188px minmax(0, 1fr); }
+.app-sidebar { padding-inline: 0.55rem; }
+.app-brand { padding-inline: 0.45rem; }
+.app-brand-icon { width: 1.8rem; height: 1.8rem; border-radius: 0.5rem; }
+.app-brand strong { font-size: 1rem; }
+.app-nav { gap: 0.25rem; }
+.nav-group-label { margin-top: 0.75rem; font-size: 0.64rem; letter-spacing: 0.08em; }
+.app-nav-button { height: 2.25rem; border-radius: 0.5rem; }
+.app-nav-button kbd { opacity: 0; transition: opacity var(--dur-feedback) var(--ease-out-quart); }
+.app-nav-button:hover kbd, .app-nav-button:focus-visible kbd { opacity: 1; }
+.app-bar { min-height: 56px; padding: 0.45rem 1.15rem; background: var(--card); }
+.app-page-title h1 { font-size: 1.12rem; }
+.app-page-title p { display: none; }
+.workspace { gap: 0.85rem; padding: 1rem 1.1rem 1.1rem; }
+.app-bar-actions { gap: 0.4rem; }
+.ai-prompt-bar { margin: 0 1.1rem 0.85rem; border-radius: 0.7rem; background: var(--card); box-shadow: none; }
+.ai-prompt-bar:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 18%, transparent); }
+.ai-prompt-bar [data-slot="button"] { min-width: 5.25rem; }
+
+/* Body stays the anchor. The surrounding chrome now reads as one workbench. */
+.body-status-strip { min-height: 58px; padding-bottom: 0.65rem; }
+.body-status-copy h2 { font-size: 0.95rem; }
+.body-status-copy p { font-size: 0.74rem; }
+.body-status-counts > div { min-width: 5rem; }
+.body-workbench { min-height: 540px; height: clamp(540px, calc(100vh - 198px), 700px); border-radius: 0.75rem; }
+.organ-panel { background: color-mix(in srgb, var(--muted) 54%, var(--card)); }
+.organ-panel-header { padding: 0.8rem 0.75rem 0.65rem; }
+.organ-row { min-height: 46px; border-radius: 0.45rem; }
+.organ-row[aria-pressed="true"] { background: color-mix(in srgb, var(--primary) 10%, var(--card)); box-shadow: inset 2px 0 0 var(--primary); }
+.anatomy-stage { background: color-mix(in srgb, var(--accent) 16%, var(--background)); }
+.detail-rail { background: var(--card); }
+.inspector-header { padding: 0.85rem; }
+.detail-rail > [data-slot="card"] { padding-top: 0; }
+.detail-rail [data-slot="card-header"] { padding-top: 0.8rem; padding-bottom: 0.55rem; }
+.detail-rail [data-slot="card-content"] { padding-bottom: 0.85rem; }

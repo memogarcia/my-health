@@ -12,6 +12,7 @@ import type { DashboardController } from "../../use-dashboard-controller";
 import { FileText } from "../health-icons";
 import { OrganSelect } from "../organ-select";
 import { organName, severityRank } from "./history-helpers";
+import { DatePicker } from "../ui/date-picker";
 
 export function SymptomTimeline({
   controller,
@@ -82,7 +83,7 @@ function SymptomRow({ controller, symptom, organs, onSelectOrgan }: { controller
           </Field>
           <Field>
             <FieldLabel htmlFor={`symptom-edit-date-${symptom.id}`}>{t("common.date")}</FieldLabel>
-            <Input id={`symptom-edit-date-${symptom.id}`} name="observedAt" type="date" defaultValue={symptom.observedAt} required />
+            <DatePicker id={`symptom-edit-date-${symptom.id}`} name="observedAt" defaultValue={symptom.observedAt} required />
           </Field>
         </FieldGroup>
         <Field>

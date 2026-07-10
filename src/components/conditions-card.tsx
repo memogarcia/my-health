@@ -13,6 +13,7 @@ import type { DashboardController } from "../use-dashboard-controller";
 import { Plus } from "./health-icons";
 import { OrganSelect } from "./organ-select";
 import { EmptyMessage, StatusBadge } from "./health-status";
+import { DatePicker } from "./ui/date-picker";
 
 const conditionLabels: Record<ConditionStatus, string> = {
   current: t("conditions.current"),
@@ -91,7 +92,7 @@ function ConditionForm({ controller }: { controller: DashboardController }) {
         <div className="mt-2 grid gap-2">
           <Field>
             <FieldLabel htmlFor="condition-date">{t("common.date")}</FieldLabel>
-            <Input id="condition-date" name="diagnosedAt" type="date" />
+            <DatePicker id="condition-date" name="diagnosedAt" clearable />
           </Field>
           <Field>
             <FieldLabel htmlFor="condition-notes">{t("common.notes")}</FieldLabel>
@@ -138,7 +139,7 @@ function ConditionRow({ condition, controller }: { condition: ConditionEntry; co
             </SelectContent>
           </Select>
         </Field>
-        <Input name="diagnosedAt" type="date" defaultValue={condition.diagnosedAt} aria-label={t("common.date")} />
+        <DatePicker id={`condition-edit-date-${condition.id}`} name="diagnosedAt" defaultValue={condition.diagnosedAt} clearable ariaLabel={t("common.date")} />
         <Field>
           <FieldLabel htmlFor={`condition-edit-notes-${condition.id}`}>{t("common.notes")}</FieldLabel>
           <Textarea id={`condition-edit-notes-${condition.id}`} name="notes" defaultValue={condition.notes} placeholder={t("conditions.placeholder.notes")} />

@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "./components.css";
 @import "./layout.css";
+@import "./redesign.css";
 @import "./animations.css";
 
 @custom-variant dark (&:is(.dark *));

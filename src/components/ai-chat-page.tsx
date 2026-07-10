@@ -17,7 +17,7 @@ const MarkdownOutput = lazy(() => import("./markdown-output").then((module) => (
 export function AiChatPage({ controller }: { controller: DashboardController }) {
   const activeConversation = getActiveAiConversation(controller.userState);
   return (
-    <section className="chat-layout">
+    <section className="chat-page chat-layout">
       <ThreadRail controller={controller} activeConversation={activeConversation} />
       <ConversationPanel controller={controller} activeConversation={activeConversation} />
     </section>
@@ -27,7 +27,7 @@ export function AiChatPage({ controller }: { controller: DashboardController }) 
 function ThreadRail({ controller, activeConversation }: { controller: DashboardController; activeConversation: AiConversation | null }) {
   const count = controller.userState.aiConversations.length;
   return (
-    <Card className="min-h-0">
+    <Card className="chat-thread-rail min-h-0">
       <CardHeader>
         <CardTitle>{t("chat.conversations")}</CardTitle>
         <CardDescription>{t(count === 1 ? "chat.savedThread" : "chat.savedThreads", { count })}</CardDescription>
@@ -86,7 +86,7 @@ function ConversationPanel({ controller, activeConversation }: { controller: Das
   }, [messageCount, pending, activeConversation?.id]);
 
   return (
-    <Card className="min-h-0">
+    <Card className="chat-conversation-panel min-h-0">
       <CardHeader>
         <CardTitle>{activeConversation ? activeConversation.title : t("chat.askTitle")}</CardTitle>
         <CardDescription>{t("chat.description")}</CardDescription>

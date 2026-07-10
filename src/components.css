@@ -35,6 +35,22 @@
   background: color-mix(in srgb, var(--status-empty) 7%, white);
 }
 
+.document-result-card {
+  border-color: color-mix(in srgb, var(--status-empty) 28%, var(--border));
+}
+.document-result-card[data-result-needs-review="true"] {
+  border-color: color-mix(in srgb, var(--status-monitor) 42%, var(--border));
+}
+.document-result-card[data-result-status="normal"] {
+  border-color: color-mix(in srgb, var(--status-normal) 32%, var(--border));
+}
+.document-result-card[data-result-status="monitor"] {
+  border-color: color-mix(in srgb, var(--status-monitor) 38%, var(--border));
+}
+.document-result-card[data-result-status="attention"] {
+  border-color: color-mix(in srgb, var(--status-attention) 44%, var(--border));
+}
+
 .severity-meter { display: inline-flex; gap: 3px; }
 .meter-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 999px; }
 /* Unfilled track reads as a lighter step of the same status ramp, so state
@@ -138,6 +154,22 @@
 .ai-prompt-bar [data-slot="textarea"] { border: 0; background: transparent; box-shadow: none; }
 .ai-prompt-bar [data-slot="textarea"]:focus-visible { outline: none; border: 0; box-shadow: none; }
 .ai-prompt-bar:focus-within { border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent); }
+
+/* Background work uses staged progress when the native task cannot report a
+   precise percentage. The moving segment communicates activity without
+   pretending the model has an exact completion estimate. */
+.job-progress[data-indeterminate="true"] [data-slot="progress-indicator"] {
+  width: 35%;
+  transform: translateX(0) !important;
+  animation: job-progress 1.2s ease-in-out infinite;
+}
+@keyframes job-progress {
+  0%, 100% { transform: translateX(-100%) !important; }
+  50% { transform: translateX(185%) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .job-progress[data-indeterminate="true"] [data-slot="progress-indicator"] { animation: none; transform: translateX(0) !important; }
+}
 
 /* ===== Chat ===== */
 .chat-layout {

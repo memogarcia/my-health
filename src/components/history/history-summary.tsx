@@ -36,6 +36,7 @@ function LabSummary({ labs, hasUnfiltered, onClear, action }: { labs: LabResult[
   const latestLabs = useMemo(() => latestLabsByMarker(labs), [labs]);
   const attention = latestLabs.filter((lab) => lab.status === "attention").length;
   const monitor = latestLabs.filter((lab) => lab.status === "monitor").length;
+  const routine = Math.max(0, latestLabs.length - attention - monitor);
   const latestDate = latestOf(labs.map((lab) => lab.measuredAt));
 
   let lead: string;
@@ -54,12 +55,17 @@ function LabSummary({ labs, hasUnfiltered, onClear, action }: { labs: LabResult[
     detail = t("history.summary.followUpDetail");
   }
 
-  return <SummaryHero lead={lead} detail={detail} latestDate={latestDate} showClear={latestLabs.length === 0 && hasUnfiltered} onClear={onClear} action={action} />;
+  return <SummaryHero lead={lead} detail={detail} latestDate={latestDate} showClear={latestLabs.length === 0 && hasUnfiltered} onClear={onClear} action={action} metrics={[
+    { status: "attention", label: t("lab.followUp.attention"), count: attention },
+    { status: "monitor", label: t("lab.followUp.monitor"), count: monitor },
+    { status: "normal", label: t("lab.followUp.normal"), count: routine },
+  ]} />;
 }
 
 function SymptomSummary({ symptoms, hasUnfiltered, onClear, action }: { symptoms: SymptomEntry[]; hasUnfiltered: boolean; onClear: () => void; action?: React.ReactNode }) {
   const severe = symptoms.filter((symptom) => symptom.severity >= 4).length;
   const watch = symptoms.filter((symptom) => symptom.severity >= 2 && symptom.severity < 4).length;
+  const mild = Math.max(0, symptoms.length - severe - watch);
   const latestDate = latestOf(symptoms.map((symptom) => symptom.observedAt));
 
   let lead: string;
@@ -78,7 +84,11 @@ function SymptomSummary({ symptoms, hasUnfiltered, onClear, action }: { symptoms
     detail = t("history.summary.mildDetail");
   }
 
-  return <SummaryHero lead={lead} detail={detail} latestDate={latestDate} showClear={symptoms.length === 0 && hasUnfiltered} onClear={onClear} action={action} />;
+  return <SummaryHero lead={lead} detail={detail} latestDate={latestDate} showClear={symptoms.length === 0 && hasUnfiltered} onClear={onClear} action={action} metrics={[
+    { status: "attention", label: t("status.attention"), count: severe },
+    { status: "monitor", label: t("status.monitor"), count: watch },
+    { status: "normal", label: t("status.normal"), count: mild },
+  ]} />;
 }
 
 function SummaryHero({
@@ -88,6 +98,7 @@ function SummaryHero({
   showClear,
   onClear,
   action,
+  metrics,
 }: {
   lead: string;
   detail: string;
@@ -95,12 +106,24 @@ function SummaryHero({
   showClear: boolean;
   onClear: () => void;
   action?: React.ReactNode;
+  metrics: Array<{ status: "normal" | "monitor" | "attention"; label: string; count: number }>;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
-      <div className="min-w-0">
+    <div className="history-summary flex flex-wrap items-end justify-between gap-3 border-b border-border pb-3">
+      <div className="history-summary-lead min-w-0">
         <h2 className="text-base font-semibold">{lead}</h2>
         <p className="text-sm text-muted-foreground">{detail}</p>
+      </div>
+      <div className="history-summary-metrics" aria-label={t("lab.followUp.label")}>
+        {metrics.map((metric) => (
+          <div className={`history-summary-metric status-${metric.status}`} key={metric.label}>
+            <span className="status-dot" aria-hidden="true" />
+            <span>
+              <strong className="tnum">{metric.count}</strong>
+              <small>{metric.label}</small>
+            </span>
+          </div>
+        ))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {action}

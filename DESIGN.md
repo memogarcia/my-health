@@ -8,8 +8,9 @@ live in `PRODUCT.md`.
 
 Source of truth for tokens is `src/styles.css` (Tailwind v4 `@theme inline` +
 CSS custom properties). Shell and body-workbench layout lives in
-`src/layout.css`; component and chart details live in `src/components.css`.
-Update the relevant file and this document together.
+`src/layout.css`; shared route-surface refinements live in `src/redesign.css`;
+component and chart details live in `src/components.css`. Update the relevant
+file and this document together.
 
 ## Foundations
 
@@ -127,7 +128,9 @@ hotspot (`label-below` flips them). Keep hotspots keyboard-focusable; they are
 shadcn primitives in `src/components/ui/` (Radix-backed): `alert`, `badge`,
 `button`, `card`, `checkbox`, `dialog`, `empty`, `field`, `input`, `label`,
 `scroll-area`, `section`, `select`, `separator`, `skeleton`, `sonner`,
-`table`, `tabs`, `textarea`. `components.json` configures the registry:
+`table`, `tabs`, `textarea`, `calendar`, `popover`, `progress`, `tooltip`.
+The app-level `date-picker` wrapper composes Calendar + Popover for ISO dates.
+`components.json` configures the registry:
 `radix-nova` style, `neutral` base, CSS variables on, `lucide` icons, aliases
 `@/components`, `@/components/ui`, `@/lib/utils`.
 
@@ -139,12 +142,26 @@ Rules:
   show a blank panel.
 - Toasts go through `sonner` (`toast.success`/`error`/`warning`), with copy
   from the i18n catalog.
+- Dates use the shared `DatePicker` wrapper everywhere a health record accepts
+  an ISO date. It opens the shadcn `Calendar` in a `Popover` and submits the
+  existing ISO string through a hidden form field.
+- Background work uses `JobCenter` in the app bar. Rows pair a text status,
+  icon, and `Progress`; indeterminate progress is used when the native task
+  cannot provide an exact percentage.
+- The Developer page is a compact diagnostic workspace: expandable LLM-call
+  rows show request metadata and timing, while a chronological event list shows
+  renderer stages and bounded errors. It is operational UI, not a second chat
+  surface; prompt contents and health payloads stay out of the visible log.
 
 Charts live in `src/components/charts/` and use compact inline SVG, not a chart
 library. Use neutral trend lines, muted grid lines, and status color only for
 the current state or high-severity bars. Reference ranges should be visible as a
 soft band or normalized strip. Every chart needs a text summary, empty state,
 and accessible title/label.
+
+Document review rows identify themselves as `RESULT {n}`. Their outer border and
+follow-up badge use the existing status mapping, while an unset priority remains
+visibly labeled as `Needs review`.
 
 ## Motion
 
@@ -166,6 +183,10 @@ page entry or pulse health indicators continuously. Respect
 - Route changes reset workspace scroll and focus the new page heading.
 - Drag regions (`data-tauri-drag-region`) are marked `aria-hidden` so they do
   not capture screen-reader focus.
+- Date picker triggers expose their label, expanded state, and required state;
+  the calendar keeps keyboard navigation through React Day Picker.
+- Job rows expose running/completed/failed labels in addition to color and
+  preserve task error text when available.
 - Contrast meets the calm-clinical baseline; avoid low-contrast muted text for
   values the user must read.
 

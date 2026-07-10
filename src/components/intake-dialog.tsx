@@ -13,6 +13,7 @@ import { Send } from "./health-icons";
 import { DocumentReview } from "./document-review";
 import { followUpPriorityLabel } from "./lab-result-context";
 import { OrganSelect } from "./organ-select";
+import { DatePicker } from "./ui/date-picker";
 
 export function IntakeDialog({ controller }: { controller: DashboardController }) {
   const title = dialogTitle(controller.activeDialog);
@@ -88,7 +89,7 @@ function ResultForm({ controller }: { controller: DashboardController }) {
           </Field>
           <Field>
             <FieldLabel htmlFor="measuredAt">{t("common.date")}</FieldLabel>
-            <Input id="measuredAt" name="measuredAt" type="date" defaultValue={todayString()} required />
+            <DatePicker id="measuredAt" name="measuredAt" defaultValue={todayString()} required />
           </Field>
         </FieldGroup>
         <Field>
@@ -123,7 +124,7 @@ function SymptomForm({ controller }: { controller: DashboardController }) {
         <Field><FieldLabel htmlFor="symptom-name">{t("intake.symptom.name")}</FieldLabel><Input id="symptom-name" name="name" placeholder={t("intake.symptom.placeholder")} required /></Field>
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <Field><FieldLabel htmlFor="severity">{t("intake.symptom.severity")}</FieldLabel><Input id="severity" name="severity" type="number" min={1} max={5} defaultValue={1} required /></Field>
-          <Field><FieldLabel htmlFor="observedAt">{t("common.date")}</FieldLabel><Input id="observedAt" name="observedAt" type="date" defaultValue={todayString()} required /></Field>
+          <Field><FieldLabel htmlFor="observedAt">{t("common.date")}</FieldLabel><DatePicker id="observedAt" name="observedAt" defaultValue={todayString()} required /></Field>
         </FieldGroup>
         <Field><FieldLabel htmlFor="symptom-notes">{t("common.notes")}</FieldLabel><Textarea id="symptom-notes" name="notes" placeholder={t("intake.symptom.notesPlaceholder")} /></Field>
         <DialogFooter><Button type="submit">{t("intake.symptom.save")}</Button></DialogFooter>
@@ -142,7 +143,7 @@ function ActivityForm({ controller }: { controller: DashboardController }) {
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor="activity-date">{t("intake.activity.date")}</FieldLabel>
-            <Input id="activity-date" name="loggedAt" type="date" defaultValue={todayString()} required />
+            <DatePicker id="activity-date" name="loggedAt" defaultValue={todayString()} required />
           </Field>
           <Field>
             <FieldLabel htmlFor="activity-name">{t("intake.activity.name")}</FieldLabel>

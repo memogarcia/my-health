@@ -66,4 +66,6 @@ Rust execution path is added.
 Configure AI in Settings after the app is running. API keys are referenced by
 environment variable name and are not stored in the database. Enabling remote
 health context also allows selected PDF and image reports to be sent to Codex
-for draft result extraction; every extracted row must be reviewed before saving.
+for draft result extraction. PDFs are rendered locally, and every extracted row
+must be reviewed before saving. The native Developer area shows bounded local
+Codex call metadata and errors without storing prompt contents or secrets.

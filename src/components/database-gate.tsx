@@ -151,12 +151,12 @@ export function DatabaseGate({ status, error, onNewDatabase, onOpenDatabase, onS
                 <Plus data-icon="inline-start" />{t("gate.newDatabase")}
               </Button>
             </div>
-            <FieldDescription>
+            <div className="text-left text-sm leading-normal text-muted-foreground">
               <details className="text-xs text-muted-foreground">
                 <summary className="cursor-pointer font-medium">{t("gate.databaseLocation")}</summary>
                 <span className="mt-2 block break-all">{status.dbPath}</span>
               </details>
-            </FieldDescription>
+            </div>
           </FieldGroup>
         </form>
       </div>

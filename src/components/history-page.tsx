@@ -120,7 +120,7 @@ function ResultsPage({
   onViewChange: (value: LabView) => void;
 }) {
   return (
-    <div className="grid gap-4">
+    <div className="history-page history-page-results">
       <HistorySummary
         tab="labs"
         labs={labs}
@@ -129,7 +129,7 @@ function ResultsPage({
         hasUnfilteredSymptoms={symptoms.length > 0}
         onClear={onClear}
       />
-      <Card>
+      <Card className="history-surface">
         <CardHeader>
           <CardTitle className="text-xl">{t("history.results.title")}</CardTitle>
           <CardDescription>{t("history.results.description")}</CardDescription>
@@ -179,7 +179,7 @@ function SymptomsPage({
   onSearchChange: (value: string) => void;
 }) {
   return (
-    <div className="grid gap-4">
+    <div className="history-page history-page-symptoms">
       <HistorySummary
         tab="symptoms"
         labs={[]}
@@ -188,7 +188,7 @@ function SymptomsPage({
         hasUnfilteredSymptoms={hasUnfiltered}
         onClear={onClear}
       />
-      <Card>
+      <Card className="history-surface">
         <CardHeader>
           <CardTitle className="text-xl">{t("history.symptoms.title")}</CardTitle>
           <CardDescription>{t("history.symptoms.description")}</CardDescription>
@@ -213,7 +213,7 @@ function SymptomsPage({
 
 function HistoryLoading() {
   return (
-    <div className="grid gap-4">
+    <div className="history-page history-page-loading">
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-4">
           <div className="grid gap-2">

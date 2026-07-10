@@ -13,7 +13,7 @@ import { FileText, Sparkles } from "./health-icons";
 
 export function DocumentsPage({ controller }: { controller: DashboardController }) {
   return (
-    <Card>
+    <Card className="documents-page documents-surface">
       <CardHeader>
         <CardTitle>{t("documents.title")}</CardTitle>
         <CardDescription>{t("documents.description")}</CardDescription>
@@ -110,10 +110,10 @@ function LabReports({ controller }: { controller: DashboardController }) {
     );
   }
   return (
-    <div className="grid gap-2">
+    <div className="documents-list-section grid gap-2">
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("documents.savedReports")}</h3>
       {reports.map((report) => (
-        <div className="grid gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={report.id}>
+        <div className="documents-list-row grid gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={report.id}>
           <div className="flex items-center gap-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-primary"><FileText /></span>
             <div className="min-w-0 flex-1">
@@ -149,10 +149,10 @@ function AppleHealthImports({ controller }: { controller: DashboardController })
     );
   }
   return (
-    <div className="grid gap-2">
+    <div className="documents-list-section grid gap-2">
       <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("documents.recentImports")}</h3>
       {imports.map((item) => (
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={item.id || item.importedAt}>
+        <div className="documents-list-row flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={item.id || item.importedAt}>
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-primary"><Sparkles /></span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">

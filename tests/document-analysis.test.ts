@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createEmptyExtractedResult, parseExtractedResults } from "../src/document-analysis";
+import { createEmptyExtractedResult, missingExtractedResultFields, parseExtractedResults } from "../src/document-analysis";
 
 test("parseExtractedResults reads structured Codex output", () => {
   const [result] = parseExtractedResults(JSON.stringify({
@@ -20,11 +20,26 @@ test("parseExtractedResults reads structured Codex output", () => {
   assert.equal(result.measuredAt, "2026-07-01");
 });
 
+test("parseExtractedResults accepts report dates and preserves them", () => {
+  const [result] = parseExtractedResults(JSON.stringify({ results: [{ marker: "TSH", value: "2.1", reportDate: "07/03/2026" }] }), "thyroid", "2026-07-10");
+  assert.equal(result.measuredAt, "2026-07-03");
+});
+
 test("parseExtractedResults keeps uncertain fields reviewable", () => {
-  const [result] = parseExtractedResults('```json\n[{"marker":"LDL","value":"160","organKey":"unknown","status":"unclear"}]\n```', "heart");
+  const [result] = parseExtractedResults('```json\n[{"marker":"LDL","value":"160","organKey":"unknown","status":"unclear"}]\n```', "heart", "2026-07-10");
   assert.equal(result.organKey, "heart");
   assert.equal(result.status, "");
-  assert.equal(result.measuredAt, "");
+  assert.equal(result.measuredAt, "2026-07-10");
+});
+
+test("parseExtractedResults normalizes follow-up priority aliases", () => {
+  const [result] = parseExtractedResults(JSON.stringify({ results: [{ marker: "LDL", value: "160", status: "routine" }] }));
+  assert.equal(result.status, "normal");
+});
+
+test("missingExtractedResultFields reports only the fields that are empty", () => {
+  const [result] = parseExtractedResults(JSON.stringify({ results: [{ marker: "LDL", value: "160", status: "monitor" }] }));
+  assert.deepEqual(missingExtractedResultFields(result), []);
 });
 
 test("parseExtractedResults rejects non-JSON output and rows without markers", () => {

@@ -1,4 +1,7 @@
 import { t } from "./i18n";
+import { normalizeDeveloperLog, normalizeLlmCall } from "./developer-diagnostics";
+import type { DeveloperLog, LlmCall } from "./developer-diagnostics";
+export type { DeveloperLog, DeveloperLogInput, LlmCall, LlmCallInput, LlmCallPatch } from "./developer-diagnostics";
 
 const MAX_USER_TEXT_CHARS = 32_000;
 
@@ -14,7 +17,7 @@ export type ExtractedResultStatus = HealthStatus | "";
 export type LabFlag = "low" | "normal" | "high" | "unknown";
 export type RegimenKind = "medication" | "supplement";
 export type ConditionStatus = "current" | "managed" | "past";
-export type NavKey = "body" | "labs" | "symptoms" | "medications" | "plan" | "research" | "documents" | "settings";
+export type NavKey = "body" | "labs" | "symptoms" | "medications" | "plan" | "research" | "documents" | "settings" | "developer";
 export type HistoryTab = "labs" | "symptoms" | "files";
 export type DialogKey = "lab" | "symptom" | "activity" | "document" | null;
 
@@ -183,6 +186,24 @@ export type DocumentAnalysis = {
   error: string;
 };
 
+export type BackgroundJobKind = "document-analysis" | "deep-research" | "ai-chat";
+export type BackgroundJobStatus = "running" | "completed" | "failed";
+
+export type BackgroundJob = {
+  id: string;
+  kind: BackgroundJobKind;
+  title: string;
+  description: string;
+  status: BackgroundJobStatus;
+  progress: number | null;
+  createdAt: string;
+  finishedAt: string;
+  error: string;
+};
+
+export type BackgroundJobInput = Pick<BackgroundJob, "kind" | "title" | "description">;
+export type BackgroundJobPatch = Partial<Pick<BackgroundJob, "description" | "status" | "progress" | "error">>;
+
 export type AiConversationMessage = {
   id: string;
   role: "user" | "assistant";
@@ -207,6 +228,9 @@ export type UserState = {
   appleHealthImports: AppleHealthImport[];
   aiConversations: AiConversation[];
   activeAiConversationId: string;
+  backgroundJobs: BackgroundJob[];
+  developerLogs: DeveloperLog[];
+  llmCalls: LlmCall[];
 };
 
 export type OrganVisual = {
@@ -224,6 +248,7 @@ export const navItems: Array<{ key: NavKey; label: string; description: string }
   { key: "research", label: t("nav.research.label"), description: t("nav.research.description") },
   { key: "documents", label: t("nav.documents.label"), description: t("nav.documents.description") },
   { key: "settings", label: t("nav.settings.label"), description: t("nav.settings.description") },
+  { key: "developer", label: t("nav.developer.label"), description: t("nav.developer.description") },
 ];
 
 // Sidebar grouping. Order follows navItems so digit shortcuts stay sequential.
@@ -381,6 +406,15 @@ export function normalizeUserState(value: Partial<UserState> = {}): UserState {
       : [],
     aiConversations,
     activeAiConversationId,
+    backgroundJobs: Array.isArray(value.backgroundJobs)
+      ? value.backgroundJobs.map(normalizeBackgroundJob).filter((entry) => entry.id).slice(0, 24)
+      : [],
+    developerLogs: Array.isArray(value.developerLogs)
+      ? value.developerLogs.map(normalizeDeveloperLog).filter((entry) => entry.id).slice(0, 120)
+      : [],
+    llmCalls: Array.isArray(value.llmCalls)
+      ? value.llmCalls.map(normalizeLlmCall).filter((entry) => entry.id).slice(0, 40)
+      : [],
   };
 }
 
@@ -429,6 +463,23 @@ function normalizeAiConversationMessage(entry: Partial<AiConversationMessage>): 
     providerId: typeof entry.providerId === "string" ? entry.providerId : "",
     modelId: typeof entry.modelId === "string" ? entry.modelId : "",
     isError: entry.isError === true,
+  };
+}
+
+function normalizeBackgroundJob(entry: Partial<BackgroundJob>): BackgroundJob {
+  const progress = typeof entry.progress === "number" && Number.isFinite(entry.progress)
+    ? Math.min(100, Math.max(0, Math.round(entry.progress)))
+    : null;
+  return {
+    id: typeof entry.id === "string" ? entry.id : "",
+    kind: entry.kind === "document-analysis" || entry.kind === "deep-research" ? entry.kind : "ai-chat",
+    title: typeof entry.title === "string" ? limitText(entry.title, 120) : "",
+    description: typeof entry.description === "string" ? limitText(entry.description, 240) : "",
+    status: entry.status === "completed" || entry.status === "failed" ? entry.status : "running",
+    progress,
+    createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
+    finishedAt: typeof entry.finishedAt === "string" ? entry.finishedAt : "",
+    error: typeof entry.error === "string" ? limitText(entry.error, 1000) : "",
   };
 }
 

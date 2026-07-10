@@ -17,7 +17,7 @@ import { LoaderCircle, Send } from "./health-icons";
    Deep research sends a structured prompt after the user reviews it. */
 export function ResearchPage({ controller }: { controller: DashboardController }) {
   return (
-    <Tabs defaultValue="lifestyle" className="gap-4">
+    <Tabs defaultValue="lifestyle" className="research-page gap-4">
       <TabsList>
         <TabsTrigger value="lifestyle">{t("research.tab.lifestyle")}</TabsTrigger>
         <TabsTrigger value="research">{t("research.tab.deep")}</TabsTrigger>
@@ -47,7 +47,7 @@ function DeepResearchTab({ controller }: { controller: DashboardController }) {
       : t("research.reviewRequired");
 
   return (
-    <div className="grid gap-4">
+    <div className="deep-research-page grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="grid gap-1.5">
           <div className="flex items-center gap-2">
@@ -56,7 +56,11 @@ function DeepResearchTab({ controller }: { controller: DashboardController }) {
               disabled={!canStart}
               aria-describedby="research-readiness"
               onClick={() => {
-                if (canStart) void controller.submitAiPrompt(brief.prompt);
+                if (canStart) void controller.submitAiPrompt(brief.prompt, undefined, {
+                  kind: "deep-research",
+                  title: t("jobs.deepResearch"),
+                  description: t("jobs.deepResearchDescription"),
+                });
               }}
             >
               {pending ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Send data-icon="inline-start" />}

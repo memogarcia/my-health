@@ -19,6 +19,7 @@ const DocumentsPage = lazy(() => import("./components/documents-page").then((mod
 const HistoryPage = lazy(() => import("./components/history-page").then((module) => ({ default: module.HistoryPage })));
 const MedicationsPage = lazy(() => import("./components/medications-page").then((module) => ({ default: module.MedicationsPage })));
 const SettingsPage = lazy(() => import("./components/settings-page").then((module) => ({ default: module.SettingsPage })));
+const DeveloperPage = lazy(() => import("./components/developer-page").then((module) => ({ default: module.DeveloperPage })));
 
 export function App() {
   const controller = useDashboardController();
@@ -95,6 +96,7 @@ export function App() {
       {controller.selectedNav === "documents" ? <LazyPage><DocumentsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "medications" ? <LazyPage><MedicationsPage controller={controller} /></LazyPage> : null}
       {controller.selectedNav === "settings" ? <LazyPage><SettingsPage controller={controller} /></LazyPage> : null}
+      {controller.selectedNav === "developer" ? <LazyPage><DeveloperPage controller={controller} /></LazyPage> : null}
       <IntakeDialog controller={controller} />
       <Toaster position="top-center" />
     </AppShell>

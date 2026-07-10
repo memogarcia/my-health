@@ -9,6 +9,9 @@ const base: UserState = {
   appleHealthImports: [],
   aiConversations: [],
   activeAiConversationId: "",
+  backgroundJobs: [],
+  developerLogs: [],
+  llmCalls: [],
 };
 
 test("mergeAiConversationState preserves non-AI user state", () => {

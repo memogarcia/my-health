@@ -4,7 +4,7 @@ import { runAiPrompt } from "./ai-actions";
 import type { AiSettings } from "./ai-sdk-config";
 import { mergeAiConversationState, setActiveAiConversation, startNewAiConversation } from "./ai-conversation";
 import { todayString } from "./dashboard-format";
-import type { NavKey, RegimenInput, UserState } from "./dashboard-model";
+import type { BackgroundJobInput, BackgroundJobPatch, DeveloperLogInput, LlmCallInput, LlmCallPatch, NavKey, RegimenInput, UserState } from "./dashboard-model";
 import { t } from "./i18n";
 import { promptIntakeFromText } from "./prompt-intake";
 import type { useDocumentIntake } from "./use-document-intake";
@@ -25,6 +25,11 @@ type PromptActionsOptions = {
   setSelectedNav: (nav: NavKey) => void;
   setUserState: Dispatch<SetStateAction<UserState>>;
   userState: UserState;
+  onJobStart: (input: BackgroundJobInput) => string;
+  onJobUpdate: (jobId: string, patch: BackgroundJobPatch) => void;
+  onDeveloperLog: (input: DeveloperLogInput) => void;
+  onLlmCallStart: (input: LlmCallInput) => string;
+  onLlmCallUpdate: (callId: string, patch: LlmCallPatch) => void;
 };
 
 export function makePromptActions(options: PromptActionsOptions) {
@@ -43,7 +48,7 @@ export function makePromptActions(options: PromptActionsOptions) {
     void options.persistUserState(next);
   }
 
-  async function submitAiPrompt(prompt: string, file?: File): Promise<void> {
+  async function submitAiPrompt(prompt: string, file?: File, requestedJob?: BackgroundJobInput): Promise<void> {
     if (options.aiPendingConversationId) {
       toast.info(t("toast.waitForAi"));
       return;
@@ -73,10 +78,15 @@ export function makePromptActions(options: PromptActionsOptions) {
 
     options.setSelectedNav("plan");
     options.setAiPendingConversationId("pending");
+    const jobId = options.onJobStart(requestedJob || {
+      kind: "ai-chat",
+      title: t("jobs.aiChat"),
+      description: t("jobs.aiChatDescription"),
+    });
     const result = await runAiPrompt({
       prompt: prompt.trim(),
       aiSettings: options.aiSettings,
-      userState: options.userState,
+      userState: options.getUserState(),
       onPending: async (nextState, conversationId, notice) => {
         if (!options.isDatabaseCurrent(options.databaseEpoch)) return;
         options.setUserState(nextState);
@@ -84,12 +94,23 @@ export function makePromptActions(options: PromptActionsOptions) {
         toast.info(notice);
         await options.persistUserState(nextState);
       },
+      onDeveloperLog: options.onDeveloperLog,
+      onLlmCallStart: options.onLlmCallStart,
+      onLlmCallUpdate: options.onLlmCallUpdate,
     });
-    if (!options.isDatabaseCurrent(options.databaseEpoch)) return;
+    if (!options.isDatabaseCurrent(options.databaseEpoch)) {
+      options.onJobUpdate(jobId, { status: "failed", error: t("jobs.cancelled") });
+      return;
+    }
     options.setAiPendingConversationId("");
     const next = mergeAiConversationState(options.getUserState(), result.userState);
     options.setUserState(next);
     const persisted = await options.persistUserState(next);
+    options.onJobUpdate(jobId, {
+      status: result.toastKind === "success" ? "completed" : "failed",
+      progress: result.toastKind === "success" ? 100 : null,
+      error: result.toastKind === "success" ? "" : result.toastMessage,
+    });
     if (result.toastKind === "success") {
       if (persisted) toast.success(result.toastMessage);
     } else {

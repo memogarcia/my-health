@@ -9,6 +9,7 @@ import { t } from "../../i18n";
 import type { DashboardController } from "../../use-dashboard-controller";
 import { followUpPriorityLabel } from "../lab-result-context";
 import { OrganSelect } from "../organ-select";
+import { DatePicker } from "../ui/date-picker";
 
 export function EditLabDialog({ controller, lab, onClose }: { controller: DashboardController; lab: LabResult | null; onClose: () => void }) {
   return (
@@ -62,7 +63,7 @@ function EditLabForm({ controller, lab, onClose }: { controller: DashboardContro
             </Select>
             <FieldDescription id="lab-edit-follow-up-description">{t("lab.followUp.description")}</FieldDescription>
           </Field>
-          <Field><FieldLabel htmlFor="lab-edit-date">{t("common.date")}</FieldLabel><Input id="lab-edit-date" name="measuredAt" type="date" defaultValue={lab.measuredAt} required /></Field>
+          <Field><FieldLabel htmlFor="lab-edit-date">{t("common.date")}</FieldLabel><DatePicker id="lab-edit-date" name="measuredAt" defaultValue={lab.measuredAt} required /></Field>
         </FieldGroup>
         <Field><FieldLabel htmlFor="lab-edit-notes">{t("common.notes")}</FieldLabel><Textarea id="lab-edit-notes" name="notes" defaultValue={lab.notes} /></Field>
         <DialogFooter><Button type="button" variant="ghost" onClick={onClose}>{t("common.cancel")}</Button><Button type="submit">{t("common.save")}</Button></DialogFooter>
