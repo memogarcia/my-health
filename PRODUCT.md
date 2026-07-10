@@ -12,8 +12,9 @@ product
 ## Users
 
 One person reviewing labs, medical-result history, symptoms, conditions,
-medications, and daily health context on a local machine. Not a browser app:
-health data lives in local encrypted SQLite owned by the Tauri/Rust backend.
+medications, biological-age reports, and daily health context on a local
+machine. Not a browser app: health data lives in local encrypted SQLite owned
+by the Tauri/Rust backend.
 
 ## Product Purpose
 
@@ -32,6 +33,10 @@ else supports reading and adding data around it.
   review entered values, and read trends over time.
 - **Symptoms and conditions** — log severity and dates against an organ.
 - **Medications and supplements** — track active and stopped regimen items.
+- **Genetics and epigenetics** — enter a provider's chronological age, overall
+  biological-age estimate, optional population percentile, and available
+  system-age scores. Compare reports without presenting the estimates as
+  diagnoses or combining results from incompatible methods.
 - **Documents** — drop a PDF or image, extract draft measurements with the
   configured opt-in AI, review them, then save the source bytes and accepted
   structured results inside encrypted SQLite.
@@ -60,6 +65,7 @@ Visual specifics (tokens, color, type, motion) live in `DESIGN.md`.
 
 - Do not present AI output as diagnosis, treatment, or emergency triage.
 - Frame recommendations as lifestyle, follow-up, or clinician-discussion suggestions.
+- Treat genetic, epigenetic, and biological-age estimates as sensitive provider outputs, not validated diagnoses or health-status scores.
 - Treat health data as sensitive by default. Do not hardcode real personal medical details.
 - Use obviously synthetic sample data only when needed for local UI work.
 - Health data stays local unless the user explicitly opts in to sending specific context to a remote provider; that opt-in is off by default.
@@ -80,5 +86,5 @@ hero layout, or AI diagnosis surface.
 
 ## Scope Boundaries
 
-- In scope: local organ-scoped tracking, result intake, advisory AI, encrypted export.
-- Out of scope: hosted backend, browser deployment, diagnosis, automated treatment, emergency triage, syncing health data to the cloud by default.
+- In scope: local organ-scoped tracking, biological-age report tracking, result intake, advisory AI, encrypted export.
+- Out of scope: raw genome interpretation, clinical genetic diagnosis, hosted backend, browser deployment, diagnosis, automated treatment, emergency triage, syncing health data to the cloud by default.
