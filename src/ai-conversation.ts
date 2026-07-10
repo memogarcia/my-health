@@ -67,7 +67,7 @@ export function mergeAiConversationState(current: UserState, next: UserState): U
   };
 }
 
-export function buildCodexConversationPrompt(conversation: AiConversation): string {
+export function buildAiConversationPrompt(conversation: AiConversation): string {
   const messages = conversation.messages.slice(-6);
   const history = messages.map((message, index) => ({
     role: message.role,

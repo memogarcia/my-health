@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildCodexConversationPrompt, getActiveAiConversation, mergeAiConversationState } from "../src/ai-conversation";
+import { buildAiConversationPrompt, getActiveAiConversation, mergeAiConversationState } from "../src/ai-conversation";
 import type { UserState } from "../src/dashboard-model";
 
 const base: UserState = {
@@ -39,9 +39,9 @@ test("getActiveAiConversation returns null for a new empty thread state", () => 
   assert.equal(getActiveAiConversation(state), null);
 });
 
-test("buildCodexConversationPrompt keeps the latest generated prompt intact", () => {
+test("buildAiConversationPrompt keeps the latest generated prompt intact", () => {
   const longLatest = `${"marker ".repeat(500)}FINAL_MARKER`;
-  const prompt = buildCodexConversationPrompt({
+  const prompt = buildAiConversationPrompt({
     id: "chat",
     title: "Research",
     createdAt: "2026-07-08T00:00:00.000Z",

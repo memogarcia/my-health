@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getAiProvider, type AiSettings } from "./ai-sdk-config";
 import {
   addAiConversationMessage,
-  buildCodexConversationPrompt,
+  buildAiConversationPrompt,
   getActiveAiConversation,
 } from "./ai-conversation";
 import type { DeveloperLogInput, LlmCallInput, LlmCallPatch, UserState } from "./dashboard-model";
@@ -66,7 +66,7 @@ export async function runAiPrompt(input: {
   let callId = "";
   try {
     const conversation = getActiveAiConversation(userState);
-    const conversationPrompt = conversation ? buildCodexConversationPrompt(conversation) : input.prompt;
+    const conversationPrompt = conversation ? buildAiConversationPrompt(conversation) : input.prompt;
     callId = input.onLlmCallStart({
       kind: "chat",
       command: "ask_llm",

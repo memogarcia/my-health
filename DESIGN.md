@@ -97,6 +97,9 @@ participates in layout and must never cover records.
   must not become a stack of separate floating cards.
 - The global daily-log history sits below the workbench; it must not appear
   inside the selected-organ inspector.
+- Body attention, organ, daily-log, and inspector panels can collapse. The
+  organ and inspector panels retain a narrow reopen rail so the anatomy stage
+  gains space without losing the control needed to restore the panel.
 
 ### Responsive breakpoints
 

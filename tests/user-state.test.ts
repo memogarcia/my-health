@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { summarizeAppleHealthFile } from "../src/apple-health-import";
-import { hasEnabledCodexModel, normalizeAiSettings } from "../src/ai-sdk-config";
+import { hasEnabledAiModel, hasEnabledCodexModel, normalizeAiSettings } from "../src/ai-sdk-config";
 import { activityFromForm, aiSettingsFromForm } from "../src/user-state";
 import type { AppleHealthImport } from "../src/dashboard-model";
 
@@ -23,6 +23,12 @@ test("hasEnabledCodexModel requires Codex, consent, and a model", () => {
   assert.equal(hasEnabledCodexModel({ providerId: "codex", modelId: "gpt-5.5", allowRemoteHealthContext: false }), false);
   assert.equal(hasEnabledCodexModel({ providerId: "codex", modelId: " ", allowRemoteHealthContext: true }), false);
   assert.equal(hasEnabledCodexModel({ providerId: "codex", modelId: "gpt-5.5", allowRemoteHealthContext: true }), true);
+});
+
+test("hasEnabledAiModel allows configured non-Codex providers", () => {
+  assert.equal(hasEnabledAiModel({ providerId: "openai", modelId: "gpt-4o", baseUrl: "", apiKeyEnvVar: "OPENAI_API_KEY", allowRemoteHealthContext: true }), true);
+  assert.equal(hasEnabledAiModel({ providerId: "openai", modelId: "gpt-4o", baseUrl: "", apiKeyEnvVar: "OPENAI_API_KEY", allowRemoteHealthContext: false }), false);
+  assert.equal(hasEnabledAiModel({ providerId: "ollama", modelId: "llama3.2", baseUrl: "http://localhost:11434/v1", apiKeyEnvVar: "", allowRemoteHealthContext: false }), true);
 });
 
 test("activityFromForm maps structured fields and clamps negatives", () => {

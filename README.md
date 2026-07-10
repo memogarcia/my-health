@@ -59,13 +59,13 @@ npm run check         # run project checks
 
 ## Optional AI Features
 
-AI features are optional. Codex CLI is the live provider today. Local providers
-such as LM Studio and Ollama are shown as planned/configuration-only until a
-Rust execution path is added.
+AI features are optional. Chat supports Codex CLI, Anthropic, OpenAI, Gemini,
+LM Studio, Ollama, and custom OpenAI-compatible providers. Local providers stay
+on-device; remote providers require explicit health-context consent.
 
 Configure AI in Settings after the app is running. API keys are referenced by
 environment variable name and are not stored in the database. Enabling remote
 health context also allows selected PDF and image reports to be sent to Codex
 for draft result extraction. PDFs are rendered locally, and every extracted row
 must be reviewed before saving. The native Developer area shows bounded local
-Codex call metadata and errors without storing prompt contents or secrets.
+LLM call metadata and errors without storing prompt contents or secrets.
