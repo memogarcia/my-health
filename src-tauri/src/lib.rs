@@ -3,6 +3,7 @@ use serde::Serialize;
 use tauri::Manager;
 
 mod ai_settings;
+mod apple_health;
 mod codex_cli;
 mod conditions;
 mod database;
@@ -209,6 +210,8 @@ pub fn run() {
             records::reports::list_lab_reports,
             records::reports::unlink_lab_report,
             records::reports::delete_lab_report,
+            apple_health::get_apple_health_sync_status,
+            apple_health::import_apple_health_sync_batch,
             codex_cli::ask_llm,
             codex_cli::document_analysis::analyze_document,
             codex_cli::get_codex_options,
