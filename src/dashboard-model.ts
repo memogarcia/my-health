@@ -1,10 +1,10 @@
 import { t } from "./i18n";
 import { normalizeDeveloperLog, normalizeLlmCall } from "./developer-diagnostics";
 import type { DeveloperLog, LlmCall } from "./developer-diagnostics";
+import type { BiologicalAgeReport } from "./genetics-model";
 export type { DeveloperLog, DeveloperLogInput, LlmCall, LlmCallInput, LlmCallPatch } from "./developer-diagnostics";
-
+export type { BiologicalAgeReport, BiologicalAgeReportInput, BiologicalAgeSystemScore } from "./genetics-model";
 const MAX_USER_TEXT_CHARS = 32_000;
-
 /**
  * A symptom affects the current organ state from the day it is logged through
  * the inclusive 30-day lookback boundary. Older and future-dated symptoms stay
@@ -17,7 +17,7 @@ export type ExtractedResultStatus = HealthStatus | "";
 export type LabFlag = "low" | "normal" | "high" | "unknown";
 export type RegimenKind = "medication" | "supplement";
 export type ConditionStatus = "current" | "managed" | "past";
-export type NavKey = "body" | "labs" | "symptoms" | "medications" | "plan" | "research" | "documents" | "settings" | "developer";
+export type NavKey = "body" | "labs" | "symptoms" | "medications" | "genetics" | "plan" | "research" | "documents" | "settings" | "developer";
 export type HistoryTab = "labs" | "symptoms" | "files";
 export type DialogKey = "lab" | "symptom" | "activity" | "document" | null;
 
@@ -126,6 +126,7 @@ export type DashboardSnapshot = {
   recentSymptoms: SymptomEntry[];
   conditions: ConditionEntry[];
   regimenItems: RegimenItem[];
+  biologicalAgeReports: BiologicalAgeReport[];
   aiRecommendations: Recommendation[];
   labReports: LabReport[];
 };
@@ -244,6 +245,7 @@ export const navItems: Array<{ key: NavKey; label: string; description: string }
   { key: "labs", label: t("nav.labs.label"), description: t("nav.labs.description") },
   { key: "symptoms", label: t("nav.symptoms.label"), description: t("nav.symptoms.description") },
   { key: "medications", label: t("nav.medications.label"), description: t("nav.medications.description") },
+  { key: "genetics", label: t("nav.genetics.label"), description: t("nav.genetics.description") },
   { key: "plan", label: t("nav.plan.label"), description: t("nav.plan.description") },
   { key: "research", label: t("nav.research.label"), description: t("nav.research.description") },
   { key: "documents", label: t("nav.documents.label"), description: t("nav.documents.description") },
@@ -253,7 +255,7 @@ export const navItems: Array<{ key: NavKey; label: string; description: string }
 
 // Sidebar grouping. Order follows navItems so digit shortcuts stay sequential.
 export const navGroups: Array<{ label: string; keys: NavKey[] }> = [
-  { label: t("nav.group.health"), keys: ["body", "labs", "symptoms", "medications"] },
+  { label: t("nav.group.health"), keys: ["body", "labs", "symptoms", "medications", "genetics"] },
   { label: t("nav.group.assistant"), keys: ["plan", "research"] },
   { label: t("nav.group.library"), keys: ["documents"] },
 ];
@@ -360,6 +362,7 @@ export function buildDisplaySnapshot(snapshot: DashboardSnapshot | null): Displa
     recentSymptoms,
     conditions,
     regimenItems: snapshot?.regimenItems || [],
+    biologicalAgeReports: snapshot?.biologicalAgeReports || [],
     aiRecommendations: snapshot?.aiRecommendations || [],
     labReports: snapshot?.labReports || [],
   };
