@@ -1,5 +1,5 @@
-import type { LabResult, OrganSummary, SymptomEntry } from "../../dashboard-model";
-import { t } from "../../i18n.js";
+import type { LabResult, OrganSummary, SymptomEntry } from "./dashboard-model";
+import { t } from "./i18n.js";
 
 export type OrganFilter = string;
 export type LabView = "grouped" | "list";
@@ -18,9 +18,7 @@ const statusSort: Record<LabResult["status"], number> = {
 };
 
 export function nextLabSort(current: LabSort, key: LabSortKey): LabSort {
-  if (current.key === key) {
-    return { key, direction: current.direction === "asc" ? "desc" : "asc" };
-  }
+  if (current.key === key) return { key, direction: current.direction === "asc" ? "desc" : "asc" };
   return { key, direction: key === "measuredAt" || key === "status" ? "desc" : "asc" };
 }
 
@@ -41,20 +39,13 @@ function compareLabValue(left: LabResult, right: LabResult, key: LabSortKey): nu
 
 function labSortValue(lab: LabResult, key: LabSortKey): string | number {
   switch (key) {
-    case "measuredAt":
-      return lab.measuredAt;
-    case "marker":
-      return lab.marker;
-    case "value":
-      return lab.valueNumber ?? lab.value;
-    case "unit":
-      return lab.unit;
-    case "referenceRange":
-      return lab.referenceRange;
-    case "status":
-      return statusSort[lab.status];
-    case "notes":
-      return lab.notes;
+    case "measuredAt": return lab.measuredAt;
+    case "marker": return lab.marker;
+    case "value": return lab.valueNumber ?? lab.value;
+    case "unit": return lab.unit;
+    case "referenceRange": return lab.referenceRange;
+    case "status": return statusSort[lab.status];
+    case "notes": return lab.notes;
   }
 }
 

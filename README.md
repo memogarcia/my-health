@@ -15,6 +15,7 @@ clinician.
 
 - [Run Locally](#run-locally)
 - [Product](PRODUCT.md)
+- [Features](FEATURES.md)
 - [Security](SECURITY.md)
 - [AI](AI.md)
 - [Design](DESIGN.md)
@@ -38,8 +39,9 @@ bun install
 bun run tauri:dev
 ```
 
-The app opens as a native desktop window. On first launch, choose a database
-passphrase. Keep it safe; the app uses it to unlock your local encrypted data.
+The app opens as a native desktop window. The product renderer is currently
+blank while the UI is being rebuilt. The Rust database and feature layer remain
+in the repository; see [Features](FEATURES.md) for the behavior inventory.
 
 Development starts with the encrypted setup flow. To use the bundled synthetic
 mock database instead, run:

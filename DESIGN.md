@@ -1,210 +1,152 @@
 # Design
 
-This file owns the **visual system**: tokens, color and status semantics,
-typography, layout, components, motion, and accessibility specifics. The status
-enums themselves (`normal` | `monitor` | `attention`, etc.) are defined in
-`ARCHITECTURE.md`; this file defines how they look. Product voice and principles
-live in `PRODUCT.md`.
+This is the visual source of truth for Me Health Dashboard. It has been reset
+for a new UI/UX direction. No current layout, palette, typography system,
+component style, motion language, or visual asset is approved by this file.
 
-Source of truth for tokens is `src/styles.css` (Tailwind v4 `@theme inline` +
-CSS custom properties). Shell and body-workbench layout lives in
-`src/layout.css`; shared route-surface refinements live in `src/redesign.css`;
-component and chart details live in `src/components.css`. Update the relevant
-file and this document together.
+The previous interface is documented in `FEATURES.md` so the next interface
+can recover the product behavior without inheriting the old visual structure.
+The renderer is intentionally blank while this design is rebuilt.
 
-## Foundations
+## Design status
 
-### Color system
+- **Status:** reset, ready for exploration.
+- **Audience:** one person reviewing sensitive health information on a local
+  desktop machine.
+- **Product register:** private desktop tool, not a marketing surface.
+- **Primary source for behavior:** `FEATURES.md`.
+- **Product intent and safety:** `PRODUCT.md`.
+- **Technical/runtime constraints:** `ARCHITECTURE.md`.
+- **Privacy and security constraints:** `SECURITY.md` and `AI.md`.
 
-Tailwind v4 with shadcn (`radix-nova`, `neutral` base, CSS variables on).
-Colors are `oklch` in a light color-scheme. A `.dark` variant is wired
-(`@custom-variant dark`) but the app ships light.
+## Non-negotiables
 
-Core tokens (`:root`):
+These are product constraints, not visual decisions:
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `--background` | `oklch(0.973 0.004 220)` | App background |
-| `--foreground` | `oklch(0.2 0.02 240)` | Body text |
-| `--card` / `--card-foreground` | `oklch(1 0 0)` / `oklch(0.2 0.02 240)` | Panels |
-| `--popover` / `--popover-foreground` | `oklch(1 0 0)` / `oklch(0.2 0.02 240)` | Hotspot labels, menus |
-| `--primary` | `oklch(0.48 0.09 186)` | Teal accent, primary actions |
-| `--ring` | `oklch(0.62 0.08 186)` | Focus rings |
-| `--border` | `oklch(0.9 0.01 225)` | Dividers, card edges |
-| `--input` | `oklch(0.66 0.012 225)` | Input borders; at least 3:1 against cards |
-| `--destructive` | `oklch(0.55 0.2 30)` | Destructive actions |
-| `--sidebar` | `oklch(0.19 0.03 235)` | Dark sidebar |
-| `--sidebar-muted` | `oklch(0.72 0.026 230)` | Sidebar secondary text |
-| `--sidebar-line` | `rgb(255 255 255 / 9%)` | Sidebar dividers |
+- The supported runtime is the native Tauri app. A raw browser/Vite URL is not
+  a supported product surface.
+- Health records remain in the local SQLCipher-encrypted SQLite database unless
+  the user explicitly opts into the relevant remote AI context.
+- AI output is advisory. The interface must not present it as diagnosis,
+  treatment, or emergency triage.
+- Health status must communicate meaning with text and accessible semantics,
+  never color alone.
+- Health data must be readable, reviewable, and editable. Dense information is
+  allowed when it improves scanning and record review.
+- Every user-facing string must use the typed i18n catalog.
+- Existing shadcn primitives, controller methods, Rust commands, and persisted
+  data contracts should be reused unless the redesign requires a deliberate
+  change.
 
-`@theme inline` maps these to Tailwind color utilities (`bg-background`,
-`text-foreground`, `border-border`, etc.). Prefer these utilities over raw
-hex/oklch values in components.
+## Reset boundary
 
-### Health status semantics (authoritative visual mapping)
+The redesign starts at the rendered application surface. The native runtime
+bootstrap, Rust backend, storage schema, command layer, feature helpers, tests,
+and feature inventory remain available. The previous React page components and
+CSS have been deleted; they are not design authority or a recovery mechanism.
 
-Status never relies on color alone. Record statuses use `statusLabel` in
-`dashboard-model.ts`; the UI-only empty state uses `status.noData`. Each state
-has a color, a label, and an icon/dot.
+When a new surface is implemented:
 
-| Status | Token | Value | Meaning |
-| --- | --- | --- | --- |
-| `normal` | `--status-normal` | `#1c7259` | Routine / no current follow-up |
-| `monitor` | `--status-monitor` | `#9a540f` | Monitor over time |
-| `attention` | `--status-attention` | `#b64235` | Discuss soon |
-| (empty) | `--status-empty` | `oklch(0.48 0.02 235)` | No data yet |
+1. Define its user goal and information hierarchy here.
+2. Define the visual and interaction rules here before spreading them into
+   components.
+3. Implement from the rules using existing product contracts.
+4. Verify the exact native Tauri screen and update this file with decisions that
+   proved durable.
 
-Lab flag (`low`/`high`/`normal`/`unknown`) renders as neutral directional context
-on result rows, trends, and detail views, not as a fourth status color. Follow-up
-priority stays visually separate. `--trend-line: #5f7186` for sparklines.
+## Open design work
 
-### Organ colors
+The following decisions are intentionally unanswered:
 
-Per-organ colors live in `organVisuals` (`dashboard-model.ts`) and are applied
-via the `--organ-color` custom property on organ rows, icons, and anatomy
-hotspots. Example: heart `#e05a47`, lungs `#53b7c0`, liver `#9a5b45`,
-kidneys `#b46a78`. Reuse these; do not invent organ colors per component.
+### Product scene
 
-### Radius and shadow
+- Where is the app used: desk, bedside, clinical review, or another setting?
+- Is the dominant mode quick daily check-in, longitudinal review, data entry,
+  or a deliberate combination?
+- Which action should be reachable first after unlock?
 
-- `--radius: 0.625rem`. Derived: `--radius-sm`, `--radius-md`, `--radius-lg`,
-  `--radius-xl`. Use `--radius-xl` for the connected body workbench and
-  `--radius` for cards and controls.
-- `--shadow-floating` for popovers and elevated panels.
+### Information architecture
 
-### Typography
+- What is the smallest useful top-level navigation model for the feature set in
+  `FEATURES.md`?
+- Which features belong in the primary workspace, and which belong in a
+  secondary utility area?
+- What is the relationship between body-system context and global history?
+- How should ongoing AI work, document review, and errors stay visible without
+  competing with health records?
 
-- `--font-family-sans` (body) and `--font-family-heading` mapped through
-  `@theme` to `--font-sans` / `--font-heading`.
-- Headings use restrained tracking (`-0.01em` to `-0.02em`) and a compact,
-  fixed product-UI scale.
-- Numeric lab values use the `.tnum` utility (`tabular-nums`) so columns align.
+### Visual language
 
-## Layout
+- Choose a physical scene and ambient-light assumption.
+- Choose a color strategy and define semantic status roles.
+- Choose one product typeface system and a fixed UI scale.
+- Define surface, border, radius, shadow, icon, and density rules.
+- Decide whether the anatomy representation is a primary control, a secondary
+  visualization, or a replaceable view.
 
-### App shell
+### Interaction and layout
 
-Sidebar + main grid (`app-shell`). The 200px sidebar holds brand, grouped nav,
-and an encrypted-records footer. Main is a three-row native shell: draggable
-page bar, scrollable workspace, then the persistent text-only AI dock. The dock
-participates in layout and must never cover records. The page bar always keeps
-Work, Daily log, and Add result together, regardless of the active page.
+- Define the first-run and unlock experience.
+- Define the empty, loading, error, offline, consent, and review states for
+  every feature group.
+- Define desktop window behavior and the minimum supported size.
+- Define keyboard navigation, focus movement, drag/drop behavior, and dialogs.
+- Define how users select and edit one record versus a group of records.
 
-- `body-workbench`: `204px minmax(320px, 1fr) 316px` - organ rail, stable
-  anatomy plane, selected-organ inspector.
-- A compact status strip sits above the workbench. It replaces the previous
-  hero and stat tiles.
-- The inspector is one continuous pane with dividers. Selected-organ content
-  must not become a stack of separate floating cards.
-- The global daily-log history sits below the workbench; it must not appear
-  inside the selected-organ inspector.
-- Body attention, organ, daily-log, and inspector panels can collapse. The
-  organ and inspector panels retain a narrow reopen rail so the anatomy stage
-  gains space without losing the control needed to restore the panel.
+### Motion and accessibility
 
-### Responsive breakpoints
+- Motion may communicate state or progress, but must not delay work.
+- Every animated state needs a reduced-motion behavior.
+- Define focus, contrast, target-size, screen-reader, and non-color status rules
+  before finalizing the component system.
 
-- `≤ 1180px`: organs become a horizontal source strip above the map while the
-  anatomy plane and inspector remain adjacent.
-- `≤ 900px`: sidebar collapses to a 64px icon rail (labels, group labels, and
-  shortcuts hidden). The map and inspector still remain adjacent at the native
-  820px minimum width.
-- `≤ 760px`: the workbench may stack for unsupported smaller render targets.
+## Future system template
 
-The native window minimum is `820px`, so both responsive states are reachable
-through normal window resizing.
+Fill these sections as the new UI is designed. Until they contain a deliberate
+decision, implementation should not infer one from the old renderer.
 
-Use these existing breakpoints. Do not add component-local media queries that
-conflict with them.
+### Foundations
 
-### Anatomy stage
+- Color tokens:
+- Semantic status mapping:
+- Typography:
+- Spacing and density:
+- Radius and borders:
+- Elevation:
+- Iconography:
 
-The body stage displays a centered static clinical anatomical image. Hotspots
-and saved note pins remain accessible HTML controls over the image. The saved
-Profile sex value `female` selects the women's clinical anatomy image; all other
-values retain the default model.
+### Shell
 
-## Components
+- Window and title-bar behavior:
+- Primary navigation:
+- Secondary navigation:
+- Global actions:
+- Persistent status and job feedback:
 
-shadcn primitives in `src/components/ui/` (Radix-backed): `alert`, `badge`,
-`button`, `card`, `checkbox`, `dialog`, `empty`, `field`, `input`, `label`,
-`scroll-area`, `section`, `select`, `separator`, `skeleton`, `sonner`,
-`table`, `tabs`, `textarea`, `calendar`, `popover`, `progress`, `tooltip`.
-The app-level `date-picker` wrapper composes Calendar + Popover for ISO dates.
-`components.json` configures the registry:
-`radix-nova` style, `neutral` base, CSS variables on, `lucide` icons, aliases
-`@/components`, `@/components/ui`, `@/lib/utils`.
+### Feature surfaces
 
-Rules:
+- Body and organ workspace:
+- Labs and results:
+- Symptoms and conditions:
+- Medications and supplements:
+- Daily context:
+- Fasting and breathing:
+- Documents and imports:
+- Assistant and research:
+- Settings and data export:
+- Developer diagnostics:
 
-- Add new primitives through the shadcn config, not by hand-rolling equivalents.
-- Compose with the `Section`/`Card` shells for consistent padding and headers.
-- Use `EmptyMessage` for empty states and `Skeleton` for loading states; never
-  show a blank panel.
-- Toasts go through `sonner` (`toast.success`/`error`/`warning`), with copy
-  from the i18n catalog.
-- Dates use the shared `DatePicker` wrapper everywhere a health record accepts
-  an ISO date. It opens the shadcn `Calendar` in a `Popover` and submits the
-  existing ISO string through a hidden form field.
-- Background work uses `JobCenter` in the app bar. Rows pair a text status,
-  icon, and `Progress`; indeterminate progress is used when the native task
-  cannot provide an exact percentage. Concurrent document requests keep their
-  own review tabs and job rows.
-- The Developer page is a compact diagnostic workspace: expandable LLM-call
-  rows show request metadata and timing, while a chronological event list shows
-  renderer stages and bounded errors. It is operational UI, not a second chat
-  surface; prompt contents and health payloads stay out of the visible log.
+### Components
 
-Charts live in `src/components/charts/` and use compact inline SVG, not a chart
-library. Use neutral trend lines, muted grid lines, and status color only for
-the current state or high-severity bars. Reference ranges should be visible as a
-soft band or normalized strip. Every chart needs a text summary, empty state,
-and accessible title/label.
+For each shared component, record its purpose and default, hover, focus,
+active, disabled, loading, error, empty, and responsive states.
 
-Document review rows identify themselves as `RESULT {n}`. Their outer border and
-follow-up badge use the existing status mapping, while an unset priority remains
-visibly labeled as `Needs review`.
+### Verification checklist
 
-Saved lab-report rows open a report-result dialog. It identifies every linked
-result, supports the existing single-result editor, and can apply a selected
-group's body area, follow-up priority, or measured date in one operation.
-
-## Motion
-
-Easing tokens (`:root`): `--ease-out-quart`, `--ease-out-quint`, `--ease-out-expo`.
-Duration tokens (`--dur-feedback`, `--dur-state`) drive hotspot and label
-transitions. Keep motion short and limited to state feedback. Do not animate
-page entry or pulse health indicators continuously. Respect
-`prefers-reduced-motion`.
-
-The fasting workspace uses a progress ring for elapsed time and a breathing orb
-that expands for inhale and contracts for exhale. It uses the same duration and
-easing tokens, does not animate page entry, and becomes static under reduced
-motion. The current fasting stage is also named in text; motion and color are
-supplementary feedback only.
-
-## Accessibility
-
-- Visible focus: `focus-visible:ring` using `--ring`. Hotspots and nav buttons
-  show a ring on keyboard focus.
-- Status is not color-only: label + icon/dot accompany every status color.
-- Hotspot targets are 40px; nav buttons have comfortable padding.
-- Selected organ controls expose `aria-pressed`. A concise hidden live region
-  announces only the new organ and status rather than the full inspector tree.
-- The active nav item sets `aria-current="page"`; nav has `aria-label`.
-- Route changes reset workspace scroll and focus the new page heading.
-- Drag regions (`data-tauri-drag-region`) are marked `aria-hidden` so they do
-  not capture screen-reader focus.
-- Date picker triggers expose their label, expanded state, and required state;
-  the calendar keeps keyboard navigation through React Day Picker.
-- Job rows expose running/completed/failed labels in addition to color and
-  preserve task error text when available.
-- Contrast meets the calm-clinical baseline; avoid low-contrast muted text for
-  values the user must read.
-
-## Internationalization
-
-All user-facing strings go through `t(key, values)` from `src/i18n.ts`. The
-catalog is `src/i18n/locales/en.json` and is typed via `TranslationKey`. Hard
-UI strings fail the `check:i18n` gate with zero allowed violations. When adding
-a string, add the key to the catalog and the baseline if the check requires it.
+- The native Tauri app renders the intended screen after unlock.
+- No raw browser session is used as product verification.
+- Keyboard and assistive-technology paths are usable.
+- Status meaning survives grayscale and color-vision differences.
+- Long labels, dates, units, empty data, and errors fit without clipping.
+- Reduced motion is honored.
+- `FEATURES.md` still matches the behavior exposed by the new UI.

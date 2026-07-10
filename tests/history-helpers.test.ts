@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import type { LabResult } from "../src/dashboard-model";
-import { defaultLabSort, nextLabSort, sortLabResults } from "../src/components/history/history-helpers";
+import { defaultLabSort, nextLabSort, sortLabResults } from "../src/history-helpers";
 
 const baseLab: LabResult = {
   id: 1,
