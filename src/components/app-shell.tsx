@@ -3,7 +3,7 @@ import type React from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { getAiProvider, hasEnabledCodexModel } from "../ai-sdk-config";
+import { getAiProvider, hasEnabledAiModel } from "../ai-sdk-config";
 import { navGroups, navItems, type NavKey } from "../dashboard-model";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
@@ -141,7 +141,7 @@ function Notice({ controller }: { controller: DashboardController }) {
 
 function CompactAiPrompt({ controller }: { controller: DashboardController }) {
   const [prompt, setPrompt] = useState("");
-  const available = hasEnabledCodexModel(controller.aiSettings);
+  const available = hasEnabledAiModel(controller.aiSettings);
   const pending = Boolean(controller.aiPendingConversationId);
   const provider = getAiProvider(controller.aiSettings.providerId);
 

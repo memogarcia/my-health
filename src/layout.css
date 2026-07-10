@@ -455,3 +455,39 @@ html[data-platform="macos"] .app-sidebar { padding-top: 2.65rem; }
 .detail-rail > [data-slot="card"] { padding-top: 0; }
 .detail-rail [data-slot="card-header"] { padding-top: 0.8rem; padding-bottom: 0.55rem; }
 .detail-rail [data-slot="card-content"] { padding-bottom: 0.85rem; }
+
+/* Body workspace panels keep a narrow, keyboard-accessible reopen rail when collapsed. */
+.body-status-strip-collapsed {
+  min-height: 38px;
+  align-items: center;
+  padding-bottom: 0.35rem;
+}
+.body-status-strip-collapsed > div:first-child > .status-dot { margin-top: 0; }
+.body-workbench.organs-collapsed { grid-template-columns: 44px minmax(320px, 1fr) 316px; }
+.body-workbench.inspector-collapsed { grid-template-columns: 204px minmax(320px, 1fr) 44px; }
+.body-workbench.organs-collapsed.inspector-collapsed { grid-template-columns: 44px minmax(320px, 1fr) 44px; }
+.organ-panel-collapsed { grid-template-rows: 1fr; }
+.organ-panel-collapsed .organ-panel-header {
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0.35rem;
+}
+.organ-panel-collapsed .organ-panel-header > div:first-child { display: none; }
+.detail-rail-collapsed { align-content: start; overflow: hidden; }
+.inspector-collapsed-header { display: flex; justify-content: center; padding: 0.45rem; }
+.daily-log-card-collapsed [data-slot="card-description"] { display: none; }
+
+@media (max-width: 1180px) {
+  .body-workbench.inspector-collapsed { grid-template-columns: minmax(300px, 1fr) 44px; }
+  .body-workbench.organs-collapsed.inspector-collapsed { grid-template-columns: minmax(300px, 1fr) 44px; }
+  .body-workbench.organs-collapsed { grid-template-rows: 48px minmax(540px, 1fr); }
+  .body-workbench.organs-collapsed .organ-panel { height: 48px; }
+  .body-workbench.organs-collapsed .organ-panel-collapsed .organ-panel-header > div:first-child { display: block; }
+  .body-workbench.organs-collapsed .organ-panel-collapsed .organ-panel-header { justify-content: space-between; padding-inline: 0.75rem; }
+}
+
+@media (max-width: 760px) {
+  .body-workbench.inspector-collapsed { grid-template-rows: 132px 520px 48px; }
+  .body-workbench.organs-collapsed { grid-template-rows: 48px 520px minmax(420px, 1fr); }
+  .body-workbench.organs-collapsed.inspector-collapsed { grid-template-rows: 48px 520px 48px; }
+}

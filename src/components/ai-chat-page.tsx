@@ -4,7 +4,7 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { hasEnabledCodexModel } from "../ai-sdk-config";
+import { hasEnabledAiModel } from "../ai-sdk-config";
 import { getActiveAiConversation } from "../ai-conversation";
 import { formatDate } from "../dashboard-format";
 import type { AiConversation, AiConversationMessage } from "../dashboard-model";
@@ -139,7 +139,7 @@ function ConversationMessage({ message }: { message: AiConversationMessage }) {
 
 function ConversationComposer({ controller }: { controller: DashboardController }) {
   const [prompt, setPrompt] = useState("");
-  const configured = hasEnabledCodexModel(controller.aiSettings);
+  const configured = hasEnabledAiModel(controller.aiSettings);
   const pending = Boolean(controller.aiPendingConversationId);
   const inputDisabled = pending || !configured;
   const sendDisabled = inputDisabled || !prompt.trim();

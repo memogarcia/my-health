@@ -9,21 +9,23 @@ import { t } from "../../i18n";
 import type { DashboardController } from "../../use-dashboard-controller";
 import { organIcons } from "../health-icons";
 import { StatusDot } from "../health-status";
+import { BodyCollapseToggle } from "./body-collapse-toggle";
 import { organRecordCount, organVisualStatus, visualStatusLabel } from "./body-workspace-utils";
 
-export function OrganRail({ controller }: { controller: DashboardController }) {
+export function OrganRail({ controller, collapsed, onToggle }: { controller: DashboardController; collapsed: boolean; onToggle: () => void }) {
   const organsOnly = controller.display.organs.filter((organ) => !wholeBodySystems.has(organ.key));
   const systems = controller.display.organs.filter((organ) => wholeBodySystems.has(organ.key));
 
   return (
-    <Section className="organ-panel" aria-label={t("body.organs.title")}>
+    <Section className={cn("organ-panel", collapsed && "organ-panel-collapsed")} aria-label={t("body.organs.title")}>
       <SectionHeader className="organ-panel-header">
         <div className="min-w-0">
           <SectionTitle>{t("body.organs.title")}</SectionTitle>
           <p className="text-xs text-muted-foreground">{t("body.organs.description")}</p>
         </div>
+        <BodyCollapseToggle collapsed={collapsed} onToggle={onToggle} section={t("body.section.organs")} />
       </SectionHeader>
-      <SectionContent className="organ-list">
+      {!collapsed ? <SectionContent className="organ-list">
         {organsOnly.map((organ) => <OrganButton controller={controller} organ={organ} key={organ.key} />)}
         {systems.length ? (
           <>
@@ -32,7 +34,7 @@ export function OrganRail({ controller }: { controller: DashboardController }) {
             {systems.map((organ) => <OrganButton controller={controller} organ={organ} key={organ.key} />)}
           </>
         ) : null}
-      </SectionContent>
+      </SectionContent> : null}
     </Section>
   );
 }

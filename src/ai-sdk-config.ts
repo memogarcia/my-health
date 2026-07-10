@@ -72,7 +72,7 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     kind: "codex-cli",
     local: false,
     executionStatus: "live",
-    statusLabel: t("aiConfig.status.codexLive"),
+    statusLabel: t("aiConfig.status.live"),
     baseUrl: "",
     apiKeyEnvVar: "",
     models: [
@@ -85,8 +85,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: t("aiConfig.provider.anthropic"),
     kind: "anthropic",
     local: false,
-    executionStatus: "planned",
-    statusLabel: t("aiConfig.status.planned"),
+    executionStatus: "live",
+    statusLabel: t("aiConfig.status.live"),
     baseUrl: "",
     apiKeyEnvVar: "ANTHROPIC_API_KEY",
     models: [
@@ -99,8 +99,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: t("aiConfig.provider.openai"),
     kind: "openai",
     local: false,
-    executionStatus: "planned",
-    statusLabel: t("aiConfig.status.planned"),
+    executionStatus: "live",
+    statusLabel: t("aiConfig.status.live"),
     baseUrl: "",
     apiKeyEnvVar: "OPENAI_API_KEY",
     models: [
@@ -113,8 +113,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: t("aiConfig.provider.gemini"),
     kind: "google",
     local: false,
-    executionStatus: "planned",
-    statusLabel: t("aiConfig.status.planned"),
+    executionStatus: "live",
+    statusLabel: t("aiConfig.status.live"),
     baseUrl: "",
     apiKeyEnvVar: "GOOGLE_GENERATIVE_AI_API_KEY",
     models: [
@@ -127,8 +127,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: t("aiConfig.provider.lmStudio"),
     kind: "openai-compatible",
     local: true,
-    executionStatus: "planned",
-    statusLabel: t("aiConfig.status.plannedLocal"),
+    executionStatus: "live",
+    statusLabel: t("aiConfig.status.localLive"),
     baseUrl: "http://localhost:1234/v1",
     apiKeyEnvVar: "",
     models: [{ id: "local-model", label: t("aiConfig.model.local") }],
@@ -138,8 +138,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: t("aiConfig.provider.ollama"),
     kind: "openai-compatible",
     local: true,
-    executionStatus: "planned",
-    statusLabel: t("aiConfig.status.plannedLocal"),
+    executionStatus: "live",
+    statusLabel: t("aiConfig.status.localLive"),
     baseUrl: "http://localhost:11434/v1",
     apiKeyEnvVar: "",
     models: [
@@ -152,8 +152,8 @@ export const AI_PROVIDERS: AiProviderConfig[] = [
     label: t("aiConfig.provider.custom"),
     kind: "openai-compatible",
     local: false,
-    executionStatus: "planned",
-    statusLabel: t("aiConfig.status.planned"),
+    executionStatus: "live",
+    statusLabel: t("aiConfig.status.live"),
     baseUrl: "",
     apiKeyEnvVar: "",
     models: [{ id: "model-id", label: t("aiConfig.model.custom") }],
@@ -179,7 +179,6 @@ export function normalizeAiSettings(input: Partial<AiSettings> = {}): AiSettings
   };
 }
 
-/** Planned adapter mapping. No user-facing path executes this until providers are live. */
 export function toAiSdkTarget(settings: AiSettings): AiSdkTarget {
   const provider = getAiProvider(settings.providerId);
   return {
@@ -197,6 +196,19 @@ export function isAiProviderLive(providerId: string): boolean {
 
 export function hasEnabledCodexModel(settings: Pick<AiSettings, "providerId" | "modelId" | "allowRemoteHealthContext">): boolean {
   return settings.providerId === "codex" && settings.allowRemoteHealthContext && settings.modelId.trim() !== "";
+}
+
+export function hasEnabledAiModel(settings: Pick<AiSettings, "providerId" | "modelId" | "baseUrl" | "apiKeyEnvVar" | "allowRemoteHealthContext">): boolean {
+  const provider = getAiProvider(settings.providerId);
+  const hasRequiredApiKeyEnvVar = provider.kind !== "anthropic" && provider.kind !== "openai" && provider.kind !== "google"
+    || settings.apiKeyEnvVar.trim() !== "";
+  const hasRequiredBaseUrl = provider.kind !== "openai-compatible" || settings.baseUrl.trim() !== "";
+  return provider.id !== "none"
+    && provider.executionStatus === "live"
+    && settings.modelId.trim() !== ""
+    && hasRequiredApiKeyEnvVar
+    && hasRequiredBaseUrl
+    && (provider.local || settings.allowRemoteHealthContext);
 }
 
 export function isApiKeyEnvVarName(value: string): boolean {

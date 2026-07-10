@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { formatDate } from "../dashboard-format";
 import { type ActivityEntry } from "../dashboard-model";
 import { t } from "../i18n";
@@ -8,22 +10,25 @@ import { AnatomyStage, OrganRail } from "./body/body-anatomy-workbench";
 import { BodyInspector } from "./body/body-inspector";
 import { EmptyMessage, StatusDot, type VisualHealthStatus } from "./health-status";
 import { NotebookPen } from "./health-icons";
+import { BodyCollapseToggle } from "./body/body-collapse-toggle";
 
 export function BodyWorkspace({ controller }: { controller: DashboardController }) {
+  const [collapsed, setCollapsed] = useState({ attention: false, organs: false, dailyLog: false, inspector: false });
+  const toggle = (section: keyof typeof collapsed) => setCollapsed((current) => ({ ...current, [section]: !current[section] }));
   return (
     <div className="body-page">
-      <BodyStatusStrip controller={controller} />
-      <div className="body-workbench">
-        <OrganRail controller={controller} />
+      <BodyStatusStrip controller={controller} collapsed={collapsed.attention} onToggle={() => toggle("attention")} />
+      <div className={cn("body-workbench", collapsed.organs && "organs-collapsed", collapsed.inspector && "inspector-collapsed")}>
+        <OrganRail controller={controller} collapsed={collapsed.organs} onToggle={() => toggle("organs")} />
         <AnatomyStage controller={controller} />
-        <BodyInspector controller={controller} />
+        <BodyInspector controller={controller} collapsed={collapsed.inspector} onToggle={() => toggle("inspector")} />
       </div>
-      <DailyLogCard controller={controller} />
+      <DailyLogCard controller={controller} collapsed={collapsed.dailyLog} onToggle={() => toggle("dailyLog")} />
     </div>
   );
 }
 
-function BodyStatusStrip({ controller }: { controller: DashboardController }) {
+function BodyStatusStrip({ controller, collapsed, onToggle }: { controller: DashboardController; collapsed: boolean; onToggle: () => void }) {
   const trackedKeys = new Set([
     ...controller.display.latestLabResults.map((lab) => lab.organKey),
     ...controller.display.recentSymptoms.map((symptom) => symptom.organKey),
@@ -51,6 +56,18 @@ function BodyStatusStrip({ controller }: { controller: DashboardController }) {
         ? t("body.hero.attentionDetail")
         : t("body.hero.monitorDetail");
 
+  if (collapsed) {
+    return (
+      <section className="body-status-strip body-status-strip-collapsed" aria-label={t("body.hero.label")}>
+        <div className="flex min-w-0 items-center gap-2">
+          <StatusDot status={visualStatus} />
+          <strong className="truncate text-sm">{t("body.hero.label")}</strong>
+        </div>
+        <BodyCollapseToggle collapsed onToggle={onToggle} section={t("body.section.attention")} />
+      </section>
+    );
+  }
+
   return (
     <section className="body-status-strip" aria-label={t("body.hero.label")}>
       <div className="body-status-copy">
@@ -76,6 +93,7 @@ function BodyStatusStrip({ controller }: { controller: DashboardController }) {
           <StatusCount count={monitor} label={t("body.stat.toWatch")} status="monitor" />
           <StatusCount count={noFollowUp} label={t("body.stat.noFollowUp")} status="normal" />
         </dl>
+        <BodyCollapseToggle collapsed={false} onToggle={onToggle} section={t("body.section.attention")} />
       </div>
     </section>
   );
@@ -90,10 +108,10 @@ function StatusCount({ count, label, status }: { count: number; label: string; s
   );
 }
 
-function DailyLogCard({ controller }: { controller: DashboardController }) {
+function DailyLogCard({ controller, collapsed, onToggle }: { controller: DashboardController; collapsed: boolean; onToggle: () => void }) {
   const entries = controller.userState.activityEntries;
   return (
-    <Card size="sm">
+    <Card className={cn("daily-log-card", collapsed && "daily-log-card-collapsed")} size="sm">
       <CardHeader>
         <CardTitle>{t("body.recent.dailyLog")}</CardTitle>
         <CardDescription>{t("body.dailyLog.description")}</CardDescription>
@@ -101,9 +119,10 @@ function DailyLogCard({ controller }: { controller: DashboardController }) {
           <Button variant="outline" size="sm" onClick={() => controller.openDialog("activity")}>
             <NotebookPen data-icon="inline-start" />{t("body.recent.add")}
           </Button>
+          <BodyCollapseToggle collapsed={collapsed} onToggle={onToggle} section={t("body.section.dailyLog")} />
         </CardAction>
       </CardHeader>
-      <CardContent>
+      {!collapsed ? <CardContent>
         {entries.length ? (
           <div className="grid max-h-72 gap-3 overflow-y-auto pr-1">
             {entries.map((entry) => (
@@ -118,7 +137,7 @@ function DailyLogCard({ controller }: { controller: DashboardController }) {
             ))}
           </div>
         ) : <EmptyMessage>{t("body.recent.noDailyEntries")}</EmptyMessage>}
-      </CardContent>
+      </CardContent> : null}
     </Card>
   );
 }

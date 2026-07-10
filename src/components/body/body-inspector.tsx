@@ -13,15 +13,19 @@ import { NotebookPen } from "../health-icons";
 import { EmptyMessage, StatusBadge } from "../health-status";
 import { LabFollowUpBadge } from "../lab-result-context";
 import { SparklineView } from "../sparkline-view";
+import { BodyCollapseToggle } from "./body-collapse-toggle";
 import { organVisualStatus, visualStatusLabel } from "./body-workspace-utils";
 
-export function BodyInspector({ controller }: { controller: DashboardController }) {
+export function BodyInspector({ controller, collapsed, onToggle }: { controller: DashboardController; collapsed: boolean; onToggle: () => void }) {
   const visualStatus = organVisualStatus(controller, controller.selectedOrgan);
   const status = visualStatusLabel(visualStatus);
 
   return (
-    <aside id="selected-organ-details" className="detail-rail" aria-label={controller.selectedOrgan.name}>
+    <aside id="selected-organ-details" className={collapsed ? "detail-rail detail-rail-collapsed" : "detail-rail"} aria-label={controller.selectedOrgan.name}>
       <p className="sr-only" aria-live="polite">{t("body.detail.announcement", { organ: controller.selectedOrgan.name, status })}</p>
+      {collapsed ? <header className="inspector-collapsed-header">
+        <BodyCollapseToggle collapsed onToggle={onToggle} section={t("body.section.sidebar")} />
+      </header> : <>
       <header className="inspector-header">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -29,6 +33,7 @@ export function BodyInspector({ controller }: { controller: DashboardController 
             <h2>{controller.selectedOrgan.name}</h2>
           </div>
           <StatusBadge status={visualStatus} />
+          <BodyCollapseToggle collapsed={false} onToggle={onToggle} section={t("body.section.sidebar")} />
         </div>
         <p className="text-sm text-muted-foreground">{organSummary(controller)}</p>
         <div className="flex flex-wrap gap-2">
@@ -41,6 +46,7 @@ export function BodyInspector({ controller }: { controller: DashboardController 
       <ConditionsCard controller={controller} />
       <OrganTrendPreview labs={controller.organLabs} onViewAll={() => controller.setSelectedNav("labs")} />
       <RecentCard controller={controller} />
+      </>}
     </aside>
   );
 }

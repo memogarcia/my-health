@@ -48,19 +48,7 @@ export async function runAiPrompt(input: {
     return { userState, toastMessage: t("toast.aiNotConfigured"), toastKind: "error" };
   }
 
-  if (provider.id !== "codex") {
-    userState = addAiConversationMessage({
-      userState,
-      conversationId: userMessage.conversationId,
-      role: "assistant",
-      content: t("ai.providerNotLive", { provider: provider.label }),
-      providerId: provider.id,
-      modelId: input.aiSettings.modelId,
-      isError: true,
-    }).userState;
-    return { userState, toastMessage: t("toast.providerNotConnected"), toastKind: "error" };
-  }
-  if (!input.aiSettings.allowRemoteHealthContext) {
+  if (!provider.local && !input.aiSettings.allowRemoteHealthContext) {
     userState = addAiConversationMessage({
       userState,
       conversationId: userMessage.conversationId,
@@ -73,26 +61,26 @@ export async function runAiPrompt(input: {
     return { userState, toastMessage: t("toast.remoteBlocked"), toastKind: "error" };
   }
 
-  await input.onPending(userState, userMessage.conversationId, t("toast.codexThinking"));
+  await input.onPending(userState, userMessage.conversationId, t("toast.aiThinking", { provider: provider.label }));
 
   let callId = "";
   try {
     const conversation = getActiveAiConversation(userState);
-    const codexPrompt = conversation ? buildCodexConversationPrompt(conversation) : input.prompt;
+    const conversationPrompt = conversation ? buildCodexConversationPrompt(conversation) : input.prompt;
     callId = input.onLlmCallStart({
       kind: "chat",
       command: "ask_llm",
       inputLabel: t("developer.call.chat"),
       modelId: input.aiSettings.modelId,
       reasoningEffort: input.aiSettings.reasoningEffort,
-      promptChars: codexPrompt.length,
+      promptChars: conversationPrompt.length,
       fileBytes: 0,
       renderedPages: 0,
     });
     input.onDeveloperLog({ area: "chat", level: "info", message: t("developer.log.callStarted"), detail: t("developer.log.command", { command: "ask_llm" }) });
     const response = String((await invoke("ask_llm", {
       input: {
-        prompt: codexPrompt,
+        prompt: conversationPrompt,
         modelId: input.aiSettings.modelId,
         reasoningEffort: input.aiSettings.reasoningEffort,
       },
