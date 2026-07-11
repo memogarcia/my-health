@@ -1,43 +1,37 @@
 /*
- * Design tokens and base resets.
- *
- * This is the single source of truth for the OKLCH design-language variables.
- * Tailwind consumes them through @theme inline in tailwind.css, so the whole
- * app can use them as utilities (bg-canvas, text-ink, bg-primary, text-normal,
- * border-border, ring-ring, …). Component styling lives in Tailwind utilities
- * and shadcn primitives; only data-viz / chat / developer CSS remains in
- * app.css. Do not add component classes here.
+ * Design tokens and base resets. Components consume these through Tailwind and
+ * shadcn semantic aliases; do not add page-specific selectors here.
  */
 
 :root {
   color: oklch(0.18 0.01 290);
-  background: oklch(0.98 0.005 290);
+  background: oklch(0.982 0.004 290);
+  color-scheme: light;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  
+
   --ink: oklch(0.18 0.01 290);
   --muted: oklch(0.38 0.01 290);
   --quiet: oklch(0.52 0.01 290);
-  --canvas: oklch(0.98 0.005 290);
-  --surface: oklch(1 0 0);
+  --canvas: oklch(0.982 0.004 290);
+  --surface: oklch(0.998 0.001 290);
   --surface-soft: oklch(0.95 0.005 290);
-  --sidebar-neutral: oklch(0.96 0.005 290);
+  --sidebar-neutral: oklch(0.965 0.004 290);
   --plum: oklch(0.58 0.12 342);
   --plum-deep: oklch(0.51 0.11 342);
   --accent: oklch(0.45 0.12 342);
   --accent-strong: oklch(0.38 0.12 342);
   --accent-ink: oklch(0.30 0.11 342);
   --accent-soft: oklch(0.92 0.04 342);
-  --normal: oklch(0.48 0.15 165);
-  --monitor: oklch(0.50 0.18 78);
-  --attention: oklch(0.48 0.18 28);
+  --normal: oklch(0.46 0.14 165);
+  --monitor: oklch(0.49 0.17 78);
+  --attention: oklch(0.47 0.18 28);
   --focus: oklch(0.50 0.15 260);
-  --hairline: color-mix(in oklch, var(--ink) 18%, transparent);
-  --shadow-float: 0 2px 6px oklch(0.1 0.02 290 / 0.08);
+  --hairline: color-mix(in oklch, var(--ink) 17%, transparent);
+  --shadow-float: 0 2px 8px oklch(0.1 0.02 290 / 0.08);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* shadcn semantic aliases (kept so un-migrated primitives resolve var()) */
   --background: var(--canvas);
   --foreground: var(--ink);
   --card: var(--surface);
@@ -45,7 +39,7 @@
   --popover: var(--surface);
   --popover-foreground: var(--ink);
   --primary: var(--accent);
-  --primary-foreground: oklch(0.98 0.002 290);
+  --primary-foreground: oklch(0.985 0.002 290);
   --secondary: var(--surface-soft);
   --secondary-foreground: var(--ink);
   --muted-foreground: var(--muted);
@@ -58,63 +52,112 @@
   --radius-xl: 0.875rem;
   --sidebar: var(--sidebar-neutral);
   --sidebar-muted: var(--muted);
-  --sidebar-line: oklch(1 0 0 / 0.09);
+  --sidebar-line: color-mix(in oklch, var(--ink) 9%, transparent);
   --status-normal: var(--normal);
   --status-monitor: var(--monitor);
   --status-attention: var(--attention);
   --status-empty: var(--quiet);
-  --elev-1: 0 1px 2px oklch(0.2 0.03 310 / 0.06);
+  --elev-1: 0 1px 2px oklch(0.2 0.03 310 / 0.055);
   --elev-2: var(--shadow-float);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-quint: var(--ease-out);
   --dur-feedback: 120ms;
-  --dur-state: 200ms;
+  --dur-state: 180ms;
   --page-gutter: 1.75rem;
   --page-gutter-compact: 1.25rem;
+
+  /* Compatibility aliases used by data visualizations and diagnostics. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --fs-xs: 0.6875rem;
+  --fs-sm: 0.75rem;
+  --fs-base: 0.8125rem;
+  --fs-md: 0.875rem;
+  --fs-lg: 1rem;
+  --fs-xl: 1.5rem;
 }
 
 .dark {
   color: oklch(0.92 0.008 290);
-  background: oklch(0.275 0.005 290);
-  
+  background: oklch(0.265 0.006 290);
+  color-scheme: dark;
+
   --ink: oklch(0.92 0.008 290);
   --muted: oklch(0.72 0.012 290);
   --quiet: oklch(0.59 0.012 290);
-  --canvas: oklch(0.275 0.005 290);
-  --surface: oklch(0.295 0.005 290);
-  --surface-soft: oklch(0.345 0.007 290);
+  --canvas: oklch(0.265 0.006 290);
+  --surface: oklch(0.292 0.006 290);
+  --surface-soft: oklch(0.342 0.008 290);
   --sidebar-neutral: var(--canvas);
-  --plum: oklch(0.58 0.12 342);
-  --plum-deep: oklch(0.51 0.11 342);
+  --plum: oklch(0.62 0.12 342);
+  --plum-deep: oklch(0.56 0.11 342);
   --accent: var(--plum);
-  --accent-strong: oklch(0.53 0.12 342);
-  --accent-ink: oklch(0.84 0.06 342);
+  --accent-strong: oklch(0.55 0.12 342);
+  --accent-ink: oklch(0.86 0.05 342);
   --accent-soft: oklch(0.37 0.045 342);
   --normal: oklch(0.74 0.11 165);
   --monitor: oklch(0.78 0.12 78);
-  --attention: oklch(0.7 0.15 28);
-  --focus: oklch(0.72 0.14 260);
-  --hairline: color-mix(in oklch, var(--ink) 9%, transparent);
-  --shadow-float: 0 2px 6px oklch(0.08 0.01 290 / 0.18);
-  --primary-foreground: oklch(0.98 0.002 290);
+  --attention: oklch(0.72 0.15 28);
+  --focus: oklch(0.74 0.13 260);
+  --hairline: color-mix(in oklch, var(--ink) 10%, transparent);
+  --shadow-float: 0 2px 8px oklch(0.08 0.01 290 / 0.2);
+  --primary-foreground: oklch(0.985 0.002 290);
+}
+
+.contrast {
+  --muted: oklch(0.28 0.012 290);
+  --quiet: oklch(0.36 0.012 290);
+  --surface-soft: oklch(0.92 0.006 290);
+  --hairline: color-mix(in oklch, var(--ink) 42%, transparent);
+  --focus: oklch(0.43 0.2 260);
+  --shadow-float: none;
+}
+
+.dark.contrast {
+  --ink: oklch(0.98 0.002 290);
+  --muted: oklch(0.86 0.008 290);
+  --quiet: oklch(0.76 0.01 290);
+  --canvas: oklch(0.18 0.005 290);
+  --surface: oklch(0.22 0.006 290);
+  --surface-soft: oklch(0.29 0.008 290);
+  --hairline: color-mix(in oklch, var(--ink) 38%, transparent);
+  --focus: oklch(0.82 0.16 260);
 }
 
 * { box-sizing: border-box; }
 html, body, #app { height: 100%; margin: 0; }
-body { min-width: 820px; overflow: hidden; }
+html { background: var(--canvas); }
+body { min-width: 820px; overflow: hidden; background: var(--canvas); color: var(--ink); }
 button, input, select, textarea { font: inherit; }
 button, summary { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
-  outline: 3px solid color-mix(in oklch, var(--focus) 55%, transparent);
+  outline: 3px solid color-mix(in oklch, var(--focus) 58%, transparent);
   outline-offset: 2px;
+}
+.contrast button:focus-visible, .contrast input:focus-visible, .contrast select:focus-visible, .contrast textarea:focus-visible, .contrast summary:focus-visible {
+  outline-color: var(--focus);
 }
 h1, h2, h3, p { margin: 0; }
 h1, h2, h3 { text-wrap: balance; }
 p { text-wrap: pretty; }
 code { font-family: "SF Mono", ui-monospace, monospace; font-size: 0.82em; }
+::selection { background: color-mix(in oklch, var(--accent) 28%, transparent); }
 
 @keyframes loading { to { transform: translateX(80px); } }
 
+@media (forced-colors: active) {
+  .status-dot { border: 1px solid CanvasText; forced-color-adjust: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
