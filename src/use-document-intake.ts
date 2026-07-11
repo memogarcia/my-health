@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand } from "./platform/tauri-client";
 import { toast } from "sonner";
 import { hasEnabledCodexModel, type AiSettings } from "./ai-sdk-config";
 import type { BackgroundJobInput, BackgroundJobPatch, DeveloperLogInput, DocumentAnalysis, ExtractedResult, LlmCallInput, LlmCallPatch, NavKey, PendingDocument } from "./dashboard-model";
@@ -116,7 +116,7 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
       options.onDeveloperLog({ area: "document", level: "info", message: t("developer.log.pagesRendered"), detail: t("developer.log.pages", { count: renderedPages.length }) });
       callId = options.onLlmCallStart({ kind: "document-analysis", command: "analyze_document", inputLabel: file.name, modelId: options.aiSettings.modelId, reasoningEffort: options.aiSettings.reasoningEffort, promptChars: 0, fileBytes: bytes.length, renderedPages: renderedPages.length });
       options.onDeveloperLog({ area: "document", level: "info", message: t("developer.log.callStarted"), detail: t("developer.log.command", { command: "analyze_document" }) });
-      const raw = await invoke<string>("analyze_document", { input: { fileName: file.name, fileBytes: Array.from(bytes), renderedPages, modelId: options.aiSettings.modelId, reasoningEffort: options.aiSettings.reasoningEffort } });
+      const raw = await invokeCommand<string>("analyze_document", { input: { fileName: file.name, fileBytes: Array.from(bytes), renderedPages, modelId: options.aiSettings.modelId, reasoningEffort: options.aiSettings.reasoningEffort } });
       options.onLlmCallUpdate(callId, { status: "completed", outputChars: raw.length });
       options.onDeveloperLog({ area: "document", level: "success", message: t("developer.log.callCompleted"), detail: t("developer.log.chars", { count: raw.length }) });
       if (stopIfCancelled()) return;
@@ -174,9 +174,9 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
       if (session.document && file) {
         if (file.size > MAX_DOCUMENT_BYTES) throw new Error(t("toast.fileTooLarge"));
         const bytes = new Uint8Array(await file.arrayBuffer());
-        await invoke("import_lab_results_document", { input: { ...input, fileName: file.name, fileBytes: Array.from(bytes), dbPath: options.databasePath } });
+        await invokeCommand("import_lab_results_document", { input: { ...input, fileName: file.name, fileBytes: Array.from(bytes), dbPath: options.databasePath } });
       } else {
-        await invoke("add_lab_results", { input });
+        await invokeCommand("add_lab_results", { input });
       }
       pendingDocumentFileRef.current.delete(session.id);
       setDocumentSessions((current) => current.filter((entry) => entry.id !== session.id));

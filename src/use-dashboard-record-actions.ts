@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand, type TauriCommand } from "./platform/tauri-client";
 import { toast } from "sonner";
 import type { Dispatch, SetStateAction } from "react";
 import type { ConditionInput, HealthStatus, PendingDocument, RegimenInput } from "./dashboard-model";
@@ -41,7 +41,7 @@ type RecordActionOptions = {
 export function makeRecordActions(options: RecordActionOptions) {
   async function addLabResult(input: ResultInput, isDocumentResult = false): Promise<void> {
     try {
-      await invoke("add_lab_result", { input });
+      await invokeCommand("add_lab_result", { input });
       options.closeDialog();
       toast.success(isDocumentResult ? t("toast.documentResultSaved") : t("toast.resultSaved"));
       await options.loadDashboard();
@@ -64,7 +64,7 @@ export function makeRecordActions(options: RecordActionOptions) {
 
   async function addSymptom(input: SymptomInput): Promise<void> {
     try {
-      await invoke("add_symptom", { input });
+      await invokeCommand("add_symptom", { input });
       options.closeDialog();
       toast.success(t("toast.symptomSaved"));
       await options.loadDashboard();
@@ -139,9 +139,9 @@ export function makeRecordActions(options: RecordActionOptions) {
   };
 }
 
-async function mutate(command: string, args: Record<string, unknown>, successMessage: string, loadDashboard: () => Promise<boolean>): Promise<boolean> {
+async function mutate(command: TauriCommand, args: Record<string, unknown>, successMessage: string, loadDashboard: () => Promise<boolean>): Promise<boolean> {
   try {
-    await invoke(command, args);
+    await invokeCommand(command, args);
     toast.success(successMessage);
     const refreshed = await loadDashboard();
     if (!refreshed) toast.warning(t("toast.refreshFailed"));

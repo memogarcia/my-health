@@ -61,8 +61,8 @@ const statusLabelCls = "whitespace-nowrap text-[11px] font-semibold text-muted-i
 
 function OrganIndex({ controller }: { controller: DashboardController }) {
   return (
-    <aside className="min-h-0 overflow-y-auto border-r border-border bg-sidebar">
-      <header className="sticky top-0 z-2 bg-sidebar p-[20px_16px_12px] max-[1040px]:px-3">
+    <aside className="min-h-0 overflow-y-auto border-r border-border bg-canvas">
+      <header className="sticky top-0 z-2 bg-canvas p-[20px_16px_12px] max-[1040px]:px-3">
         <h1 className="text-[0.9375rem] tracking-[-0.015em]">{t("body.organs.title")}</h1>
         <p className="mt-1 text-xs leading-relaxed text-muted-ink max-[880px]:hidden">{t("body.organs.description")}</p>
       </header>

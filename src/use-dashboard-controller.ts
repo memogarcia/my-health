@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand } from "./platform/tauri-client";
 import { toast } from "sonner";
 import { normalizeAiSettings, type AiSettings, type CodexModelOption } from "./ai-sdk-config";
 import { summarizeAppleHealthFile } from "./apple-health-import";
 import { type DatabaseStatus } from "./database-gate";
 import { isDatabasePassphraseLongEnough, normalizeDatabasePassphrase } from "./database-passphrase";
-import { newLocalDatabasePath, pickExistingDatabase } from "./database-picker";
+import { newLocalDatabasePath, pickExistingDatabase } from "./platform/database-picker";
 import {
   buildDisplaySnapshot,
   normalizeUserState,
@@ -175,7 +175,7 @@ export function useDashboardController() {
     const dbPath = databasePathRef.current;
     if (!dbPath) return false;
     try {
-      await invoke("save_ai_settings", { settings: JSON.stringify(next), dbPath });
+      await invokeCommand("save_ai_settings", { settings: JSON.stringify(next), dbPath });
       return databasePathRef.current === dbPath;
     } catch (error) {
       const message = String(error || "");
@@ -193,7 +193,7 @@ export function useDashboardController() {
     if (!dbPath) return false;
     const save = userStateSaveQueueRef.current.then(async () => {
       try {
-        await invoke("save_user_state", { state: JSON.stringify(next), dbPath });
+        await invokeCommand("save_user_state", { state: JSON.stringify(next), dbPath });
         return databasePathRef.current === dbPath;
       } catch {
         toast.warning(t("toast.changesSession"));
@@ -206,7 +206,7 @@ export function useDashboardController() {
 
   async function loadDashboard(currentDatabaseStatus = databaseStatus): Promise<boolean> {
     try {
-      const nextSnapshot = await invoke<DashboardSnapshot>("get_dashboard_snapshot");
+      const nextSnapshot = await invokeCommand<DashboardSnapshot>("get_dashboard_snapshot");
       if (databasePathRef.current && nextSnapshot.dbPath !== databasePathRef.current) return false;
       setSnapshot(nextSnapshot);
       setSelectedOrganKey((current) =>
@@ -233,7 +233,7 @@ export function useDashboardController() {
       }
       let status: DatabaseStatus | null = null;
       try {
-        status = await invoke<DatabaseStatus>("get_database_status");
+        status = await invokeCommand<DatabaseStatus>("get_database_status");
         if (!alive) return;
         setDatabaseStatus(status);
         databasePathRef.current = status.dbPath;
@@ -245,13 +245,13 @@ export function useDashboardController() {
       if (status && !status.unlocked) return;
 
       try {
-        const settings = await invoke<string>("get_ai_settings");
+        const settings = await invokeCommand<string>("get_ai_settings");
         if (alive) setAiSettings(normalizeAiSettings(JSON.parse(settings)));
       } catch {
         if (alive) setAiSettings(normalizeAiSettings());
       }
       try {
-        const state = await invoke<string>("get_user_state");
+        const state = await invokeCommand<string>("get_user_state");
         if (alive) setUserStateWithRef(restoreUserState(JSON.parse(state)));
       } catch {
         if (alive) setUserStateWithRef(normalizeUserState());
@@ -270,7 +270,7 @@ export function useDashboardController() {
 
   async function loadCodexOptions(): Promise<void> {
     try {
-      const result = await invoke<{ models: CodexModelOption[] }>("get_codex_options");
+      const result = await invokeCommand<{ models: CodexModelOption[] }>("get_codex_options");
       setCodexModels(result.models || []);
       setCodexOptionsError("");
     } catch {
@@ -292,13 +292,13 @@ export function useDashboardController() {
       return;
     }
     try {
-      const status = await invoke<DatabaseStatus>("unlock_database", { passphrase });
+      const status = await invokeCommand<DatabaseStatus>("unlock_database", { passphrase });
       setDatabaseStatus(status);
       databasePathRef.current = status.dbPath;
       setLoadError("");
       toast.success(previousState === "locked" ? t("toast.databaseUnlocked") : t("toast.encryptedDatabaseReady"));
-      const settings = await invoke<string>("get_ai_settings").catch(() => "");
-      const state = await invoke<string>("get_user_state").catch(() => "");
+      const settings = await invokeCommand<string>("get_ai_settings").catch(() => "");
+      const state = await invokeCommand<string>("get_user_state").catch(() => "");
       setAiSettings(settings ? normalizeAiSettings(JSON.parse(settings)) : normalizeAiSettings());
       setUserStateWithRef(state ? restoreUserState(JSON.parse(state)) : normalizeUserState());
       await loadDashboard(status);
@@ -309,7 +309,7 @@ export function useDashboardController() {
 
   async function selectDatabasePath(path: string): Promise<void> {
     try {
-      const status = await invoke<DatabaseStatus>("select_database", { path });
+      const status = await invokeCommand<DatabaseStatus>("select_database", { path });
       databasePathRef.current = status.dbPath;
       databaseEpochRef.current += 1;
       setDatabaseStatus(status);
@@ -389,7 +389,7 @@ export function useDashboardController() {
       return;
     }
     try {
-      const path = await invoke<string>("export_database", { passphrase: normalizedPassphrase });
+      const path = await invokeCommand<string>("export_database", { passphrase: normalizedPassphrase });
       setLoadError("");
       toast.success(t("toast.exportSaved", { path }));
     } catch (error) {

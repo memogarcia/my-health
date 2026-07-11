@@ -17,7 +17,7 @@ import type { DashboardController } from "../use-dashboard-controller";
 import { DataExportSettings } from "./data-export-settings";
 export function SettingsPage({ controller }: { controller: DashboardController }) {
   return (
-    <div className="grid w-full max-w-[760px] gap-4">
+    <div className="mx-auto grid w-full max-w-[760px] gap-4">
       <ProfileSettings controller={controller} />
       <AiSettings controller={controller} />
       <DataExportSettings controller={controller} />

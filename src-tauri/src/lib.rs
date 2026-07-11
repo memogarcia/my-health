@@ -8,6 +8,8 @@ mod codex_cli;
 mod conditions;
 mod database;
 mod document_files;
+mod modules;
+mod platform;
 mod records;
 mod regimen;
 use ai_settings::validate_ai_settings;
@@ -182,6 +184,7 @@ fn parse_json_object(label: &str, value: &str) -> Result<serde_json::Value, Stri
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    modules::validate_catalog().expect("invalid compiled module catalog");
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -191,7 +194,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_database_status,
-            database::select_database,
+            platform::database::select_database,
             unlock_database,
             lock_database,
             export_database,

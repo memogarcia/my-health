@@ -1,7 +1,1 @@
-export type DatabaseStatus = {
-  dbPath: string;
-  state: "needsSetup" | "locked" | "legacyPlaintext" | "unlocked";
-  configured: boolean;
-  unlocked: boolean;
-  hasLegacyPlaintext: boolean;
-};
+export type { DatabaseStatus } from "./platform/database-status";

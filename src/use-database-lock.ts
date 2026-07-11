@@ -1,5 +1,5 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand } from "./platform/tauri-client";
 import { toast } from "sonner";
 import { normalizeAiSettings, type AiSettings } from "./ai-sdk-config";
 import type { DatabaseStatus } from "./database-gate";
@@ -28,7 +28,7 @@ export function makeDatabaseLockAction(options: DatabaseLockOptions) {
   async function lockDatabase(): Promise<void> {
     if (!options.databaseStatus?.unlocked) return;
     try {
-      const status = await invoke<DatabaseStatus>("lock_database");
+      const status = await invokeCommand<DatabaseStatus>("lock_database");
       options.databaseEpochRef.current += 1;
       options.setDatabaseStatus(status);
       options.setSnapshot(null);

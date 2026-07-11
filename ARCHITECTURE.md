@@ -162,6 +162,14 @@ The route and navigation state contains only stable route IDs and harmless UI
 state. Health records, conversations, document bytes, and secrets never enter a
 URL, browser storage, or navigation manifest.
 
+The first composition-root slice is implemented in `src/app/` and
+`src/platform/`. `module-registry.ts` validates module IDs, route IDs, command
+names, and dependency cycles before creating the lazy page registry. Every
+routed page is rendered inside `page-shell.tsx`, which supplies the shared page
+width, padding, scroll boundary, and `bg-canvas` shell plane. The current domain
+components remain compatibility implementations behind the module page entries
+until their ownership is extracted.
+
 ### Rust request flow
 
 Every module mutation follows the same path:
@@ -400,13 +408,15 @@ The modular migration is complete when:
 
 ## Runtime Flow
 
-1. `App.tsx` mounts `DatabaseGate`.
+1. `app/App.tsx` mounts `DatabaseGate`.
 2. The user selects/unlocks a database.
-3. UI actions route through `use-dashboard-controller.ts`.
-4. The controller calls Tauri commands with `invoke()`.
-5. Rust validates input at the trust boundary.
-6. Rust reads or writes SQLite through `database::with_connection`.
-7. The renderer reloads `get_dashboard_snapshot`.
+3. `use-dashboard-controller.ts` owns the transitional app/session state.
+4. UI actions cross `platform/tauri-client.ts` through `invokeCommand()`.
+5. The static renderer module registry resolves the selected page and
+   `app/page-shell.tsx` supplies its standard content frame.
+6. Rust validates input at the trust boundary.
+7. Rust reads or writes SQLite through `database::with_connection`.
+8. The renderer reloads `get_dashboard_snapshot`.
 
 Long-running renderer actions also create a small persisted background-job
 record in `user_state`. The job center tracks document extraction and AI work
@@ -420,7 +430,9 @@ command, model, reasoning effort, timing, byte/page counts, output size, event
 messages, and truncated errors. Prompt text, extracted results, and secrets are
 not copied into diagnostics.
 
-Leaf components should not call `invoke()` directly.
+Leaf components should not call `invoke()` directly. The only renderer file
+that imports `@tauri-apps/api/core` is `platform/tauri-client.ts`; native plugin
+adapters remain platform-owned.
 
 ## Storage
 
@@ -622,8 +634,19 @@ replaces an earlier one.
 
 Renderer:
 
-- `App.tsx` - root app shell and database gate.
-- `use-dashboard-controller.ts` - state, navigation, dialogs, settings, and all Tauri calls.
+- `app/App.tsx` - bootstrap, native-only guard, database gate, and app shell entry.
+- `app/page-shell.tsx` - standard routed-page content frame and shared canvas plane.
+- `app/shell.tsx` - shared rail, top bar, workspace composition, and dialog mount.
+- `app/module-contract.ts`, `app/module-registry.ts`, `app/router.tsx` - typed
+  renderer module contract, deterministic catalog validation, and lazy page registry.
+- `modules/<module-id>/index.ts` - public module definitions and page adapters;
+  current pages remain compatibility wrappers while domain extraction proceeds.
+  Activity, labs, symptoms, library, assistant, settings, and diagnostics routes
+  now resolve through this registry rather than a conditional router.
+- `platform/tauri-client.ts` - the only renderer `invoke()` adapter.
+- `platform/runtime.ts`, `platform/database-status.ts`, `platform/i18n.ts` -
+  native runtime, session types, and platform catalog adapters.
+- `use-dashboard-controller.ts` - transitional app/session state, navigation, dialogs, and settings.
 - `use-dashboard-record-actions.ts` - record mutation command wrappers.
 - `dashboard-model.ts` - shared types, organ visuals, snapshot shaping.
 - `tauri-runtime.ts` - native-runtime guard.
@@ -639,7 +662,7 @@ Renderer:
 - `components/organ-inspector.tsx` - selected-organ record: status, counts, recent signals, conditions.
 - `components/charts/` - SVG chart components for labs, symptoms, regimen periods, document coverage, and AI context coverage.
 - `charts/` - pure chart data transforms and scale utilities.
-- `i18n.ts`, `i18n/locales/en.json` - typed UI copy catalog.
+- `i18n.ts`, `i18n/locales/en.json` - compatibility entry point and typed UI copy catalog.
 - `styles/tailwind.css` - Tailwind v4 entry; maps the OKLCH design tokens to theme colors via `@theme inline`.
 - `styles/foundations.css` - token values and base resets only.
 - `styles/app.css` - residual bespoke CSS for SVG data-viz, chat/markdown, and developer diagnostics. All app shell, navigation, and page chrome is Tailwind + shadcn.
@@ -651,8 +674,12 @@ Renderer:
 
 Backend:
 
-- `lib.rs` - app setup, command registration, snapshot commands.
-- `database.rs` - SQLCipher database setup, unlock, migration, export.
+- `platform/module_registry.rs` - static Rust module catalog and startup validation.
+- `platform/database.rs` - SQLCipher database setup, unlock, migration, and export.
+- `platform/ai_settings.rs`, `platform/document_files.rs` - central AI settings and file-boundary policy.
+- `modules/<module-id>/mod.rs` - public module namespaces for the incremental migration.
+- `lib.rs` - app setup, command registration, snapshot commands, and catalog bootstrap.
+- root `database.rs`, `ai_settings.rs`, and `document_files.rs` - transitional re-export adapters.
 - `apple_health.rs` - allowlisted Apple Health batch validation, transactional
   sample/tombstone persistence, anchor advancement, status, and unit tests.
 - `records.rs`, `records/parse.rs`, `records/reports.rs`, `records/symptoms.rs` - lab, report, and symptom validation/storage.
@@ -681,5 +708,7 @@ Backend:
   review, then atomically saved with its source bytes inside encrypted SQLite.
 - Charts use saved structured data only; they are record-review aids, not diagnostic quality scores.
 - Rust validates before every write.
-- New Tauri commands must be registered in `lib.rs`.
+- New Tauri commands must be registered in `lib.rs` and assigned to exactly one module catalog entry.
+- The renderer uses the typed platform client; leaf modules do not import Tauri core or plugins.
+- The app rail, top bar, and routed page canvas use the same `bg-canvas` token. Semantic cards and controls may use surface tokens for grouping, not as alternate page backgrounds.
 - Schema migrations are additive only.

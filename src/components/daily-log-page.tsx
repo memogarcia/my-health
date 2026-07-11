@@ -9,7 +9,7 @@ export function DailyLogPage({ controller }: { controller: DashboardController }
   const entries = [...controller.userState.activityEntries].sort((a, b) => b.loggedAt.localeCompare(a.loggedAt));
 
   return (
-    <section className="grid w-[min(100%,760px)] gap-5 px-7 py-5 pb-8 max-[880px]:px-5">
+    <section className="mx-auto grid w-full max-w-[760px] gap-5 px-7 py-5 pb-8 max-[880px]:px-5">
       <header className="flex items-start justify-between gap-4 border-b border-border pb-4">
         <div>
           <h1 className="text-xl tracking-[-0.02em]">{t("nav.activity.label")}</h1>

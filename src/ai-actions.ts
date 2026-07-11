@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invokeCommand } from "./platform/tauri-client";
 import { getAiProvider, type AiSettings } from "./ai-sdk-config";
 import {
   addAiConversationMessage,
@@ -79,7 +79,7 @@ export async function runAiPrompt(input: {
       renderedPages: 0,
     });
     input.onDeveloperLog({ area: "chat", level: "info", message: t("developer.log.callStarted"), detail: t("developer.log.command", { command: "ask_llm" }) });
-    const response = String((await invoke("ask_llm", {
+    const response = String((await invokeCommand("ask_llm", {
       input: {
         prompt: conversationPrompt,
         modelId: input.aiSettings.modelId,

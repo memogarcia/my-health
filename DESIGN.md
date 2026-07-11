@@ -47,8 +47,9 @@ retaining the health app's own terminology.
 - Each destination has an icon and a visible label. The current workspace uses
   a shallow neutral row fill, never an edge marker or high-chroma container.
 - Settings, diagnostics, and encrypted-local status stay at the bottom.
-- Sidebar and main canvas are differentiated by adjacent neutral surfaces, not
-  a structural border.
+- The sidebar, top bar, and page canvas use one neutral background so the shell
+  stays continuous. Selected rows and semantic panels provide grouping without
+  introducing a second page background.
 - Command-1 through Command-4 map to the four workspaces.
 
 ## Layout
@@ -76,6 +77,14 @@ and deletion. Daily Log uses its own reverse-chronological reading page for
 entry, editing, and deletion. Returning to the timeline restores chronological
 context.
 
+### Shared page shell
+
+Every routed page renders inside the standard page shell. The shell owns the
+scroll boundary, responsive horizontal gutter, maximum reading width, and
+canvas background. A page may opt into a full-bleed content layout for a
+workspace such as Library or Timeline, but it keeps the same shell plane and
+height contract.
+
 ### Library
 
 Library uses a stable 228 px index and one detail canvas. It does not add page
@@ -95,8 +104,10 @@ navigation to the global rail.
 
 All colors are OKLCH tokens in `src/styles/foundations.css`.
 
-- Canvas and chrome are dark, chroma-neutral surfaces with a slight violet
-  bias. Content planes are one restrained step lighter than the canvas.
+- The app rail, top bar, and routed page canvas share the same dark,
+  chroma-neutral canvas token with a slight violet bias. Surface tokens are
+  reserved for semantic panels, cards, and controls rather than alternate page
+  backgrounds.
 - Berry is reserved for primary actions, selected AI controls, and compact
   identity marks. The renderer and shadcn primitives use the same berry token.
 - Normal is green, Monitor is amber, and Attention is vermilion.
@@ -123,8 +134,8 @@ All colors are OKLCH tokens in `src/styles/foundations.css`.
 ### Materials and elevation
 
 - Opaque content surfaces carry health data.
-- The top bar blends into the canvas without a separator. The sidebar is
-  defined by its neighboring surface, not a line.
+- The top bar and sidebar blend into the same canvas without a separator.
+  Selected rows and semantic panels provide the visual grouping.
 - The persistent AI composer is a compact inset surface with no outline and a
   two-pixel-or-less shadow.
 - Selected list rows use a shallow three-pixel shadow at most.

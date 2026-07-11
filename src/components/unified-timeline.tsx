@@ -52,7 +52,7 @@ export function UnifiedTimeline({ controller }: { controller: DashboardControlle
 
   const canManage = filter === "results" || filter === "symptoms";
   return (
-    <section className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface">
+    <section className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-canvas">
       <header className="mx-auto flex max-w-[864px] items-start justify-between gap-5 px-7 pb-3 pt-5 max-[880px]:px-[var(--page-gutter)]">
         <div>
           <h1 className="text-xl tracking-[-0.02em]">{t("workspace.timeline")}</h1>
@@ -64,7 +64,7 @@ export function UnifiedTimeline({ controller }: { controller: DashboardControlle
           <Button size="sm" variant="ghost" onClick={() => controller.openDialog("symptom")} type="button"><Icon name="symptom" size={15} />{t("body.detail.logSymptom")}</Button>
         </div>
       </header>
-      <div aria-label={t("workspace.timeline.filter")} className="sticky top-0 z-[4] mx-auto flex max-w-[864px] gap-1 overflow-x-auto border-b border-border bg-surface pb-3 max-[880px]:mx-[var(--page-gutter)]" role="group">
+      <div aria-label={t("workspace.timeline.filter")} className="sticky top-0 z-[4] mx-auto flex max-w-[864px] gap-1 overflow-x-auto border-b border-border bg-canvas pb-3 max-[880px]:mx-[var(--page-gutter)]" role="group">
         {filters.map((item) => (
           <button
             aria-pressed={filter === item.key}
