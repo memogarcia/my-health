@@ -3,11 +3,13 @@ import { Toaster } from "sonner";
 import DatabaseGate from "@/modules/platform-pages/pages/database-gate";
 import { HealthWorkspace } from "@/app/shell";
 import { Icon } from "@/components/icon";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { NavKey } from "@/dashboard-model";
 import { bindDocumentDrop } from "@/document-intake";
 import { configureNativeDatabaseMenu, configureNativeShell } from "@/platform/native-shell";
 import { t } from "@/platform/i18n";
 import { TAURI_ONLY_MESSAGE } from "@/platform/runtime";
+import { resolveTheme } from "@/theme";
 import { useDashboardController } from "@/use-dashboard-controller";
 import "@/styles/tailwind.css";
 import "@/styles/foundations.css";
@@ -38,13 +40,30 @@ export function App() {
   }, [controller.databaseStatus, controller.prepareDocumentResult]);
 
   useEffect(() => {
-    const theme = controller.userState.profile?.theme || "system";
-    const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
+    const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const contrastQuery = window.matchMedia("(prefers-contrast: more)");
+    const forcedColorsQuery = window.matchMedia("(forced-colors: active)");
+    const root = document.documentElement;
+
+    function syncTheme(): void {
+      const theme = resolveTheme(controller.userState.profile?.theme, {
+        prefersDark: darkQuery.matches,
+        prefersContrast: contrastQuery.matches,
+        forcedColors: forcedColorsQuery.matches,
+      });
+      root.classList.toggle("dark", theme.dark);
+      root.classList.toggle("contrast", theme.contrast);
+      root.dataset.theme = theme.colorScheme;
+      root.dataset.contrast = theme.contrast ? "more" : "normal";
+      root.style.colorScheme = theme.colorScheme;
     }
+
+    syncTheme();
+    const queries = [darkQuery, contrastQuery, forcedColorsQuery];
+    for (const query of queries) query.addEventListener("change", syncTheme);
+    return () => {
+      for (const query of queries) query.removeEventListener("change", syncTheme);
+    };
   }, [controller.userState.profile?.theme]);
 
   useEffect(() => {
@@ -82,7 +101,12 @@ export function App() {
     return <><DatabaseGate controller={controller} /><Toaster position="top-center" richColors /></>;
   }
 
-  return <><HealthWorkspace controller={controller} /><Toaster position="top-center" richColors /></>;
+  return (
+    <TooltipProvider delayDuration={350}>
+      <HealthWorkspace controller={controller} />
+      <Toaster position="top-center" richColors />
+    </TooltipProvider>
+  );
 }
 
 function LoadingScreen() {
