@@ -28,7 +28,7 @@ export function buildLifestylePlan(display: DisplaySnapshot, userState: UserStat
   const activeMinutes = userState.activityEntries.reduce((total, entry) => total + entry.durationMinutes, 0);
   const loggedCigarettes = userState.activityEntries.reduce((total, entry) => total + entry.cigarettes, 0);
   const loggedDrinks = userState.activityEntries.reduce((total, entry) => total + entry.drinks, 0);
-  const organNames = display.organs.filter((organ) => organ.status !== "normal").map((organ) => organ.name);
+  const organNames = display.organs.filter((organ) => organ.status === "monitor" || organ.status === "attention").map((organ) => organ.name);
   const signals = buildSignals({
     attentionLabs,
     monitorLabs,
@@ -98,7 +98,7 @@ export function buildDeepResearchBrief(display: DisplaySnapshot, userState: User
       attentionLabs,
       monitorLabs,
       highSymptoms,
-      organNames: display.organs.filter((organ) => organ.status !== "normal").map((organ) => organ.name),
+      organNames: display.organs.filter((organ) => organ.status === "monitor" || organ.status === "attention").map((organ) => organ.name),
       activeMinutes: userState.activityEntries.reduce((total, entry) => total + entry.durationMinutes, 0),
       loggedCigarettes: userState.activityEntries.reduce((total, entry) => total + entry.cigarettes, 0),
       loggedDrinks: userState.activityEntries.reduce((total, entry) => total + entry.drinks, 0),

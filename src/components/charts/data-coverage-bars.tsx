@@ -16,7 +16,7 @@ export function DataCoverageBars({ items }: { items: DataCoverageItem[] }) {
         {items.map((item) => (
           <div className="coverage-row" key={item.key}>
             <span className="truncate text-xs text-muted-foreground">{item.label}</span>
-            <span className="coverage-track"><span className="coverage-fill" style={{ width: `${Math.max(4, (item.count / max) * 100)}%` }} /></span>
+            <span className="coverage-track"><span className="coverage-fill" style={{ width: `${item.count === 0 ? 0 : Math.max(4, (item.count / max) * 100)}%` }} /></span>
             <strong className="text-xs tnum">{item.count}</strong>
           </div>
         ))}

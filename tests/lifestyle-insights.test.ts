@@ -44,7 +44,7 @@ const display: DisplaySnapshot = {
 };
 
 const userState: UserState = {
-  profile: { age: 40, sex: "not specified", heightCm: 170, weightKg: 70 },
+  profile: { age: 40, sex: "not specified", anatomyModel: "default", heightCm: 170, weightKg: 70 },
   activityEntries: [{ id: "a1", loggedAt: "2026-07-03", cigarettes: 0, drinks: 1, activityName: "Walk", durationMinutes: 20, notes: "synthetic sample" }],
   fasting: { activeStartedAt: "", targetHours: 16, sessions: [] },
   bodyNotes: [],

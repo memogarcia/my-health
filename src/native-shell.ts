@@ -12,6 +12,7 @@ type ShortcutActions = {
 };
 
 type DatabaseMenuActions = {
+  lockDatabase: () => unknown;
   newDatabase: () => unknown;
   openDatabase: () => unknown;
 };
@@ -31,6 +32,7 @@ export async function configureNativeDatabaseMenu(actions: DatabaseMenuActions):
     items: [
       { id: "open-database", text: t("nativeMenu.openDatabase"), accelerator: "CmdOrCtrl+O", action: () => void actions.openDatabase() },
       { id: "new-database", text: t("nativeMenu.newDatabase"), accelerator: "CmdOrCtrl+Shift+N", action: () => void actions.newDatabase() },
+      { id: "lock-database", text: t("nativeMenu.lockDatabase"), accelerator: "CmdOrCtrl+L", action: () => void actions.lockDatabase() },
     ],
   });
   await menu.append(databaseMenu);

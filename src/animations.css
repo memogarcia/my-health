@@ -2,7 +2,10 @@
    with no page choreography or continuously pulsing health indicators. */
 
 @media (prefers-reduced-motion: no-preference) {
-  .app-nav-button {
+  .rail-nav button,
+  .rail-utility,
+  .toolbar-button,
+  .toolbar-primary {
     transition:
       color var(--dur-state) var(--ease-out-quart),
       background-color var(--dur-state) var(--ease-out-quart),

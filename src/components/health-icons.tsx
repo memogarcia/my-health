@@ -45,6 +45,7 @@ export const navIcons: Record<NavKey, LucideIcon> = {
   body: UserRound,
   labs: Droplet,
   symptoms: ClipboardList,
+  activity: Activity,
   medications: Pill,
   fasting: Timer,
   breathing: Wind,

@@ -11,8 +11,6 @@ import { useDashboardController } from "./use-dashboard-controller";
 import "./styles/tailwind.css";
 import "./animations.css";
 import "./components.css";
-import "./body-anatomy.css";
-import "./layout.css";
 import "./redesign.css";
 import "./fasting.css";
 import "./breathing.css";
@@ -31,6 +29,7 @@ export function App() {
     document.title = t("app.title");
     configureNativeShell();
     void configureNativeDatabaseMenu({
+      lockDatabase: () => controllerRef.current.lockDatabase(),
       openDatabase: () => controllerRef.current.openDatabaseFile(),
       newDatabase: () => controllerRef.current.newDatabaseFile(),
     }).catch(() => undefined);
@@ -52,10 +51,13 @@ export function App() {
       if (!(isMac ? event.metaKey : event.ctrlKey) || event.altKey) return;
       const workspaceShortcuts: NavKey[] = ["body", "labs", "documents", "plan"];
       const nav = /^\d$/u.test(event.key) ? workspaceShortcuts[Number(event.key) - 1] : undefined;
-      if (event.key === ",") {
+      if (event.key.toLowerCase() === "l" && !event.shiftKey) {
+        event.preventDefault();
+        void controller.lockDatabase();
+      } else if (event.key === ",") {
         event.preventDefault();
         controller.setSelectedNav("settings");
-      } else if (event.key.toLowerCase() === "n") {
+      } else if (event.key.toLowerCase() === "n" && !event.shiftKey) {
         event.preventDefault();
         controller.openDialog("lab");
       } else if (nav) {
@@ -65,7 +67,7 @@ export function App() {
     }
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [controller.activeDialog, controller.closeDialog, controller.openDialog, controller.setSelectedNav]);
+  }, [controller.activeDialog, controller.closeDialog, controller.lockDatabase, controller.openDialog, controller.setSelectedNav]);
 
   if (!controller.hasLoadedOnce) return <LoadingScreen />;
   if (controller.tauriUnavailable) return <DesktopOnlyScreen error={controller.loadError} />;

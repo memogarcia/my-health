@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { Check, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { hasEnabledAiModel } from "../ai-sdk-config";
@@ -48,7 +50,7 @@ function ThreadRail({ controller, activeConversation }: { controller: DashboardC
         <ScrollArea className="chat-scroll h-full pr-2">
           <div className="grid gap-1.5">
             {count ? controller.userState.aiConversations.map((conversation) => (
-              <ThreadButton controller={controller} conversation={conversation} active={conversation.id === activeConversation?.id} key={conversation.id} />
+              <ThreadRow controller={controller} conversation={conversation} active={conversation.id === activeConversation?.id} key={conversation.id} />
             )) : <p className="px-1 text-sm text-muted-foreground">{t("chat.none")}</p>}
           </div>
         </ScrollArea>
@@ -57,21 +59,36 @@ function ThreadRail({ controller, activeConversation }: { controller: DashboardC
   );
 }
 
-function ThreadButton({ controller, conversation, active }: { controller: DashboardController; conversation: AiConversation; active: boolean }) {
+function ThreadRow({ controller, conversation, active }: { controller: DashboardController; conversation: AiConversation; active: boolean }) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(conversation.title);
+  const pending = controller.aiPendingConversationId === "pending" || controller.aiPendingConversationId === conversation.id;
   const latest = conversation.messages.at(-1);
+  if (editing) {
+    return (
+      <form className="chat-thread-edit" onSubmit={(event) => {
+        event.preventDefault();
+        void controller.renameAiConversation(conversation.id, title).then((saved) => { if (saved) setEditing(false); });
+      }}>
+        <Input aria-label={t("chat.renameLabel")} autoFocus maxLength={120} onChange={(event) => setTitle(event.target.value)} onFocus={(event) => event.currentTarget.select()} value={title} />
+        <Button aria-label={t("chat.saveName")} disabled={!title.trim()} size="icon-sm" type="submit" variant="secondary"><Check data-icon="inline-start" /></Button>
+        <Button aria-label={t("common.cancel")} onClick={() => { setTitle(conversation.title); setEditing(false); }} size="icon-sm" type="button" variant="ghost"><X data-icon="inline-start" /></Button>
+      </form>
+    );
+  }
   return (
-    <Button
-      aria-pressed={active}
-      className="h-auto justify-start px-3 py-2 text-left"
-      variant={active ? "secondary" : "ghost"}
-      onClick={() => controller.selectAiConversation(conversation.id)}
-      type="button"
-    >
-      <span className="min-w-0">
-        <strong className="block truncate">{conversation.title || t("chat.untitled")}</strong>
-        <span className="block truncate text-xs font-normal text-muted-foreground">{latest?.content || t("chat.noMessages")}</span>
-      </span>
-    </Button>
+    <div className={cn("chat-thread-row", active && "is-active")}>
+      <button aria-pressed={active} className="chat-thread-select" onClick={() => controller.selectAiConversation(conversation.id)} type="button">
+        <strong>{conversation.title || t("chat.untitled")}</strong>
+        <span>{latest?.content || t("chat.noMessages")}</span>
+      </button>
+      <div className="chat-thread-actions">
+        <Button aria-label={t("chat.renameConversation", { title: conversation.title })} disabled={pending} onClick={() => setEditing(true)} size="icon-xs" type="button" variant="ghost"><Pencil data-icon="inline-start" /></Button>
+        <Button aria-label={t("chat.deleteConversation", { title: conversation.title })} onClick={() => {
+          if (window.confirm(t("chat.deleteConfirm"))) void controller.deleteAiConversation(conversation.id);
+        }} disabled={pending} size="icon-xs" type="button" variant="destructive"><Trash2 data-icon="inline-start" /></Button>
+      </div>
+    </div>
   );
 }
 

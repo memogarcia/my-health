@@ -35,13 +35,9 @@ export function OrganInspector({ controller }: { controller: DashboardController
 
       <details className="conditions-disclosure">
         <summary><span>{t("conditions.title")}</span><strong>{controller.organConditions.length}</strong><Icon name="chevron" size={13} /></summary>
-        <Suspense fallback={null}><ConditionsCard controller={controller} /></Suspense>
+        <Suspense fallback={null}><ConditionsCard controller={controller} showHeading={false} /></Suspense>
       </details>
 
-      <section className="inspector-section daily-context">
-        <div className="section-title"><h2>{t("body.recent.dailyLog")}</h2><button onClick={() => controller.openDialog("activity")} type="button">{t("body.recent.add")}<Icon name="plus" size={13} /></button></div>
-        <DailyContext controller={controller} />
-      </section>
       <footer className="inspector-footer"><Icon name="lock" size={13} />{t("database.localRecords")}</footer>
     </article>
   );
@@ -55,13 +51,5 @@ function RecentSignals({ controller }: { controller: DashboardController }) {
   if (!rows.length) return <div className="empty-record"><Icon name="activity" size={17} /><p>{t("body.recent.noResults")}</p></div>;
   return <div className="signal-list">{rows.map((row) => (
     <div className="record-row" key={row.id}><span className="record-icon" data-status={row.status}><Icon name={row.icon} size={14} /></span><span><strong>{row.title}</strong><small>{row.meta}</small></span><b>{row.value}</b></div>
-  ))}</div>;
-}
-
-function DailyContext({ controller }: { controller: DashboardController }) {
-  const entries = controller.userState.activityEntries.slice(0, 2);
-  if (!entries.length) return <div className="empty-record"><Icon name="activity" size={17} /><p>{t("body.recent.noDailyEntries")}</p></div>;
-  return <div className="signal-list">{entries.map((entry) => (
-    <div className="record-row daily-row" key={entry.id}><span className="record-icon"><Icon name="activity" size={14} /></span><span><strong>{entry.activityName || t("body.recent.dailyEntry")}</strong><small>{entry.loggedAt}</small></span></div>
   ))}</div>;
 }

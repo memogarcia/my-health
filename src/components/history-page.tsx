@@ -22,7 +22,7 @@ export function HistoryPage({ controller }: { controller: DashboardController })
   const [organFilter, setOrganFilter] = useState<OrganFilter>("all");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<LabView>("list");
-  const page = controller.selectedNav === "symptoms" ? "symptoms" : "labs";
+  const page = controller.activeHistoryTab === "symptoms" ? "symptoms" : "labs";
 
   // Each page is a fresh filter context: switching Results <-> Symptoms resets
   // the organ scope and query so stale filters never hide the new dataset.

@@ -15,7 +15,6 @@ import {
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { DataExportSettings } from "./data-export-settings";
-
 export function SettingsPage({ controller }: { controller: DashboardController }) {
   return (
     <div className="settings-page">
@@ -25,7 +24,6 @@ export function SettingsPage({ controller }: { controller: DashboardController }
     </div>
   );
 }
-
 function ProfileSettings({ controller }: { controller: DashboardController }) {
   const profile = controller.userState.profile;
   const fieldCount = [profile.age, profile.sex, profile.heightCm, profile.weightKg].filter(Boolean).length;
@@ -57,6 +55,19 @@ function ProfileSettings({ controller }: { controller: DashboardController }) {
                 </SelectContent>
               </Select>
             </Field>
+            <Field>
+              <FieldLabel htmlFor="profile-anatomy-model">{t("settings.profile.anatomyModel")}</FieldLabel>
+              <Select name="anatomyModel" defaultValue={profile.anatomyModel}>
+                <SelectTrigger className="w-full" id="profile-anatomy-model"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="default">{t("settings.profile.anatomyDefault")}</SelectItem>
+                    <SelectItem value="female">{t("settings.profile.anatomyFemale")}</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <FieldDescription>{t("settings.profile.anatomyDescription")}</FieldDescription>
+            </Field>
             <NumberField name="heightCm" label={t("settings.profile.height")} value={profile.heightCm} min={0} step={0.1} />
             <NumberField name="weightKg" label={t("settings.profile.weight")} value={profile.weightKg} min={0} step={0.1} />
             <Button className="sm:col-span-2 sm:justify-self-end" type="submit">{t("settings.profile.save")}</Button>
@@ -66,7 +77,6 @@ function ProfileSettings({ controller }: { controller: DashboardController }) {
     </Card>
   );
 }
-
 function AiSettings({ controller }: { controller: DashboardController }) {
   const [providerId, setProviderId] = useState(controller.aiSettings.providerId);
   const [modelId, setModelId] = useState(controller.aiSettings.modelId);

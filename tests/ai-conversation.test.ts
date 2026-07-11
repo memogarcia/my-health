@@ -1,10 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildAiConversationPrompt, getActiveAiConversation, mergeAiConversationState } from "../src/ai-conversation";
-import type { DisplaySnapshot, UserState } from "../src/dashboard-model";
+import {
+  buildAiConversationPrompt,
+  deleteAiConversation,
+  getActiveAiConversation,
+  mergeAiConversationState,
+  renameAiConversation,
+} from "../src/ai-conversation";
+import { normalizeUserState, type DisplaySnapshot, type UserState } from "../src/dashboard-model";
 
 const base: UserState = {
-  profile: { age: null, sex: "", heightCm: null, weightKg: null },
+  profile: { age: null, sex: "", anatomyModel: "default", heightCm: null, weightKg: null },
   activityEntries: [],
   fasting: { activeStartedAt: "", targetHours: 16, sessions: [] },
   bodyNotes: [],
@@ -33,7 +39,7 @@ const display: DisplaySnapshot = {
 test("mergeAiConversationState preserves non-AI user state", () => {
   const current: UserState = {
     ...base,
-    profile: { age: 42, sex: "other", heightCm: 170, weightKg: 70 },
+    profile: { age: 42, sex: "other", anatomyModel: "default", heightCm: 170, weightKg: 70 },
     activityEntries: [{ id: "activity", loggedAt: "2026-07-08", cigarettes: 0, drinks: 0, activityName: "Walk", durationMinutes: 20, notes: "" }],
   };
   const next: UserState = {
@@ -85,4 +91,28 @@ test("buildAiConversationPrompt includes dated lab history with the conversation
   assert.deepEqual(payload.healthContext.labs.map((lab: { date: string; value: string }) => [lab.date, lab.value]), [["2026-07-01", "24"], ["2026-01-01", "12"]]);
   assert.deepEqual(Object.keys(payload.healthContext).sort(), ["activityHistory", "appleHealthImports", "bodyNotes", "conditions", "fasting", "labReports", "labs", "organStatuses", "profile", "regimen", "savedRecommendations", "symptoms"]);
   assert.equal(payload.conversation[0].content, "How is my ferritin?");
+});
+
+test("renameAiConversation trims and bounds a saved title", () => {
+  const state = normalizeUserState({
+    aiConversations: [{ id: "thread-1", title: "Old", createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z", messages: [] }],
+    activeAiConversationId: "thread-1",
+  });
+  const next = renameAiConversation(state, "thread-1", `  ${"New title ".repeat(20)}  `);
+  assert.equal(next.aiConversations[0]?.title.startsWith("New title"), true);
+  assert.equal(next.aiConversations[0]?.title.length <= 120, true);
+  assert.equal(next.activeAiConversationId, "thread-1");
+});
+
+test("deleteAiConversation selects the next saved thread when the active one is removed", () => {
+  const state = normalizeUserState({
+    aiConversations: [
+      { id: "thread-1", title: "First", createdAt: "", updatedAt: "", messages: [] },
+      { id: "thread-2", title: "Second", createdAt: "", updatedAt: "", messages: [] },
+    ],
+    activeAiConversationId: "thread-1",
+  });
+  const next = deleteAiConversation(state, "thread-1");
+  assert.deepEqual(next.aiConversations.map((entry) => entry.id), ["thread-2"]);
+  assert.equal(next.activeAiConversationId, "thread-2");
 });

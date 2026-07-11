@@ -154,7 +154,6 @@ fn init_dev_database_state(app_data_dir: &Path) -> Result<AppState, Box<dyn std:
         app_data_dir.join("health-dashboard-dev.sqlite3"),
     ))
 }
-
 fn persistent_database_state(app_data_dir: &Path, default_path: PathBuf) -> AppState {
     let active_path_file = app_data_dir.join(ACTIVE_DATABASE_FILE);
     let db_path = fs::read_to_string(&active_path_file)
@@ -230,6 +229,12 @@ pub fn unlock_database(state: &AppState, passphrase: &str) -> Result<DatabaseSta
     }
     install_schema(&conn).map_err(|error| error.to_string())?;
     inner.conn = Some(conn);
+    drop(inner);
+    Ok(state.status())
+}
+pub fn lock_database(state: &AppState) -> Result<DatabaseStatus, String> {
+    let mut inner = state.inner.lock().map_err(|error| error.to_string())?;
+    inner.conn = None;
     drop(inner);
     Ok(state.status())
 }

@@ -11,6 +11,7 @@ type Options = {
 export function makeFastingActions({ getUserState, setUserState, persistUserState }: Options) {
   async function setFastingTarget(targetHours: number): Promise<void> {
     const current = getUserState();
+    if (current.fasting.activeStartedAt || ![12, 14, 16, 18].includes(targetHours)) return;
     const next = normalizeUserState({ ...current, fasting: { ...current.fasting, targetHours } });
     setUserState(next);
     await persistUserState(next);
@@ -18,6 +19,7 @@ export function makeFastingActions({ getUserState, setUserState, persistUserStat
 
   async function startFasting(targetHours: number): Promise<void> {
     const current = getUserState();
+    if (current.fasting.activeStartedAt || ![12, 14, 16, 18].includes(targetHours)) return;
     const next = normalizeUserState({
       ...current,
       fasting: { ...current.fasting, activeStartedAt: new Date().toISOString(), targetHours },
@@ -47,5 +49,16 @@ export function makeFastingActions({ getUserState, setUserState, persistUserStat
     if (await persistUserState(next)) toast.success(t("toast.fastEnded"));
   }
 
-  return { setFastingTarget, startFasting, endFasting };
+  async function deleteFastingSession(id: string): Promise<void> {
+    const current = getUserState();
+    if (!current.fasting.sessions.some((session) => session.id === id)) return;
+    const next = normalizeUserState({
+      ...current,
+      fasting: { ...current.fasting, sessions: current.fasting.sessions.filter((session) => session.id !== id) },
+    });
+    setUserState(next);
+    if (await persistUserState(next)) toast.success(t("toast.fastDeleted"));
+  }
+
+  return { deleteFastingSession, setFastingTarget, startFasting, endFasting };
 }

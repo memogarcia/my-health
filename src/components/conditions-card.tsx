@@ -21,13 +21,13 @@ const conditionLabels: Record<ConditionStatus, string> = {
   past: t("conditions.past"),
 };
 
-export function ConditionsCard({ controller }: { controller: DashboardController }) {
+export function ConditionsCard({ controller, showHeading = true }: { controller: DashboardController; showHeading?: boolean }) {
   return (
     <Card size="sm">
-      <CardHeader>
+      {showHeading ? <CardHeader>
         <CardTitle>{t("conditions.title")}</CardTitle>
         <CardAction><span className="text-xs text-muted-foreground">{controller.organConditions.length}</span></CardAction>
-      </CardHeader>
+      </CardHeader> : null}
       <CardContent className="grid gap-3">
         <details className="group rounded-md border border-border bg-muted/20">
           <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium">

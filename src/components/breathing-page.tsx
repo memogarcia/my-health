@@ -1,9 +1,10 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
+import { advanceBreathingSession, createBreathingSession } from "../breathing-state";
 import { t, type TranslationKey } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { AlertTriangle, Wind } from "./health-icons";
@@ -21,40 +22,38 @@ const techniques: Technique[] = [
 export function BreathingPage(_props: { controller: DashboardController }) {
   const [selectedTechnique, setSelectedTechnique] = useState<TechniqueId>("paced");
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
-  const [breathPhase, setBreathPhase] = useState(0);
-  const [breathCycles, setBreathCycles] = useState(0);
-  const [breathing, setBreathing] = useState(false);
+  const [session, setSession] = useState(() => createBreathingSession(techniques[0].phases));
+  const lastTick = useRef(0);
   const activeTechnique = techniques.find((technique) => technique.id === selectedTechnique) || techniques[0];
-  const phase = activeTechnique.phases[breathPhase] || activeTechnique.phases[0];
+  const phase = activeTechnique.phases[session.phaseIndex] || activeTechnique.phases[0];
+  const previousPhase = activeTechnique.phases[(session.phaseIndex - 1 + activeTechnique.phases.length) % activeTechnique.phases.length];
+  const remainingSeconds = Math.max(0, Math.ceil(session.remainingMs / 1000));
+  const breathing = session.status === "running";
 
   useEffect(() => {
     if (!breathing) return;
-    const timer = window.setTimeout(() => {
-      setBreathPhase((current) => {
-        if (current < activeTechnique.phases.length - 1) return current + 1;
-        setBreathCycles((cycles) => {
-          const next = cycles + 1;
-          if (activeTechnique.cycles && next >= activeTechnique.cycles) setBreathing(false);
-          return next;
-        });
-        return 0;
-      });
-    }, phase.seconds * 1000);
-    return () => window.clearTimeout(timer);
-  }, [activeTechnique, breathing, phase.seconds]);
+    lastTick.current = performance.now();
+    const timer = window.setInterval(() => {
+      const now = performance.now();
+      const elapsedMs = now - lastTick.current;
+      lastTick.current = now;
+      setSession((current) => advanceBreathingSession(current, activeTechnique.phases, activeTechnique.cycles, elapsedMs));
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [activeTechnique, breathing]);
 
   function chooseTechnique(id: TechniqueId): void {
-    setSelectedTechnique(id);
-    setBreathPhase(0);
-    setBreathCycles(0);
-    setBreathing(false);
+    const technique = techniques.find((item) => item.id === id) || techniques[0];
+    setSelectedTechnique(technique.id);
+    setSafetyAcknowledged(false);
+    setSession(createBreathingSession(technique.phases));
   }
 
   function startBreathing(): void {
     if (selectedTechnique === "wimHof" && !safetyAcknowledged) return;
-    setBreathPhase(0);
-    setBreathCycles(0);
-    setBreathing(true);
+    setSession((current) => current.status === "paused"
+      ? { ...current, status: "running" }
+      : createBreathingSession(activeTechnique.phases, "running"));
   }
 
   return (
@@ -65,14 +64,13 @@ export function BreathingPage(_props: { controller: DashboardController }) {
         <AlertDescription>{t("breathing.description")}</AlertDescription>
       </Alert>
 
-      <div className="breathing-techniques" role="tablist" aria-label={t("breathing.title")}>
+      <div className="breathing-techniques" role="group" aria-label={t("breathing.title")}>
         {techniques.map((technique) => (
           <button
             className={cn("breathing-technique", technique.id === selectedTechnique && "is-selected")}
             type="button"
             key={technique.id}
-            role="tab"
-            aria-selected={technique.id === selectedTechnique}
+            aria-pressed={technique.id === selectedTechnique}
             onClick={() => chooseTechnique(technique.id)}
           >
             <Wind aria-hidden="true" />
@@ -87,12 +85,20 @@ export function BreathingPage(_props: { controller: DashboardController }) {
       <Card className="breathing-practice">
         <CardContent className="breathing-practice-content">
           <div
-            className={cn("breathing-orb", `is-${phase.phaseKind}`, breathing && "is-active")}
-            aria-live="polite"
-            style={{ "--breath-phase": phase.seconds } as CSSProperties}
+            className={cn(
+              "breathing-orb",
+              `is-${phase.phaseKind}`,
+              session.status !== "idle" && "is-started",
+              session.status === "paused" && "is-paused",
+              session.status === "complete" && "is-complete",
+              phase.phaseKind === "hold" && `after-${previousPhase.phaseKind}`,
+            )}
+            key={`${selectedTechnique}-${session.completedCycles}-${session.phaseIndex}`}
+            style={{ "--breath-phase": `${phase.seconds}s` } as CSSProperties}
           >
             <span>{t(phase.labelKey)}</span>
-            <strong className="tnum">{phase.seconds}</strong>
+            <strong aria-hidden="true" className="tnum">{remainingSeconds}</strong>
+            <small>{t("breathing.secondsRemaining")}</small>
           </div>
 
           <div className="breathing-practice-detail">
@@ -100,19 +106,30 @@ export function BreathingPage(_props: { controller: DashboardController }) {
               <strong>{t(activeTechnique.titleKey)}</strong>
               <p>{t(activeTechnique.safetyKey)}</p>
             </div>
+            <ol className="breathing-phase-track" aria-label={t("breathing.phaseSequence")}>
+              {activeTechnique.phases.map((item, index) => (
+                <li data-current={index === session.phaseIndex} key={`${item.labelKey}-${index}`}>
+                  <span>{t(item.labelKey)}</span>
+                  <small className="tnum">{t("breathing.seconds", { seconds: item.seconds })}</small>
+                </li>
+              ))}
+            </ol>
             {selectedTechnique === "wimHof" ? (
               <label className="breathing-safety-check">
                 <Checkbox checked={safetyAcknowledged} onCheckedChange={(checked) => setSafetyAcknowledged(checked === true)} />
                 <span>{t("breathing.wimHof.acknowledge")}</span>
               </label>
             ) : null}
+            <p className="sr-only" role="status">{t("breathing.liveStatus", { phase: t(phase.labelKey), round: session.completedCycles + 1 })}</p>
+            {session.status === "complete" ? <p className="breathing-complete" role="status">{t("breathing.complete")}</p> : null}
             <div className="breathing-practice-actions">
-              <Button type="button" onClick={breathing ? () => setBreathing(false) : startBreathing}>
-                {breathing ? t("breathing.pause") : t("breathing.start")}
+              <Button type="button" onClick={breathing ? () => setSession((current) => ({ ...current, status: "paused" })) : startBreathing} disabled={selectedTechnique === "wimHof" && !safetyAcknowledged}>
+                {breathing ? t("breathing.pause") : session.status === "paused" ? t("breathing.resume") : t("breathing.start")}
               </Button>
-              {breathing ? (
+              {session.status !== "idle" ? <Button type="button" variant="outline" onClick={() => setSession(createBreathingSession(activeTechnique.phases))}>{t("breathing.reset")}</Button> : null}
+              {session.status !== "idle" ? (
                 <span className="tnum breathing-round">
-                  {t("breathing.round", { count: breathCycles + 1, total: activeTechnique.cycles || "∞" })}
+                  {t("breathing.round", { count: session.completedCycles + (session.status === "complete" ? 0 : 1), total: activeTechnique.cycles || "∞" })}
                 </span>
               ) : null}
             </div>

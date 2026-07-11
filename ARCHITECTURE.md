@@ -75,18 +75,23 @@ Tables:
 - `ai_settings`
 - `user_state`
 
-`user_state` stores profile/activity/import/conversation data, a fasting timer
-and its recent completed sessions, exact-area body notes, plus recent
+`user_state` stores profile/activity/import/conversation data, including an
+anatomy illustration preference that is independent from demographic sex, a
+fasting timer and its recent completed sessions, legacy body notes, plus recent
 `backgroundJobs`, `developerLogs`, and `llmCalls` entries. Each job has a kind
 (`document-analysis`, `deep-research`, or `ai-chat`), status, created/finished
 timestamps, optional staged progress, and an error message. Developer entries
 are bounded metadata and truncated errors, not prompt or result payloads. This
-is JSON state, not a new SQLite table or a separate hosted queue.
+is JSON state, not a new SQLite table or a separate hosted queue. The renderer
+supports update and deletion for daily entries and body notes, deletion for
+completed fasts and Apple Health import summaries, and rename or deletion for
+assistant conversations through the same encrypted state write path.
 
-Body notes hold a local surface label, turntable angle, normalized X/Y
+Legacy body notes hold a local surface label, turntable angle, normalized X/Y
 coordinate, note text, and creation timestamp. They are encrypted with the
-rest of `user_state`; active chat includes them only when its provider is
-allowed to receive health context.
+rest of `user_state`; the current organ workspace does not create new surface
+notes, while Timeline retains legacy-note editing. Active chat includes them
+only when its provider is allowed to receive health context.
 
 Enums:
 
@@ -126,6 +131,7 @@ Database:
 - `get_database_status`
 - `select_database`
 - `unlock_database`
+- `lock_database`
 - `export_database`
 
 Dashboard and records:

@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleX, ListTodo, LoaderCircle, Trash2 } from "lucide-react"
+import { CheckCircle2, CircleX, ListTodo, LoaderCircle, Square, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
@@ -38,7 +38,7 @@ export function JobCenter({ controller }: { controller: DashboardController }) {
         <Separator />
         {jobs.length ? (
           <div className="grid max-h-[min(30rem,60vh)] gap-2 overflow-y-auto pr-0.5">
-            {jobs.map((job) => <JobRow job={job} key={job.id} />)}
+            {jobs.map((job) => <JobRow controller={controller} job={job} key={job.id} />)}
           </div>
         ) : (
           <Empty className="border-0 px-2 py-6">
@@ -53,8 +53,8 @@ export function JobCenter({ controller }: { controller: DashboardController }) {
   )
 }
 
-function JobRow({ job }: { job: BackgroundJob }) {
-  const statusLabel = t(`jobs.status.${job.status}` as "jobs.status.running" | "jobs.status.completed" | "jobs.status.failed")
+function JobRow({ controller, job }: { controller: DashboardController; job: BackgroundJob }) {
+  const statusLabel = t(`jobs.status.${job.status}` as "jobs.status.running" | "jobs.status.completed" | "jobs.status.failed" | "jobs.status.cancelled")
   return (
     <article className="job-row grid gap-2 rounded-md border border-border bg-card p-2.5">
       <div className="flex min-w-0 items-start gap-2.5">
@@ -62,7 +62,7 @@ function JobRow({ job }: { job: BackgroundJob }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <strong className="truncate text-sm">{job.title}</strong>
-            <Badge variant={job.status === "failed" ? "destructive" : job.status === "completed" ? "secondary" : "outline"}>{statusLabel}</Badge>
+            <span className="flex items-center gap-1"><Badge variant={job.status === "failed" ? "destructive" : job.status === "completed" ? "secondary" : "outline"}>{statusLabel}</Badge>{job.status === "running" ? <Button aria-label={t("jobs.stop")} onClick={() => controller.cancelBackgroundJob(job.id)} size="icon-xs" title={t("jobs.stop")} type="button" variant="ghost"><Square /></Button> : null}</span>
           </div>
           <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{job.description}</p>
           {job.error ? <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-destructive">{job.error}</p> : null}
@@ -85,6 +85,6 @@ function JobRow({ job }: { job: BackgroundJob }) {
 
 function JobStatusIcon({ status }: { status: BackgroundJobStatus }) {
   if (status === "completed") return <CheckCircle2 aria-hidden="true" className="status-normal mt-0.5 shrink-0" />
-  if (status === "failed") return <CircleX aria-hidden="true" className="status-attention mt-0.5 shrink-0" />
+  if (status === "failed" || status === "cancelled") return <CircleX aria-hidden="true" className="status-attention mt-0.5 shrink-0" />
   return <LoaderCircle aria-hidden="true" className="mt-0.5 shrink-0 animate-spin text-primary" />
 }

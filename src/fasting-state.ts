@@ -12,14 +12,15 @@ export type FastingState = {
 };
 
 export function normalizeFastingState(value: Partial<FastingState> | undefined): FastingState {
-  const targetHours = typeof value?.targetHours === "number" && Number.isFinite(value.targetHours)
-    ? Math.min(24, Math.max(12, Math.trunc(value.targetHours)))
+  const requestedTarget = typeof value?.targetHours === "number" && Number.isFinite(value.targetHours)
+    ? Math.trunc(value.targetHours)
     : 16;
+  const targetHours = [12, 14, 16, 18].includes(requestedTarget) ? requestedTarget : 16;
   return {
-    activeStartedAt: typeof value?.activeStartedAt === "string" ? value.activeStartedAt : "",
+    activeStartedAt: validTimestamp(value?.activeStartedAt) ? value.activeStartedAt || "" : "",
     targetHours,
     sessions: Array.isArray(value?.sessions)
-      ? value.sessions.map(normalizeFastingSession).filter((session) => session.id && session.startedAt && session.endedAt).slice(0, 24)
+      ? value.sessions.map(normalizeFastingSession).filter(validSession).slice(0, 24)
       : [],
   };
 }
@@ -33,4 +34,15 @@ function normalizeFastingSession(session: Partial<FastingSession>): FastingSessi
       ? Math.min(24, Math.max(12, Math.trunc(session.targetHours)))
       : 16,
   };
+}
+
+function validSession(session: FastingSession): boolean {
+  return Boolean(session.id)
+    && validTimestamp(session.startedAt)
+    && validTimestamp(session.endedAt)
+    && Date.parse(session.endedAt) >= Date.parse(session.startedAt);
+}
+
+function validTimestamp(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "" && Number.isFinite(Date.parse(value));
 }

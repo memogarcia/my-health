@@ -7,6 +7,7 @@ export function profileFromForm(form: FormData): UserProfile {
   return {
     age: optionalNumber(form, "age"),
     sex: String(form.get("sex") || ""),
+    anatomyModel: form.get("anatomyModel") === "female" ? "female" : "default",
     heightCm: optionalNumber(form, "heightCm"),
     weightKg: optionalNumber(form, "weightKg"),
   };

@@ -85,7 +85,7 @@ function RecommendationCard({ item }: { item: LifestyleRecommendation }) {
           <span className="grid size-8 place-items-center rounded-lg bg-accent text-primary"><Icon /></span>
           {t(`lifestyle.generated.category.${item.category}`)}
         </CardTitle>
-        <CardAction><StatusBadge status={item.priority} /></CardAction>
+        <CardAction><StatusBadge status={item.priority}>{t(`lifestyle.priority.${item.priority}`)}</StatusBadge></CardAction>
         <CardDescription>{item.title}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3">

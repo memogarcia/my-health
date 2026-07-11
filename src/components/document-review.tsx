@@ -35,9 +35,9 @@ export function DocumentReview({ controller }: { controller: DashboardController
   return (
     <div className="grid gap-4">
       {controller.documentSessions.length > 1 ? (
-        <div className="flex flex-wrap gap-1" role="tablist" aria-label={t("intake.document.queueLabel")}>
+        <div className="flex flex-wrap gap-1" role="group" aria-label={t("intake.document.queueLabel")}>
           {controller.documentSessions.map((session) => (
-            <Button aria-selected={session.id === controller.activeDocumentSessionId} key={session.id} onClick={() => controller.setActiveDocumentSessionId(session.id)} role="tab" size="sm" type="button" variant={session.id === controller.activeDocumentSessionId ? "secondary" : "outline"}>
+            <Button aria-pressed={session.id === controller.activeDocumentSessionId} key={session.id} onClick={() => controller.setActiveDocumentSessionId(session.id)} size="sm" type="button" variant={session.id === controller.activeDocumentSessionId ? "secondary" : "outline"}>
               {session.document?.sourceName || t("intake.document.promptDraft")}
             </Button>
           ))}
@@ -55,7 +55,7 @@ export function DocumentReview({ controller }: { controller: DashboardController
           <AlertDescription>{analysis.error}</AlertDescription>
         </Alert>
       ) : null}
-      {analysis.status !== "analyzing" && analysis.results.length === 0 ? (
+      {analysis.status === "ready" && analysis.results.length === 0 ? (
         <Alert>
           <AlertTriangle />
           <AlertDescription>{t("intake.document.noResults")}</AlertDescription>

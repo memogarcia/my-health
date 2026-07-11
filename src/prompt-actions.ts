@@ -2,7 +2,13 @@ import type { Dispatch, SetStateAction } from "react";
 import { toast } from "sonner";
 import { runAiPrompt } from "./ai-actions";
 import type { AiSettings } from "./ai-sdk-config";
-import { mergeAiConversationState, setActiveAiConversation, startNewAiConversation } from "./ai-conversation";
+import {
+  deleteAiConversation as deleteAiConversationState,
+  mergeAiConversationState,
+  renameAiConversation as renameAiConversationState,
+  setActiveAiConversation,
+  startNewAiConversation,
+} from "./ai-conversation";
 import { todayString } from "./dashboard-format";
 import type { BackgroundJobInput, BackgroundJobPatch, DeveloperLogInput, DisplaySnapshot, LlmCallInput, LlmCallPatch, NavKey, RegimenInput, UserState } from "./dashboard-model";
 import { t } from "./i18n";
@@ -28,6 +34,7 @@ type PromptActionsOptions = {
   userState: UserState;
   onJobStart: (input: BackgroundJobInput) => string;
   onJobUpdate: (jobId: string, patch: BackgroundJobPatch) => void;
+  isBackgroundJobCancelled: (jobId: string) => boolean;
   onDeveloperLog: (input: DeveloperLogInput) => void;
   onLlmCallStart: (input: LlmCallInput) => string;
   onLlmCallUpdate: (callId: string, patch: LlmCallPatch) => void;
@@ -47,6 +54,23 @@ export function makePromptActions(options: PromptActionsOptions) {
     options.setUserState(next);
     options.setSelectedNav("plan");
     void options.persistUserState(next);
+  }
+
+  async function renameAiConversation(conversationId: string, title: string): Promise<boolean> {
+    const current = options.getUserState();
+    const next = renameAiConversationState(current, conversationId, title);
+    if (next === current) return false;
+    options.setUserState(next);
+    if (await options.persistUserState(next)) toast.success(t("toast.conversationRenamed"));
+    return true;
+  }
+
+  async function deleteAiConversation(conversationId: string): Promise<void> {
+    const current = options.getUserState();
+    const next = deleteAiConversationState(current, conversationId);
+    if (next === current) return;
+    options.setUserState(next);
+    if (await options.persistUserState(next)) toast.success(t("toast.conversationDeleted"));
   }
 
   async function submitAiPrompt(prompt: string, file?: File, requestedJob?: BackgroundJobInput): Promise<void> {
@@ -90,7 +114,7 @@ export function makePromptActions(options: PromptActionsOptions) {
       display: options.display,
       userState: options.getUserState(),
       onPending: async (nextState, conversationId, notice) => {
-        if (!options.isDatabaseCurrent(options.databaseEpoch)) return;
+        if (!options.isDatabaseCurrent(options.databaseEpoch) || options.isBackgroundJobCancelled(jobId)) return;
         options.setUserState(nextState);
         options.setAiPendingConversationId(conversationId);
         toast.info(notice);
@@ -105,6 +129,7 @@ export function makePromptActions(options: PromptActionsOptions) {
       return;
     }
     options.setAiPendingConversationId("");
+    if (options.isBackgroundJobCancelled(jobId)) return;
     const next = mergeAiConversationState(options.getUserState(), result.userState);
     options.setUserState(next);
     const persisted = await options.persistUserState(next);
@@ -120,7 +145,7 @@ export function makePromptActions(options: PromptActionsOptions) {
     }
   }
 
-  return { selectAiConversation, startAiConversation, submitAiPrompt };
+  return { deleteAiConversation, renameAiConversation, selectAiConversation, startAiConversation, submitAiPrompt };
 }
 
 function newDraftId(): string {

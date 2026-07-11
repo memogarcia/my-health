@@ -24,13 +24,14 @@ else supports reading and adding data around it.
 
 ## Primary Flows
 
-- **Body workspace** — a drag-controlled 3D anatomical scene. Select an organ to see its latest labs,
-  symptoms, and conditions in a detail rail, or click any exact surface area to
-  save a local body note. Selecting Female in Profile automatically shows the
-  women’s full-body model.
+- **Body workspace** — an organ anatomy scene. Select an organ to see its
+  latest labs, symptoms, and conditions in a detail rail. Selecting Female in
+  Profile automatically shows the women’s full-body model.
 - **Labs and history** — add a single result or a batch from a dropped report,
   review entered values, and read trends over time.
 - **Symptoms and conditions** — log severity and dates against an organ.
+- **Daily Log** — keep activity, exposures, and notes in a dedicated
+  reverse-chronological page.
 - **Medications and supplements** — track active and stopped regimen items.
 - **Fasting and breathwork** — save a local fasting timer and recent sessions,
   see conservative stage guidance, and use a short paced-breathing timer. The

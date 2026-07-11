@@ -4,34 +4,30 @@ import type { DeveloperLog, LlmCall } from "./developer-diagnostics";
 import { normalizeBodyNote, type BodyNote } from "./body-notes";
 import { normalizeFastingState, type FastingState } from "./fasting-state";
 export type { DeveloperLog, DeveloperLogInput, LlmCall, LlmCallInput, LlmCallPatch } from "./developer-diagnostics"; export type { BodyNote } from "./body-notes"; export type { FastingSession, FastingState } from "./fasting-state";
-
 const MAX_USER_TEXT_CHARS = 32_000;
-
 /**
  * A symptom affects the current organ state from the day it is logged through
  * the inclusive 30-day lookback boundary. Older and future-dated symptoms stay
  * in history without affecting the current state.
  */
 export const CURRENT_SYMPTOM_LOOKBACK_DAYS = 30;
-
 export type HealthStatus = "normal" | "monitor" | "attention";
+export type OrganHealthStatus = HealthStatus | "empty";
 export type ExtractedResultStatus = HealthStatus | "";
 export type LabFlag = "low" | "normal" | "high" | "unknown";
 export type RegimenKind = "medication" | "supplement";
 export type ConditionStatus = "current" | "managed" | "past";
-export type NavKey = "body" | "labs" | "symptoms" | "medications" | "fasting" | "breathing" | "plan" | "research" | "documents" | "settings" | "developer";
+export type NavKey = "body" | "labs" | "symptoms" | "activity" | "medications" | "fasting" | "breathing" | "plan" | "research" | "documents" | "settings" | "developer";
 export type HistoryTab = "labs" | "symptoms" | "files";
 export type DialogKey = "lab" | "symptom" | "activity" | "document" | "bodyNote" | null;
-
 export type OrganSummary = {
   key: string;
   name: string;
   system: string;
-  status: HealthStatus;
+  status: OrganHealthStatus;
   labCount: number;
   symptomCount: number;
 };
-
 export type LabResult = {
   id: number;
   reportId: number | null;
@@ -50,7 +46,6 @@ export type LabResult = {
   referenceLow: number | null;
   referenceHigh: number | null;
 };
-
 export type SymptomEntry = {
   id: number;
   organKey: string;
@@ -59,13 +54,11 @@ export type SymptomEntry = {
   observedAt: string;
   notes: string;
 };
-
 export type Recommendation = {
   title: string;
   body: string;
   priority: HealthStatus;
 };
-
 export type RegimenItem = {
   id: number;
   kind: RegimenKind;
@@ -137,6 +130,7 @@ export type DisplaySnapshot = DashboardSnapshot;
 export type UserProfile = {
   age: number | null;
   sex: string;
+  anatomyModel: "default" | "female";
   heightCm: number | null;
   weightKg: number | null;
 };
@@ -189,7 +183,7 @@ export type DocumentAnalysis = {
 };
 
 export type BackgroundJobKind = "document-analysis" | "deep-research" | "ai-chat";
-export type BackgroundJobStatus = "running" | "completed" | "failed";
+export type BackgroundJobStatus = "running" | "completed" | "failed" | "cancelled";
 
 export type BackgroundJob = {
   id: string;
@@ -247,6 +241,7 @@ export const navItems: Array<{ key: NavKey; label: string; description: string }
   { key: "body", label: t("nav.body.label"), description: t("nav.body.description") },
   { key: "labs", label: t("nav.labs.label"), description: t("nav.labs.description") },
   { key: "symptoms", label: t("nav.symptoms.label"), description: t("nav.symptoms.description") },
+  { key: "activity", label: t("nav.activity.label"), description: t("nav.activity.description") },
   { key: "medications", label: t("nav.medications.label"), description: t("nav.medications.description") },
   { key: "fasting", label: t("nav.fasting.label"), description: t("nav.fasting.description") },
   { key: "breathing", label: t("nav.breathing.label"), description: t("nav.breathing.description") },
@@ -259,15 +254,16 @@ export const navItems: Array<{ key: NavKey; label: string; description: string }
 
 // Sidebar grouping. Order follows navItems so digit shortcuts stay sequential.
 export const navGroups: Array<{ label: string; keys: NavKey[] }> = [
-  { label: t("nav.group.health"), keys: ["body", "labs", "symptoms", "medications", "fasting", "breathing"] },
+  { label: t("nav.group.health"), keys: ["body", "labs", "symptoms", "activity", "medications", "fasting", "breathing"] },
   { label: t("nav.group.assistant"), keys: ["plan", "research"] },
   { label: t("nav.group.library"), keys: ["documents"] },
 ];
 
-export const statusLabel: Record<HealthStatus, string> = {
+export const statusLabel: Record<OrganHealthStatus, string> = {
   normal: t("status.normal"),
   monitor: t("status.monitor"),
   attention: t("status.attention"),
+  empty: t("status.noData"),
 };
 
 export const organOrder = ["brain", "thyroid", "lungs", "heart", "liver", "spleen", "stomach", "pancreas", "kidneys", "intestines", "bladder", "blood", "bones", "skin", "reproductive"] as const;
@@ -293,21 +289,21 @@ const organVisuals: Record<string, OrganVisual> = {
 export const wholeBodySystems = new Set<string>(["blood", "bones", "skin", "reproductive"]);
 
 export const defaultOrgans: OrganSummary[] = [
-  { key: "brain", name: t("organ.brain.name"), system: t("organ.brain.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "thyroid", name: t("organ.thyroid.name"), system: t("organ.thyroid.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "lungs", name: t("organ.lungs.name"), system: t("organ.lungs.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "heart", name: t("organ.heart.name"), system: t("organ.heart.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "liver", name: t("organ.liver.name"), system: t("organ.liver.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "spleen", name: t("organ.spleen.name"), system: t("organ.spleen.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "stomach", name: t("organ.stomach.name"), system: t("organ.stomach.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "pancreas", name: t("organ.pancreas.name"), system: t("organ.pancreas.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "kidneys", name: t("organ.kidneys.name"), system: t("organ.kidneys.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "intestines", name: t("organ.intestines.name"), system: t("organ.intestines.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "bladder", name: t("organ.bladder.name"), system: t("organ.bladder.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "blood", name: t("organ.blood.name"), system: t("organ.blood.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "bones", name: t("organ.bones.name"), system: t("organ.bones.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "skin", name: t("organ.skin.name"), system: t("organ.skin.system"), status: "normal", labCount: 0, symptomCount: 0 },
-  { key: "reproductive", name: t("organ.reproductive.name"), system: t("organ.reproductive.system"), status: "normal", labCount: 0, symptomCount: 0 },
+  { key: "brain", name: t("organ.brain.name"), system: t("organ.brain.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "thyroid", name: t("organ.thyroid.name"), system: t("organ.thyroid.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "lungs", name: t("organ.lungs.name"), system: t("organ.lungs.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "heart", name: t("organ.heart.name"), system: t("organ.heart.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "liver", name: t("organ.liver.name"), system: t("organ.liver.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "spleen", name: t("organ.spleen.name"), system: t("organ.spleen.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "stomach", name: t("organ.stomach.name"), system: t("organ.stomach.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "pancreas", name: t("organ.pancreas.name"), system: t("organ.pancreas.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "kidneys", name: t("organ.kidneys.name"), system: t("organ.kidneys.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "intestines", name: t("organ.intestines.name"), system: t("organ.intestines.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "bladder", name: t("organ.bladder.name"), system: t("organ.bladder.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "blood", name: t("organ.blood.name"), system: t("organ.blood.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "bones", name: t("organ.bones.name"), system: t("organ.bones.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "skin", name: t("organ.skin.name"), system: t("organ.skin.system"), status: "empty", labCount: 0, symptomCount: 0 },
+  { key: "reproductive", name: t("organ.reproductive.name"), system: t("organ.reproductive.system"), status: "empty", labCount: 0, symptomCount: 0 },
 ];
 
 export function getOrganVisual(key: string): OrganVisual {
@@ -317,7 +313,7 @@ export function getOrganVisual(key: string): OrganVisual {
 export function deriveOrganStatus(
   input: { labs: LabResult[]; symptoms: SymptomEntry[]; conditions: ConditionEntry[] },
   today = localToday(),
-): HealthStatus {
+): OrganHealthStatus {
   const labs = latestLabsByMarker(input.labs);
   const symptoms = input.symptoms.filter((symptom) => isCurrentSymptom(symptom, today));
   if (labs.some((lab) => lab.status === "attention") || symptoms.some((symptom) => symptom.severity >= 4)) return "attention";
@@ -326,6 +322,7 @@ export function deriveOrganStatus(
     symptoms.some((symptom) => symptom.severity >= 2) ||
     input.conditions.some((condition) => condition.status === "current")
   ) return "monitor";
+  if (labs.length === 0 && symptoms.length === 0 && input.conditions.length === 0) return "empty";
   return "normal";
 }
 
@@ -401,6 +398,9 @@ export function normalizeUserState(value: Partial<UserState> = {}): UserState {
     profile: {
       age: numberOrNull(profile.age),
       sex: typeof profile.sex === "string" ? profile.sex : "",
+      anatomyModel: profile.anatomyModel === "female" || profile.anatomyModel === "default"
+        ? profile.anatomyModel
+        : profile.sex === "female" ? "female" : "default",
       heightCm: numberOrNull(profile.heightCm),
       weightKg: numberOrNull(profile.weightKg),
     },
@@ -478,7 +478,7 @@ function normalizeBackgroundJob(entry: Partial<BackgroundJob>): BackgroundJob {
     kind: entry.kind === "document-analysis" || entry.kind === "deep-research" ? entry.kind : "ai-chat",
     title: typeof entry.title === "string" ? limitText(entry.title, 120) : "",
     description: typeof entry.description === "string" ? limitText(entry.description, 240) : "",
-    status: entry.status === "completed" || entry.status === "failed" ? entry.status : "running",
+    status: entry.status === "completed" || entry.status === "failed" || entry.status === "cancelled" ? entry.status : "running",
     progress,
     createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
     finishedAt: typeof entry.finishedAt === "string" ? entry.finishedAt : "",

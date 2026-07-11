@@ -3,7 +3,9 @@ import { navItems, type NavKey } from "../dashboard-model";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { BodyCanvas } from "./body-canvas";
+import { AddResultDropdown } from "./add-result-dropdown";
 import { CompactPrompt } from "./compact-prompt";
+import { DailyLogPage } from "./daily-log-page";
 import { FeatureRouter } from "./feature-router";
 import { Icon, type IconName } from "./icon";
 import { JobCenter } from "./job-center";
@@ -24,11 +26,11 @@ const railItems: Array<{ key: WorkspaceKey; nav: NavKey; icon: IconName; label: 
 export function HealthWorkspace({ controller }: { controller: DashboardController }) {
   const workspace = workspaceForNav(controller.selectedNav);
   const activeNav = navItems.find((item) => item.key === controller.selectedNav) || navItems[0];
-  const pageLabel = workspace === "utility" ? activeNav.label : railItems.find((item) => item.key === workspace)?.label || activeNav.label;
+  const pageLabel = workspace === "utility" || controller.selectedNav === "activity" ? activeNav.label : railItems.find((item) => item.key === workspace)?.label || activeNav.label;
 
   return (
     <main className="app-window">
-      <aside className="app-rail" data-tauri-drag-region>
+      <aside className="app-rail" data-tauri-drag-region="deep">
         <div className="traffic-space" />
         <button aria-label={t("workspace.overview")} className="rail-brand" onClick={() => controller.setSelectedNav("body")} title={t("brand.name")} type="button">
           <Icon name="heart" size={17} />
@@ -44,23 +46,23 @@ export function HealthWorkspace({ controller }: { controller: DashboardControlle
         <div className="rail-spacer" />
         <button aria-label={t("nav.settings.label")} className="rail-utility" data-selected={controller.selectedNav === "settings"} onClick={() => controller.setSelectedNav("settings")} title={t("nav.settings.label")} type="button"><Icon name="settings" size={18} /></button>
         <button aria-label={t("nav.developer.label")} className="rail-utility" data-selected={controller.selectedNav === "developer"} onClick={() => controller.setSelectedNav("developer")} title={t("nav.developer.label")} type="button"><Icon name="developer" size={18} /></button>
-        <span aria-label={t("database.localRecords")} className="rail-lock" title={t("database.localRecords")}><Icon name="lock" size={12} /></span>
+        <button aria-label={t("database.lock")} className="rail-lock" onClick={() => void controller.lockDatabase()} title={t("database.lock")} type="button"><Icon name="lock" size={12} /></button>
       </aside>
 
       <section className="workbench">
-        <header className="workbench-bar" data-tauri-drag-region>
+        <header className="workbench-bar" data-tauri-drag-region="deep">
           <div className="workbench-title"><span>{t("brand.name")}</span><Icon name="chevron" size={12} /><strong>{pageLabel}</strong></div>
           <div className="workbench-actions">
             <JobCenter controller={controller} />
-            <button aria-label={t("appShell.dailyLog")} className="toolbar-button" onClick={() => controller.openDialog("activity")} title={t("appShell.dailyLog")} type="button"><Icon name="activity" size={17} /></button>
-            <button className="toolbar-primary" onClick={() => controller.openDialog("lab")} type="button"><Icon name="plus" size={16} />{t("workspace.addRecord")}</button>
+            <button aria-label={t("appShell.dailyLog")} className="toolbar-button" onClick={() => controller.setSelectedNav("activity")} title={t("appShell.dailyLog")} type="button"><Icon name="activity" size={17} /></button>
+            <AddResultDropdown controller={controller} />
           </div>
         </header>
 
         {controller.loadError ? <div className="load-error" role="alert"><Icon name="symptom" />{controller.loadError}</div> : null}
         <div className="workspace-stage">
           {workspace === "overview" ? <div className="overview-workspace"><BodyCanvas controller={controller} /><OrganInspector controller={controller} /></div> : null}
-          {workspace === "timeline" ? <UnifiedTimeline controller={controller} /> : null}
+          {workspace === "timeline" ? controller.selectedNav === "activity" ? <DailyLogPage controller={controller} /> : <UnifiedTimeline controller={controller} /> : null}
           {workspace === "library" ? <LibraryWorkspace controller={controller} /> : null}
           {workspace === "assistant" || workspace === "utility" ? <div className="feature-viewport"><FeatureRouter controller={controller} /></div> : null}
         </div>
@@ -73,7 +75,7 @@ export function HealthWorkspace({ controller }: { controller: DashboardControlle
 
 function workspaceForNav(nav: NavKey): WorkspaceKey {
   if (nav === "body") return "overview";
-  if (nav === "labs" || nav === "symptoms") return "timeline";
+  if (nav === "labs" || nav === "symptoms" || nav === "activity") return "timeline";
   if (["documents", "medications", "fasting", "breathing", "research"].includes(nav)) return "library";
   if (nav === "plan") return "assistant";
   return "utility";

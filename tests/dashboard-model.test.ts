@@ -105,7 +105,7 @@ test("current symptom window includes the 30-day boundary and excludes older or 
       symptom({ id: 2, severity: 5, observedAt: "2026-07-11" }),
     ],
     conditions: [],
-  }, "2026-07-10"), "normal");
+  }, "2026-07-10"), "empty");
   assert.equal(deriveOrganStatus({
     labs: [],
     symptoms: [symptom({ severity: 4, observedAt: "2026-06-10" })],
@@ -131,7 +131,12 @@ test("buildDisplaySnapshot replaces a stale backend status with the current mode
     labReports: [],
   };
 
-  assert.equal(buildDisplaySnapshot(snapshot).organs[0].status, "normal");
+  assert.equal(buildDisplaySnapshot(snapshot).organs[0].status, "empty");
+});
+
+test("deriveOrganStatus distinguishes missing data from reassuring saved data", () => {
+  assert.equal(deriveOrganStatus({ labs: [], symptoms: [], conditions: [] }, "2026-07-10"), "empty");
+  assert.equal(deriveOrganStatus({ labs: [lab()], symptoms: [], conditions: [] }, "2026-07-10"), "normal");
 });
 
 test("normalizeUserState restores a bounded local fasting timer and history", () => {
@@ -144,8 +149,22 @@ test("normalizeUserState restores a bounded local fasting timer and history", ()
   });
 
   assert.equal(state.fasting.activeStartedAt, "2026-07-10T00:00:00.000Z");
-  assert.equal(state.fasting.targetHours, 24);
+  assert.equal(state.fasting.targetHours, 16);
   assert.equal(state.fasting.sessions[0].targetHours, 12);
+});
+
+test("normalizeUserState drops invalid fasting timestamps and impossible sessions", () => {
+  const state = normalizeUserState({
+    fasting: {
+      activeStartedAt: "not-a-date",
+      targetHours: 13,
+      sessions: [{ id: "fast-1", startedAt: "2026-07-10T16:00:00.000Z", endedAt: "2026-07-10T00:00:00.000Z", targetHours: 16 }],
+    },
+  });
+
+  assert.equal(state.fasting.activeStartedAt, "");
+  assert.equal(state.fasting.targetHours, 16);
+  assert.deepEqual(state.fasting.sessions, []);
 });
 
 test("normalizeUserState keeps the new-chat sentinel so a fresh thread is not routed into an old one", () => {

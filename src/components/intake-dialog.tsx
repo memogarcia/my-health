@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -16,7 +17,11 @@ import { OrganSelect } from "./organ-select";
 import { DatePicker } from "./ui/date-picker";
 
 export function IntakeDialog({ controller }: { controller: DashboardController }) {
-  const title = dialogTitle(controller.activeDialog);
+  const title = controller.activeDialog === "bodyNote" && controller.bodyNoteDraft?.id
+    ? t("body.notes.editTitle")
+    : controller.activeDialog === "activity" && controller.activityDraft
+      ? t("intake.title.editActivity")
+      : dialogTitle(controller.activeDialog);
   return (
     <Dialog open={Boolean(controller.activeDialog)} onOpenChange={(open) => { if (!open) controller.closeDialog(); }}>
       <DialogContent className="max-h-[min(720px,calc(100vh-2rem))] overflow-y-auto sm:max-w-2xl">
@@ -40,7 +45,7 @@ function BodyNoteForm({ controller }: { controller: DashboardController }) {
   return (
     <form onSubmit={(event) => {
       event.preventDefault();
-      void controller.addBodyNote(new FormData(event.currentTarget));
+      void controller.saveBodyNote(new FormData(event.currentTarget));
     }}>
       <FieldGroup>
         <Field>
@@ -50,9 +55,19 @@ function BodyNoteForm({ controller }: { controller: DashboardController }) {
         </Field>
         <Field>
           <FieldLabel htmlFor="body-note">{t("body.notes.note")}</FieldLabel>
-          <Textarea autoFocus id="body-note" name="note" placeholder={t("body.notes.placeholder")} required />
+          <Textarea autoFocus defaultValue={draft.note || ""} id="body-note" name="note" placeholder={t("body.notes.placeholder")} required />
         </Field>
-        <DialogFooter><Button type="submit">{t("body.notes.save")}</Button></DialogFooter>
+        <DialogFooter className={draft.id ? "sm:justify-between" : undefined}>
+          {draft.id ? (
+            <Button type="button" variant="destructive" onClick={() => {
+              if (window.confirm(t("body.notes.deleteConfirm"))) void controller.deleteBodyNote(draft.id || "");
+            }}>
+              <Trash2 data-icon="inline-start" />
+              {t("common.delete")}
+            </Button>
+          ) : null}
+          <Button type="submit">{draft.id ? t("body.notes.update") : t("body.notes.save")}</Button>
+        </DialogFooter>
       </FieldGroup>
     </form>
   );
@@ -159,42 +174,43 @@ function SymptomForm({ controller }: { controller: DashboardController }) {
 }
 
 function ActivityForm({ controller }: { controller: DashboardController }) {
+  const entry = controller.activityDraft;
   return (
     <form onSubmit={(event) => {
       event.preventDefault();
-      void controller.addActivity(new FormData(event.currentTarget));
+      void controller.saveActivity(new FormData(event.currentTarget));
     }}>
       <FieldGroup>
         <FieldGroup className="grid gap-4 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor="activity-date">{t("intake.activity.date")}</FieldLabel>
-            <DatePicker id="activity-date" name="loggedAt" defaultValue={todayString()} required />
+            <DatePicker id="activity-date" name="loggedAt" defaultValue={entry?.loggedAt || todayString()} required />
           </Field>
           <Field>
             <FieldLabel htmlFor="activity-name">{t("intake.activity.name")}</FieldLabel>
-            <Input id="activity-name" name="activityName" placeholder={t("intake.activity.namePlaceholder")} />
+            <Input defaultValue={entry?.activityName || ""} id="activity-name" name="activityName" placeholder={t("intake.activity.namePlaceholder")} />
           </Field>
         </FieldGroup>
         <FieldGroup className="grid gap-4 sm:grid-cols-3">
           <Field>
             <FieldLabel htmlFor="activity-duration">{t("intake.activity.duration")}</FieldLabel>
-            <Input id="activity-duration" name="durationMinutes" type="number" min={0} step={1} />
+            <Input defaultValue={entry?.durationMinutes || ""} id="activity-duration" name="durationMinutes" type="number" min={0} step={1} />
           </Field>
           <Field>
             <FieldLabel htmlFor="activity-cigarettes">{t("intake.activity.cigarettes")}</FieldLabel>
-            <Input id="activity-cigarettes" name="cigarettes" type="number" min={0} step={1} />
+            <Input defaultValue={entry?.cigarettes || ""} id="activity-cigarettes" name="cigarettes" type="number" min={0} step={1} />
           </Field>
           <Field>
             <FieldLabel htmlFor="activity-drinks">{t("intake.activity.drinks")}</FieldLabel>
-            <Input id="activity-drinks" name="drinks" type="number" min={0} step={1} />
+            <Input defaultValue={entry?.drinks || ""} id="activity-drinks" name="drinks" type="number" min={0} step={1} />
           </Field>
         </FieldGroup>
         <Field>
           <FieldLabel htmlFor="activity-notes">{t("common.notes")}</FieldLabel>
-          <Textarea id="activity-notes" name="notes" placeholder={t("intake.activity.placeholder")} />
+          <Textarea defaultValue={entry?.notes || ""} id="activity-notes" name="notes" placeholder={t("intake.activity.placeholder")} />
           <FieldDescription>{t("intake.activity.description")}</FieldDescription>
         </Field>
-        <DialogFooter><Button type="submit">{t("intake.activity.save")}</Button></DialogFooter>
+        <DialogFooter><Button type="submit">{entry ? t("intake.activity.update") : t("intake.activity.save")}</Button></DialogFooter>
       </FieldGroup>
     </form>
   );

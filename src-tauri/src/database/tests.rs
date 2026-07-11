@@ -130,6 +130,25 @@ fn unlock_database_creates_encrypted_state() {
 }
 
 #[test]
+fn lock_database_closes_the_active_connection() {
+    let path = temp_db_path("lock-state");
+    let state = AppState::new(path.clone());
+    unlock_database(&state, "correct horse battery staple").unwrap();
+
+    let status = lock_database(&state).unwrap();
+    assert_eq!(status.state, "locked");
+    assert!(!status.unlocked);
+    assert!(with_connection(&state, |_| Ok(())).is_err());
+
+    assert!(
+        unlock_database(&state, "correct horse battery staple")
+            .unwrap()
+            .unlocked
+    );
+    let _ = fs::remove_file(path);
+}
+
+#[test]
 fn dev_database_state_defaults_to_encrypted_setup() {
     let _guard = ENV_LOCK.lock().unwrap();
     let dir = temp_dir_path("dev-default");

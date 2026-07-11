@@ -60,6 +60,29 @@ export function setActiveAiConversation(userState: UserState, conversationId: st
   return { ...userState, activeAiConversationId: conversationId };
 }
 
+export function renameAiConversation(userState: UserState, conversationId: string, title: string): UserState {
+  const normalizedTitle = previewText(title, 120);
+  if (!normalizedTitle || !userState.aiConversations.some((entry) => entry.id === conversationId)) return userState;
+  return {
+    ...userState,
+    aiConversations: userState.aiConversations.map((entry) => entry.id === conversationId
+      ? { ...entry, title: normalizedTitle, updatedAt: new Date().toISOString() }
+      : entry),
+  };
+}
+
+export function deleteAiConversation(userState: UserState, conversationId: string): UserState {
+  if (!userState.aiConversations.some((entry) => entry.id === conversationId)) return userState;
+  const aiConversations = userState.aiConversations.filter((entry) => entry.id !== conversationId);
+  return {
+    ...userState,
+    aiConversations,
+    activeAiConversationId: userState.activeAiConversationId === conversationId
+      ? aiConversations[0]?.id || ""
+      : userState.activeAiConversationId,
+  };
+}
+
 export function mergeAiConversationState(current: UserState, next: UserState): UserState {
   return {
     ...current,

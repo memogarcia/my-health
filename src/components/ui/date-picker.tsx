@@ -1,6 +1,6 @@
 import { format, isValid } from "date-fns"
 import { CalendarDays, X } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -38,12 +38,32 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = useState(false)
   const [internalValue, setInternalValue] = useState(defaultValue)
+  const [invalid, setInvalid] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const selectedValue = value ?? internalValue
   const selectedDate = isoToDate(selectedValue)
+
+  useEffect(() => {
+    if (value === undefined) setInternalValue(defaultValue)
+  }, [defaultValue, value])
+
+  useEffect(() => {
+    const form = inputRef.current?.form
+    if (!form || value !== undefined) return
+    const reset = () => {
+      setInternalValue(defaultValue)
+      setInvalid(false)
+      setOpen(false)
+    }
+    form.addEventListener("reset", reset)
+    return () => form.removeEventListener("reset", reset)
+  }, [defaultValue, value])
 
   function selectDate(date: Date | undefined): void {
     const nextValue = date ? format(date, "yyyy-MM-dd") : ""
     if (value === undefined) setInternalValue(nextValue)
+    setInvalid(required && !nextValue)
     onChange?.(nextValue)
     if (date) setOpen(false)
   }
@@ -54,11 +74,13 @@ export function DatePicker({
         <PopoverTrigger asChild>
           <Button
             id={id}
+            ref={triggerRef}
             type="button"
             variant="outline"
             aria-label={ariaLabel}
             aria-describedby={ariaDescribedBy}
             aria-required={required || undefined}
+            aria-invalid={invalid || undefined}
             aria-expanded={open}
             disabled={disabled}
             className={cn("w-full justify-between gap-2 font-normal", !selectedDate && "text-muted-foreground", className)}
@@ -86,7 +108,24 @@ export function DatePicker({
           ) : null}
         </PopoverContent>
       </Popover>
-      {name ? <input aria-hidden="true" className="sr-only" name={name} tabIndex={-1} type="text" value={selectedValue} readOnly /> : null}
+      {name ? (
+        <input
+          ref={inputRef}
+          aria-label={ariaLabel || placeholder}
+          className="sr-only"
+          name={name}
+          onInvalid={(event) => {
+            event.preventDefault()
+            setInvalid(true)
+            triggerRef.current?.focus()
+          }}
+          required={required}
+          tabIndex={-1}
+          type="text"
+          value={selectedValue}
+          onChange={() => undefined}
+        />
+      ) : null}
     </div>
   )
 }

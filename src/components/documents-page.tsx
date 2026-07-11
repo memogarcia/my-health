@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -7,7 +8,6 @@ import { formatDate } from "../dashboard-format";
 import { resultDocumentAccept } from "../document-intake";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
-import { ImportCoverageTimeline } from "./charts/import-coverage-timeline";
 import { FileText, Sparkles } from "./health-icons";
 import { ReportResultsDialog } from "./report-results-dialog";
 
@@ -17,11 +17,8 @@ export function DocumentsPage({ controller }: { controller: DashboardController 
       <header className="documents-heading"><div><h1>{t("documents.title")}</h1><p>{t("documents.description")}</p></div><span>{t("database.localRecords")}</span></header>
       <section className="document-intake" aria-label={t("documents.title")}>
         <DocumentDrop accept={resultDocumentAccept} description={t("documents.pdfDescription")} icon={<FileText />} inputId="document-result-file" label={t("documents.pdfLabel")} onFile={controller.prepareDocumentResult} />
-        <DocumentDrop accept={resultDocumentAccept} description={t("genetics.uploadDescription")} icon={<Sparkles />} inputId="genetic-report-file" label={t("genetics.uploadLabel")} onFile={controller.prepareDocumentResult} />
         <DocumentDrop accept=".xml,application/xml,text/xml" description={t("documents.appleDescription")} icon={<Sparkles />} inputId="apple-health-export-file" label={t("documents.appleLabel")} onFile={(file) => void controller.importAppleHealthFile(file)} />
       </section>
-      <details className="genetics-context"><summary>{t("genetics.safetyTitle")}</summary><p>{t("genetics.safetyDescription")}</p><p>{t("genetics.notSupportedRisk")}</p></details>
-      <ImportCoverageTimeline imports={controller.userState.appleHealthImports} reports={controller.display.labReports} />
       <LabReports controller={controller} />
       <AppleHealthImports controller={controller} />
     </div>
@@ -43,6 +40,7 @@ function DocumentDrop({
   label: string;
   onFile: (file: File) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const descriptionId = `${inputId}-description`;
 
   function handleFile(file: File | undefined): void {
@@ -63,10 +61,12 @@ function DocumentDrop({
     >
       <span className="document-drop-icon">{icon}</span>
       <span className="document-drop-copy"><FieldLabel htmlFor={inputId}>{label}</FieldLabel><FieldDescription id={descriptionId}>{description}</FieldDescription></span>
+      <Button className="document-drop-button" size="sm" type="button" variant="outline" onClick={() => inputRef.current?.click()}>{t("documents.chooseFile")}</Button>
       <Input
         accept={accept}
         aria-describedby={descriptionId}
         id={inputId}
+        ref={inputRef}
         type="file"
         onChange={(event) => {
           handleFile(event.currentTarget.files?.[0]);
@@ -109,9 +109,14 @@ function LabReports({ controller }: { controller: DashboardController }) {
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" size="sm" onClick={() => setSelectedReportId(report.id)}>{t("documents.viewResults")}</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => void controller.unlinkLabReport(report.id)}>{t("documents.unlink")}</Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(t("documents.deleteReportConfirm"))) void controller.deleteLabReport(report.id, false); }}>{t("documents.deleteReport")}</Button>
-            <Button type="button" size="sm" variant="destructive" onClick={() => { if (window.confirm(t("documents.deleteReportResultsConfirm"))) void controller.deleteLabReport(report.id, true); }}>{t("documents.deleteReportResults")}</Button>
+            <details className="report-actions">
+              <summary>{t("documents.manageReport")}</summary>
+              <div>
+                <Button type="button" size="sm" variant="outline" onClick={() => void controller.unlinkLabReport(report.id)}>{t("documents.unlink")}</Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(t("documents.deleteReportConfirm"))) void controller.deleteLabReport(report.id, false); }}>{t("documents.deleteReport")}</Button>
+                <Button type="button" size="sm" variant="destructive" onClick={() => { if (window.confirm(t("documents.deleteReportResultsConfirm"))) void controller.deleteLabReport(report.id, true); }}>{t("documents.deleteReportResults")}</Button>
+              </div>
+            </details>
           </div>
         </div>
       ))}
@@ -148,6 +153,17 @@ function AppleHealthImports({ controller }: { controller: DashboardController })
               {item.startedAt ? <> · {formatDate(item.startedAt)} – {formatDate(item.endedAt)}</> : null}
             </p>
           </div>
+          <Button
+            aria-label={t("documents.deleteAppleImport", { name: item.sourceName })}
+            onClick={() => {
+              if (window.confirm(t("documents.deleteAppleImportConfirm"))) void controller.deleteAppleHealthImport(item.id || item.importedAt);
+            }}
+            size="icon-sm"
+            type="button"
+            variant="destructive"
+          >
+            <Trash2 />
+          </Button>
         </div>
       ))}
     </div>

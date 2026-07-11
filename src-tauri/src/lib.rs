@@ -78,6 +78,11 @@ fn unlock_database(
 }
 
 #[tauri::command]
+fn lock_database(state: tauri::State<'_, AppState>) -> Result<DatabaseStatus, String> {
+    database::lock_database(&state)
+}
+
+#[tauri::command]
 fn export_database(
     passphrase: String,
     state: tauri::State<'_, AppState>,
@@ -188,6 +193,7 @@ pub fn run() {
             get_database_status,
             database::select_database,
             unlock_database,
+            lock_database,
             export_database,
             get_dashboard_snapshot,
             records::add_lab_result,

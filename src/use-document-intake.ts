@@ -18,6 +18,7 @@ type DocumentIntakeOptions = {
   setSelectedNav: (nav: NavKey) => void;
   onJobStart: (input: BackgroundJobInput) => string;
   onJobUpdate: (jobId: string, patch: BackgroundJobPatch) => void;
+  isBackgroundJobCancelled: (jobId: string) => boolean;
   onDeveloperLog: (input: DeveloperLogInput) => void;
   onLlmCallStart: (input: LlmCallInput) => string;
   onLlmCallUpdate: (callId: string, patch: LlmCallPatch) => void;
@@ -98,11 +99,19 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
     }
     updateSession(sessionId, (session) => ({ ...session, analysis: { status: "analyzing", results: [], error: "" } }));
     let callId = "";
+    function stopIfCancelled(): boolean {
+      if (!options.isBackgroundJobCancelled(jobId)) return false;
+      const message = t("jobs.stopDiscarded");
+      updateSession(sessionId, (session) => ({ ...session, analysis: { status: "error", results: [], error: message } }));
+      return true;
+    }
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
+      if (stopIfCancelled()) return;
       options.onJobUpdate(jobId, { progress: 20 });
       options.onDeveloperLog({ area: "document", level: "info", message: t("developer.log.sourceLoaded"), detail: t("developer.log.bytes", { count: bytes.length }) });
       const renderedPages = await renderDocumentPages(file);
+      if (stopIfCancelled()) return;
       options.onJobUpdate(jobId, { progress: 40 });
       options.onDeveloperLog({ area: "document", level: "info", message: t("developer.log.pagesRendered"), detail: t("developer.log.pages", { count: renderedPages.length }) });
       callId = options.onLlmCallStart({ kind: "document-analysis", command: "analyze_document", inputLabel: file.name, modelId: options.aiSettings.modelId, reasoningEffort: options.aiSettings.reasoningEffort, promptChars: 0, fileBytes: bytes.length, renderedPages: renderedPages.length });
@@ -110,6 +119,7 @@ export function useDocumentIntake(options: DocumentIntakeOptions) {
       const raw = await invoke<string>("analyze_document", { input: { fileName: file.name, fileBytes: Array.from(bytes), renderedPages, modelId: options.aiSettings.modelId, reasoningEffort: options.aiSettings.reasoningEffort } });
       options.onLlmCallUpdate(callId, { status: "completed", outputChars: raw.length });
       options.onDeveloperLog({ area: "document", level: "success", message: t("developer.log.callCompleted"), detail: t("developer.log.chars", { count: raw.length }) });
+      if (stopIfCancelled()) return;
       const results = parseExtractedResults(raw);
       if (results.length === 0) {
         const message = t("document.extractError");

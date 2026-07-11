@@ -24,29 +24,19 @@ export function DatabaseGate({ controller }: { controller: DashboardController }
           : !passphrasesMatch ? t("gate.passphrasesMismatch") : "";
   const title = setup ? t("gate.title.protect") : t("gate.title.unlock");
   const body = status.state === "legacyPlaintext" ? t("gate.body.migration") : setup ? t("gate.body.setup") : t("gate.body.locked");
+  const formTitle = title;
+  const formBody = setup ? body : t("gate.help.locked");
   const submit = status.state === "legacyPlaintext" ? t("gate.button.migrate") : setup ? t("gate.button.create") : t("gate.button.unlock");
 
   return (
     <main className="gate-screen">
-      <section className="gate-intro" data-tauri-drag-region>
-        <div className="gate-logo"><span className="brand-mark"><Icon name="heart" /></span><strong>{t("brand.name")}</strong></div>
-        <div className="gate-copy">
-          <span className="gate-lock"><Icon name="lock" size={22} /></span>
-          <h1>{title}</h1>
-          <p>{body}</p>
-        </div>
-        <ul className="gate-points">
-          <li>{t("gate.step.sqlcipher")}</li>
-          <li>{t("gate.step.local")}</li>
-          <li>{t("gate.step.onlyKey")}</li>
-        </ul>
-      </section>
       <form className="gate-form squircle" onSubmit={(event) => {
         event.preventDefault();
         if (!ready) return;
         void controller.unlockDatabase(new FormData(event.currentTarget));
       }}>
-        <div><h2>{t("gate.passphrase")}</h2><p>{setup ? t("gate.help.setup") : t("gate.help.locked")}</p></div>
+        <div className="gate-form-heading"><span className="brand-mark"><Icon name="heart" /></span><div><h1>{formTitle}</h1><p>{formBody}</p></div></div>
+        {setup ? <p className="gate-form-help">{t("gate.help.setup")}</p> : null}
         {controller.loadError ? <p className="form-error" role="alert">{controller.loadError}</p> : null}
         <label>{t("gate.passphrase")}
           <span className="input-with-button">

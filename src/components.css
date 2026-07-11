@@ -1,6 +1,6 @@
-/* Component-level styles: status visuals, charts, chat, gate, ask bar.
-   Shell/layout styles live in styles.css; motion lives in animations.css.
-   Design tokens (type scale, spacing, elevation, radius) live in styles.css. */
+/* Component-level styles: status visuals, charts, chat, and database gate.
+   Shell layout lives in styles/workspace.css; shared tokens live in
+   styles/foundations.css. */
 
 /* ===== Status visuals ===== */
 .status-dot {
@@ -126,38 +126,6 @@
 .document-drop:focus-within,
 .document-drop:hover { border-color: var(--primary); background: var(--accent); }
 
-/* ===== Ask bar ===== */
-/* The effective prompt bar is the in-flow shell row defined in layout.css.
-   These rules keep the floating-bar fallback coherent with the token system. */
-.ai-prompt-bar {
-  position: fixed;
-  right: var(--space-5);
-  bottom: var(--space-4);
-  left: calc(216px + var(--space-5));
-  z-index: 40;
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-3);
-  margin-inline: auto;
-  max-width: 860px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
-  background: color-mix(in srgb, var(--card) 88%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--elev-2);
-}
-.ai-prompt-bar-unavailable {
-  grid-template-columns: minmax(0, 1fr) auto;
-  max-width: 560px;
-  padding-left: var(--space-3);
-  background: var(--card);
-}
-.ai-prompt-bar [data-slot="textarea"] { border: 0; background: transparent; box-shadow: none; }
-.ai-prompt-bar [data-slot="textarea"]:focus-visible { outline: none; border: 0; box-shadow: none; }
-.ai-prompt-bar:focus-within { border-color: var(--ring); box-shadow: var(--elev-2), 0 0 0 3px color-mix(in srgb, var(--ring) 22%, transparent); }
-
 /* Background work uses staged progress when the native task cannot report a
    precise percentage. The moving segment communicates activity without
    pretending the model has an exact completion estimate. */
@@ -178,18 +146,28 @@
 .chat-layout {
   display: grid;
   min-height: 0;
-  height: calc(100vh - 60px - 2.2rem);
-  grid-template-columns: 264px minmax(0, 1fr);
-  gap: var(--space-4);
+  height: 100%;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 0;
 }
 .chat-scroll { scrollbar-width: thin; }
+.chat-thread-row { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border: 1px solid transparent; border-radius: var(--radius-sm); transition: border-color var(--dur-feedback) var(--ease-out-quart), background-color var(--dur-feedback) var(--ease-out-quart); }
+.chat-thread-row:hover { background: color-mix(in srgb, var(--surface-soft) 65%, transparent); }
+.chat-thread-row.is-active { border-color: color-mix(in srgb, var(--primary) 24%, var(--border)); background: color-mix(in srgb, var(--primary) 8%, var(--card)); }
+.chat-thread-select { display: grid; min-width: 0; padding: 0.55rem 0.65rem; gap: 0.18rem; border: 0; color: var(--foreground); background: transparent; text-align: left; }
+.chat-thread-select strong, .chat-thread-select span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-thread-select strong { font-size: var(--fs-sm); font-weight: 650; }
+.chat-thread-select span { color: var(--muted-foreground); font-size: var(--fs-xs); }
+.chat-thread-actions { display: flex; padding-right: 0.35rem; gap: 0.15rem; opacity: 0; transition: opacity var(--dur-feedback) var(--ease-out-quart); }
+.chat-thread-row:hover .chat-thread-actions, .chat-thread-row:focus-within .chat-thread-actions, .chat-thread-row.is-active .chat-thread-actions { opacity: 1; }
+.chat-thread-edit { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 0.3rem; }
 .chat-message { max-width: 46rem; }
 .chat-message.user {
   justify-self: end;
   border-radius: var(--radius) var(--radius) var(--radius-sm) var(--radius);
   padding: var(--space-3) var(--space-4);
   color: white;
-  background: linear-gradient(165deg, color-mix(in oklch, var(--primary) 92%, white), var(--primary));
+  background: var(--primary);
 }
 .chat-message.assistant {
   justify-self: start;
@@ -232,10 +210,10 @@
   color: white;
   background:
     radial-gradient(120% 80% at 0% 100%, color-mix(in oklch, var(--primary) 38%, transparent) 0%, transparent 60%),
-    var(--sidebar);
+    var(--plum-deep);
 }
 .gate-brand h1 { margin: var(--space-1) 0 0; font-size: var(--fs-2xl); font-weight: 650; letter-spacing: -0.02em; line-height: 1.25; text-wrap: balance; }
-.gate-brand > div > p:last-child { margin: 0.5rem 0 0; color: var(--sidebar-muted); font-size: var(--fs-md); line-height: 1.55; }
+.gate-brand > div > p:last-child { margin: 0.5rem 0 0; color: color-mix(in srgb, white 78%, transparent); font-size: var(--fs-md); line-height: 1.55; }
 .gate-point { display: flex; align-items: center; gap: var(--space-3); margin: 0; color: color-mix(in srgb, white 88%, transparent); font-size: var(--fs-base); }
 .gate-point svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: oklch(0.8 0.09 185); }
 
@@ -243,8 +221,4 @@
   .gate-shell { grid-template-columns: minmax(0, 1fr); min-height: 0; }
   .gate-brand { display: none; }
   .chat-layout { grid-template-columns: minmax(0, 1fr); height: auto; }
-}
-
-@media (max-width: 900px) {
-  .ai-prompt-bar { left: calc(68px + var(--space-4)); right: var(--space-4); }
 }

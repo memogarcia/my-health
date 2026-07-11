@@ -11,7 +11,7 @@
   --color-card-foreground: var(--ink);
   --color-popover: var(--surface);
   --color-popover-foreground: var(--ink);
-  --color-primary: var(--plum);
+  --color-primary: var(--accent);
   --color-primary-foreground: oklch(0.99 0 0);
   --color-secondary: var(--surface-soft);
   --color-secondary-foreground: var(--ink);

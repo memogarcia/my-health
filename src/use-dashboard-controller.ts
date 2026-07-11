@@ -9,6 +9,7 @@ import { newLocalDatabasePath, pickExistingDatabase } from "./database-picker";
 import {
   buildDisplaySnapshot,
   normalizeUserState,
+  type ActivityEntry,
   type BackgroundJob,
   type BackgroundJobInput,
   type BackgroundJobPatch,
@@ -23,15 +24,15 @@ import { t } from "./i18n";
 import { makePromptActions, type RegimenDraft } from "./prompt-actions";
 import { makeRecordActions, type BulkResultUpdateInput, type ResultInput, type SymptomInput } from "./use-dashboard-record-actions";
 import { isTauriRuntime, TAURI_ONLY_MESSAGE } from "./tauri-runtime";
-import { activityFromForm, aiSettingsFromForm, profileFromForm, restoreUserState } from "./user-state";
+import { aiSettingsFromForm, profileFromForm, restoreUserState } from "./user-state";
 import { useDocumentIntake } from "./use-document-intake";
 import { makeDeveloperDiagnostics } from "./use-developer-diagnostics";
 import { makeBodyNoteActions, type BodyNoteDraft } from "./use-body-notes";
 import { makeFastingActions } from "./use-fasting-actions";
-
+import { makeDatabaseLockAction } from "./use-database-lock";
+import { makeUserStateActions } from "./use-user-state-actions";
 export type { BulkResultUpdateInput, ResultInput, SymptomInput };
 type DialogName = Exclude<DialogKey, null>;
-
 export function useDashboardController() {
   const [snapshot, setSnapshot] = useState(null as DashboardSnapshot | null);
   const [selectedOrganKey, setSelectedOrganKey] = useState("heart");
@@ -45,6 +46,7 @@ export function useDashboardController() {
   const [tauriRuntimeAvailable] = useState(isTauriRuntime);
   const [regimenDraft, setRegimenDraft] = useState(null as RegimenDraft | null);
   const [bodyNoteDraft, setBodyNoteDraft] = useState(null as BodyNoteDraft | null);
+  const [activityDraft, setActivityDraft] = useState(null as ActivityEntry | null);
   const [databaseStatus, setDatabaseStatus] = useState(null as DatabaseStatus | null);
   const [aiPendingConversationId, setAiPendingConversationId] = useState("");
   const [codexModels, setCodexModels] = useState<CodexModelOption[]>([]);
@@ -53,13 +55,12 @@ export function useDashboardController() {
   const databaseEpochRef = useRef(0);
   const userStateRef = useRef(userState);
   const userStateSaveQueueRef = useRef(Promise.resolve());
-
+  const cancelledJobIdsRef = useRef(new Set<string>());
   function setUserStateWithRef(next: SetStateAction<UserState>): void {
     const resolved = typeof next === "function" ? next(userStateRef.current) : next;
     userStateRef.current = resolved;
     setUserState(resolved);
   }
-
   function startBackgroundJob(input: BackgroundJobInput): string {
     const job: BackgroundJob = {
       id: newBackgroundJobId(),
@@ -78,10 +79,11 @@ export function useDashboardController() {
     });
     setUserStateWithRef(next);
     void persistUserState(next);
+    cancelledJobIdsRef.current.delete(job.id);
     return job.id;
   }
-
   function updateBackgroundJob(jobId: string, patch: BackgroundJobPatch): void {
+    if (cancelledJobIdsRef.current.has(jobId) && patch.status !== "cancelled") return;
     const current = userStateRef.current;
     if (!current.backgroundJobs.some((job) => job.id === jobId)) return;
     const next = normalizeUserState({
@@ -95,7 +97,12 @@ export function useDashboardController() {
     setUserStateWithRef(next);
     void persistUserState(next);
   }
-
+  function cancelBackgroundJob(jobId: string): void {
+    const job = userStateRef.current.backgroundJobs.find((entry) => entry.id === jobId);
+    if (!job || job.status !== "running") return;
+    cancelledJobIdsRef.current.add(jobId);
+    updateBackgroundJob(jobId, { status: "cancelled", progress: null, error: t("jobs.stopDiscarded") });
+  }
   function clearFinishedBackgroundJobs(): void {
     const next = normalizeUserState({
       ...userStateRef.current,
@@ -104,11 +111,9 @@ export function useDashboardController() {
     setUserStateWithRef(next);
     void persistUserState(next);
   }
-
   useEffect(() => {
     userStateRef.current = userState;
   }, [userState]);
-
   const display = useMemo(() => buildDisplaySnapshot(snapshot), [snapshot]);
   const selectedOrgan = useMemo(
     () => display.organs.find((organ) => organ.key === selectedOrganKey) || display.organs[0],
@@ -137,15 +142,12 @@ export function useDashboardController() {
     ...display.recentSymptoms.map((symptom) => symptom.observedAt),
     ...display.conditions.map((condition) => condition.diagnosedAt),
   ].filter(Boolean).sort().at(-1) || "", [display.conditions, display.latestLabResults, display.recentSymptoms]);
-
   function setSelectedNav(nav: NavKey): void {
     setSelectedNavState(nav);
     if (nav === "labs" || nav === "symptoms") setActiveHistoryTab(nav);
     if (nav === "documents") setActiveHistoryTab("files");
   }
-
   const { clearDeveloperData, recordDeveloperLog, startLlmCall, updateLlmCall } = makeDeveloperDiagnostics({ getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
-
   const documentIntake = useDocumentIntake({
     aiSettings,
     databasePath: databaseStatus?.dbPath || "",
@@ -155,16 +157,17 @@ export function useDashboardController() {
     openDocumentDialog: () => setActiveDialog("document"),
     closeDocumentDialog: () => setActiveDialog(null),
     onJobStart: startBackgroundJob,
-    onJobUpdate: updateBackgroundJob, onDeveloperLog: recordDeveloperLog, onLlmCallStart: startLlmCall, onLlmCallUpdate: updateLlmCall,
+    onJobUpdate: updateBackgroundJob, isBackgroundJobCancelled: (jobId) => cancelledJobIdsRef.current.has(jobId), onDeveloperLog: recordDeveloperLog, onLlmCallStart: startLlmCall, onLlmCallUpdate: updateLlmCall,
   });
-
+  const { lockDatabase } = makeDatabaseLockAction({ databaseStatus, databaseEpochRef, clearDocumentIntake: documentIntake.clearDocumentIntake, setActiveDialog, setActiveHistoryTab, setAiPendingConversationId, setAiSettings, setDatabaseStatus, setLoadError, setRegimenDraft, setSelectedNav, setSelectedOrganKey, setSnapshot, setUserState: setUserStateWithRef });
   function openDialog(key: DialogName): void {
+    if (key === "activity") setActivityDraft(null);
     setActiveDialog(key);
   }
-
   function closeDialog(): void {
     setActiveDialog(null);
     setBodyNoteDraft(null);
+    setActivityDraft(null);
     documentIntake.closeDocumentReview();
   }
 
@@ -359,14 +362,6 @@ export function useDashboardController() {
     }
   }
 
-  async function addActivity(form: FormData): Promise<void> {
-    const entry = activityFromForm(form);
-    const next = normalizeUserState({ ...userState, activityEntries: [entry, ...userState.activityEntries] });
-    setUserStateWithRef(next);
-    closeDialog();
-    if (await persistUserState(next)) toast.success(t("toast.dailyLogSaved"));
-  }
-
   async function importAppleHealthFile(file: File): Promise<void> {
     const epoch = databaseEpochRef.current;
     try {
@@ -409,6 +404,7 @@ export function useDashboardController() {
   });
   const bodyNoteActions = makeBodyNoteActions({ draft: bodyNoteDraft, setDraft: setBodyNoteDraft, setActiveDialog, getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
   const fastingActions = makeFastingActions({ getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
+  const userStateActions = makeUserStateActions({ activityDraft, getUserState: () => userStateRef.current, persistUserState, setActiveDialog, setActivityDraft, setUserState: setUserStateWithRef });
   const promptActions = makePromptActions({
     aiPendingConversationId,
     aiSettings,
@@ -424,7 +420,7 @@ export function useDashboardController() {
     isDatabaseCurrent: (epoch) => databaseEpochRef.current === epoch,
     getUserState: () => userStateRef.current,
     onJobStart: startBackgroundJob,
-    onJobUpdate: updateBackgroundJob, onDeveloperLog: recordDeveloperLog, onLlmCallStart: startLlmCall, onLlmCallUpdate: updateLlmCall,
+    onJobUpdate: updateBackgroundJob, isBackgroundJobCancelled: (jobId) => cancelledJobIdsRef.current.has(jobId), onDeveloperLog: recordDeveloperLog, onLlmCallStart: startLlmCall, onLlmCallUpdate: updateLlmCall,
   });
 
   return {
@@ -450,6 +446,7 @@ export function useDashboardController() {
     activeDocumentSessionId: documentIntake.activeDocumentSessionId,
     regimenDraft,
     bodyNoteDraft,
+    activityDraft,
     databaseStatus,
     aiPendingConversationId,
     backgroundJobs: userState.backgroundJobs,
@@ -468,12 +465,13 @@ export function useDashboardController() {
     closeDialog,
     openDatabaseFile,
     newDatabaseFile,
+    lockDatabase,
     unlockDatabase,
     saveProfile,
     saveAiSettings,
     loadCodexOptions,
     ...recordActions,
-    addActivity,
+    ...userStateActions,
     ...fastingActions,
     ...bodyNoteActions,
     importAppleHealthFile,
@@ -484,9 +482,11 @@ export function useDashboardController() {
     addDocumentResultRow: documentIntake.addDocumentResultRow,
     acceptDocumentResults: documentIntake.acceptDocumentResults,
     exportDatabase,
-    clearFinishedBackgroundJobs, clearDeveloperData,
+    cancelBackgroundJob, clearFinishedBackgroundJobs, clearDeveloperData,
     startAiConversation: promptActions.startAiConversation,
     selectAiConversation: promptActions.selectAiConversation,
+    renameAiConversation: promptActions.renameAiConversation,
+    deleteAiConversation: promptActions.deleteAiConversation,
     submitAiPrompt: promptActions.submitAiPrompt,
     clearRegimenDraft: () => setRegimenDraft(null),
   };

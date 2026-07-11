@@ -25,7 +25,7 @@ export function AddResultDropdown({ controller }: { controller: DashboardControl
   return (
     <>
       <Select key={key} onValueChange={choose}>
-        <SelectTrigger aria-label={t("addResult.label")} size="sm">
+        <SelectTrigger aria-label={t("addResult.label")} className="toolbar-primary" size="sm">
           <SelectValue placeholder={<><Plus data-icon="inline-start" />{t("addResult.label")}</>} />
         </SelectTrigger>
         <SelectContent>

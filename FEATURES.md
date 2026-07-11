@@ -1,10 +1,8 @@
 # Features
 
-This document is the behavior inventory for Me Health Dashboard as of 2026-07-10,
-including the pre-reset renderer and the current Rust/data layer. The renderer
-has since been intentionally deleted, so this file preserves the product
-behavior that the new UI must rebuild. It is intentionally separate from
-`DESIGN.md`, which is reset for a new visual direction.
+This document is the behavior inventory for Me Health Dashboard as of 2026-07-10.
+It covers the current renderer and Rust data layer. `DESIGN.md` owns visual and
+interaction rules; `ARCHITECTURE.md` owns technical contracts.
 
 ## Product scope
 
@@ -46,7 +44,7 @@ advice, diagnosis, treatment, or emergency triage.
   - AI provider settings;
   - profile and activity state;
   - fasting state and completed sessions;
-  - exact-area body notes;
+  - legacy body notes;
   - Apple Health import summaries and future sync state;
   - assistant conversations;
   - background job metadata;
@@ -88,18 +86,14 @@ The body workspace is the primary product concept in the existing implementation
 - Shows a static anatomy image with clickable organ hotspots.
 - Uses a female anatomy image when the saved profile sex is `female`.
 - Uses the default anatomy image for other profile values.
-- Allows clicking an exact area of the anatomy image to create a local body note.
-- Stores body-note area label, front-view metadata, normalized X/Y coordinates,
-  turntable angle, note text, and creation time in encrypted user state.
-- Shows saved body-note pins on the anatomy view when their saved angle is
-  visible.
+- Preserves legacy body notes in encrypted user state and exposes them from
+  Timeline for editing or deletion.
 - Shows the selected organ's system, summary, status, latest lab series,
   recent symptoms, and conditions.
 - Provides a quick action to add a lab result for the selected organ.
 - Provides a quick action to log a symptom for the selected organ.
 - Provides trend previews for the selected organ's lab markers.
 - Provides links from an organ preview to global lab or symptom history.
-- Shows a recent daily activity log below the body workspace.
 - Allows the previous body sections to collapse and reopen independently.
 - Announces selected-organ changes to assistive technology.
 
@@ -196,6 +190,7 @@ The body workspace is the primary product concept in the existing implementation
 - Stores date, activity name, duration in minutes, cigarette count, drink count,
   and notes.
 - Shows saved daily entries in reverse chronological order.
+- Uses a dedicated Daily Log page for adding, editing, and deleting entries.
 - Uses daily entries as local context for lifestyle suggestions and AI prompts.
 - Keeps daily log data in encrypted user state.
 
@@ -208,8 +203,11 @@ The body workspace is the primary product concept in the existing implementation
 - Ends the active fast and stores a completed session.
 - Shows elapsed time and active/ready state.
 - Shows conservative stage guidance at 0, 4, 8, 12, 16, and 18 hours.
+- Labels stage timing as an estimate and explains the factors that shift it.
+- Shows time remaining to the target and the next zone within that target.
 - Shows the current stage in text as well as through progress feedback.
-- Shows up to the three most recent completed fasting sessions.
+- Shows up to the five most recent completed fasting sessions.
+- Deletes completed fasting sessions from local history.
 - Persists the active timer and session history in encrypted user state.
 - Displays safety education and stop/contraindication guidance.
 - Does not present fasting stages as individualized medical advice.
@@ -224,8 +222,10 @@ The body workspace is the primary product concept in the existing implementation
 - Shows technique descriptions and safety guidance.
 - Requires explicit safety acknowledgment before starting the high-intensity
   technique.
-- Starts and pauses the breathing timer.
-- Shows the active phase, phase duration, and round count.
+- Starts, pauses, resumes, and resets the breathing timer without losing the
+  current phase position.
+- Shows a live countdown, phase sequence, and round count.
+- Animates inhale and exhale for the full configured phase duration.
 - Stops the finite high-intensity sequence after its configured cycle count.
 - Provides a visual breathing orb and reduced-motion behavior.
 - Never guides a breath hold in the Wim Hof-style technique.
@@ -283,8 +283,8 @@ The body workspace is the primary product concept in the existing implementation
 - Parses it in a renderer worker rather than blocking the UI thread.
 - Stores a local import summary with source name, import time, record count,
   workout count, and date coverage.
+- Deletes a saved import summary without changing source Apple Health data.
 - Shows recent import summaries.
-- Shows import/report data coverage through a timeline visualization.
 - The current XML flow does not populate normalized `health_samples`.
 
 ### Implemented sync foundation
@@ -308,6 +308,7 @@ The body workspace is the primary product concept in the existing implementation
 - Provides a saved conversation/thread list.
 - Starts a new conversation.
 - Selects an existing conversation.
+- Renames or deletes a saved conversation.
 - Persists conversation title, timestamps, messages, provider, model, and error
   state.
 - Sends a free-form prompt with Enter-to-send and Shift+Enter for a newline.
@@ -370,18 +371,21 @@ The body workspace is the primary product concept in the existing implementation
 
 - Persists recent background jobs in encrypted user state.
 - Tracks document analysis, deep research, and AI chat jobs.
-- Shows running, completed, failed, and interrupted states.
+- Shows running, completed, failed, stopped, and interrupted states.
 - Shows staged progress when known and indeterminate progress otherwise.
 - Keeps jobs visible across navigation and reloads.
 - Keeps each document request associated with its own job and review session.
 - Shows bounded error text.
-- Clears completed and failed jobs while retaining running jobs.
+- Stops a run by discarding its result after an already-started Codex call
+  returns; it does not claim to terminate that external process.
+- Clears completed, failed, and stopped jobs while retaining running jobs.
 - Does not claim model-reported progress when only staged progress is known.
 
 ## Developer diagnostics
 
 - Provides a local Developer area for troubleshooting AI/document work.
-- Shows counts of calls, failures, and lifecycle logs.
+- Shows a compact list of active and recent runs with view and stop controls.
+- Keeps detailed calls and lifecycle logs behind a diagnostics disclosure.
 - Shows bounded LLM metadata: command, kind, input label, model, reasoning
   effort, start time, duration, prompt character count, file bytes, rendered
   page count, and output character count.
@@ -393,10 +397,9 @@ The body workspace is the primary product concept in the existing implementation
 - Excludes prompt contents, extracted result rows, health payloads, secrets,
   and API keys from the diagnostics surface.
 
-## Cross-cutting UI behavior in the previous renderer
+## Cross-cutting UI behavior
 
-These behaviors existed in the renderer before the UI reset and should be
-considered when rebuilding the interface:
+The current renderer provides:
 
 - Typed English i18n catalog with a hard check for unlocalized user-facing
   strings.
@@ -429,18 +432,5 @@ considered when rebuilding the interface:
 - No storage of the SQLCipher passphrase.
 - No claim that charts or derived statuses are diagnostic quality scores.
 
-## Rebuild priority suggestion
-
-The feature inventory is broad. A future redesign can recover the product in
-this order:
-
-1. database setup/unlock and the native-only runtime state;
-2. the body/organ context and selected-record reading flow;
-3. lab results, symptoms, and conditions;
-4. medications, daily context, fasting, and breathing;
-5. documents, review, and report management;
-6. settings, export, and privacy consent;
-7. assistant, lifestyle planning, research, jobs, and diagnostics.
-
-That order is a planning suggestion only. The authoritative behavior remains
-the current source code and Rust command contracts.
+The authoritative behavior is the current source code and Rust command
+contracts.

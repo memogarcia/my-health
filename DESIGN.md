@@ -15,9 +15,9 @@ The app has four workspaces rather than a page for every data type.
 
 1. **Overview** uses the body as navigation. Selecting an organ changes the
    health record at the right without leaving the scene.
-2. **Timeline** combines results, symptoms, conditions, regimen changes, body
-   notes, and daily logs into one chronological record. Filters narrow the
-   record without creating separate products.
+2. **Timeline** combines results, symptoms, conditions, regimen changes, and
+   legacy body notes into one chronological record. Daily Log is its own
+   focused page within this workspace.
 3. **Library** keeps source material and guided tools together: health files,
    regimen, fasting, breathing, and research.
 4. **Assistant** is a conversation workspace. AI is also available from the
@@ -32,15 +32,15 @@ health-review workspaces.
 - Keep the selected organ visible while its latest signals are read.
 - Preserve chronology. Dates are the main organizing structure for medical
   history.
-- Put capture near review. Add Result, Log symptom, Daily log, and the bottom
-  prompt stay available without covering the record.
-- Use progressive disclosure for editing, conditions, genetic context, and
-  destructive file actions.
+- Put capture near review. Add Result exposes both individual and file intake;
+  Log symptom and Daily Log stay one action away without covering the record.
+- Use progressive disclosure for editing, conditions, and destructive file
+  actions.
 - Keep AI advisory and visibly separate from saved medical facts.
 
 ## Navigation
 
-The 64 px icon rail contains Overview, Timeline, Library, and Assistant.
+The 88 px icon rail contains Overview, Timeline, Library, and Assistant.
 
 - The active workspace uses a berry-tinted squircle and a three-pixel window
   edge marker.
@@ -56,7 +56,7 @@ The 64 px icon rail contains Overview, Timeline, Library, and Assistant.
 Overview follows a desktop three-pane reading model:
 
 - body-system index;
-- anatomy or body-surface stage;
+- organ anatomy stage;
 - selected-organ record.
 
 The anatomy image owns the available height. The organ index is independently
@@ -70,19 +70,22 @@ Date labels occupy a stable left column and never repeat for adjacent events on
 the same day. Status appears at the far edge so titles and values scan cleanly.
 
 Results and Symptoms may enter a management mode for sorting, charts, editing,
-and deletion. Returning to the timeline restores chronological context.
+and deletion. Daily Log uses its own reverse-chronological reading page for
+entry, editing, and deletion. Returning to the timeline restores chronological
+context.
 
 ### Library
 
 Library uses a stable 228 px index and one detail canvas. It does not add page
 navigation to the global rail.
 
-- Documents uses one three-source intake strip, a compact clinical-context
-  disclosure, import coverage, and a saved-file archive.
+- Documents uses one two-source intake strip for result documents and Apple
+  Health exports, with a visible file chooser on each source, followed by a
+  saved-file archive.
 - Regimen uses one split composition: editor on the left, history and active
   items on the right.
-- Settings uses a label column and a control column, matching native Mac
-  preference layouts.
+- Settings uses a narrow, single-column preference sheet. Each section keeps
+  its title directly above its fields so controls never clip into a second pane.
 
 ## Visual system
 
@@ -92,7 +95,7 @@ All colors are OKLCH tokens in `src/styles/foundations.css`.
 
 - Canvas and chrome are chroma-neutral with a slight violet bias.
 - Berry is reserved for active navigation, primary actions, and selected AI
-  controls.
+  controls. The renderer and shadcn primitives use the same berry token.
 - Normal is green, Monitor is amber, and Attention is vermilion.
 - Every health status includes text and position in addition to color.
 - Large dark colored sidebars are not part of the product identity.
@@ -102,7 +105,8 @@ All colors are OKLCH tokens in `src/styles/foundations.css`.
 - Use the native Apple system stack, led by SF Pro on macOS.
 - One family serves labels, prose, controls, and data.
 - Product headings use fixed sizes from 15 to 27 px.
-- Body copy is 10 to 13 px depending on density and meets WCAG AA contrast.
+- Core body copy is 12 to 14 px; 11 px is reserved for compact secondary
+  metadata. Every text token meets WCAG AA contrast on its intended surface.
 - Numeric health values use tabular figures where alignment matters.
 
 ### Shape
@@ -126,6 +130,8 @@ All colors are OKLCH tokens in `src/styles/foundations.css`.
 - Feedback and state transitions run from 120 to 200 ms with ease-out curves.
 - Anatomy rotation communicates the selected body view.
 - Modal capture settles vertically over 180 ms.
+- The breathing orb expands and contracts for the complete inhale or exhale
+  duration; pause preserves both the timer and visual phase position.
 - No orchestrated page-load animation is used.
 - `prefers-reduced-motion` reduces transitions to immediate changes.
 
@@ -155,7 +161,8 @@ daily context are separated by hairlines.
 
 Result, symptom, daily-log, body-note, and document-review capture use the same
 modal vocabulary. Save buttons name the record being saved. Required fields
-have visible focus and validation states.
+have visible focus and validation states. Body-note editing remains available
+for legacy entries in Timeline; there is no surface capture mode.
 
 ### Empty and loading states
 
@@ -181,7 +188,7 @@ have visible focus and validation states.
 - Run `bun run tauri:dev` in the native desktop runtime.
 - Verify Overview, Timeline, all Library sections, Assistant, Settings, and
   diagnostics with real empty states.
-- Verify organ selection, Surface drag, exact-area notes, capture dialogs,
-  record management, timers, document review, AI enabled and disabled states,
-  keyboard focus, reduced motion, and the 820 by 680 minimum window.
+- Verify organ selection, Daily Log, capture dialogs, record management,
+  timers, document review, AI enabled and disabled states, keyboard focus,
+  reduced motion, and the 820 by 680 minimum window.
 - Build the production `.app` and `.dmg` with `bun run tauri:build`.
