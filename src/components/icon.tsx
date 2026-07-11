@@ -1,9 +1,11 @@
+import { cn } from "@/lib/utils";
+
 export type IconName =
   | "activity" | "body" | "chat" | "chevron" | "developer" | "document" | "heart"
   | "eye" | "labs" | "lock" | "medication" | "plus" | "search" | "settings"
   | "sparkles" | "symptom";
 
-export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
+export function Icon({ name, size = 18, className }: { name: IconName; size?: number; className?: string }) {
   const paths: Record<IconName, React.ReactNode> = {
     activity: <><path d="M4 12h3l2-6 4 12 2-6h5" /></>,
     body: <><circle cx="12" cy="5" r="2.5" /><path d="M8.5 21v-5l-2-4.5A3 3 0 0 1 9.2 7h5.6a3 3 0 0 1 2.7 4.5l-2 4.5v5M9 12h6" /></>,
@@ -22,5 +24,5 @@ export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
     sparkles: <><path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2Z" /><path d="m6 14 .8 2.2L9 17l-2.2.8L6 20l-.8-2.2L3 17l2.2-.8Z" /><path d="m18 14 .7 1.8 1.8.7-1.8.7L18 19l-.7-1.8-1.8-.7 1.8-.7Z" /></>,
     symptom: <><path d="M4 6h16M4 12h10M4 18h7" /><circle cx="18" cy="17" r="2" /></>,
   };
-  return <svg aria-hidden="true" className="icon" fill="none" height={size} viewBox="0 0 24 24" width={size}>{paths[name]}</svg>;
+  return <svg aria-hidden="true" className={cn("block shrink-0 stroke-current [stroke-linecap:round] [stroke-linejoin:round] [stroke-width:1.8]", className)} fill="none" height={size} viewBox="0 0 24 24" width={size}>{paths[name]}</svg>;
 }

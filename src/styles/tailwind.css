@@ -5,6 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* shadcn semantic surfaces (already mapped) */
   --color-background: var(--canvas);
   --color-foreground: var(--ink);
   --color-card: var(--surface);
@@ -23,6 +24,28 @@
   --color-border: var(--hairline);
   --color-input: var(--quiet);
   --color-ring: var(--focus);
+
+  /* raw design surfaces, usable as bg-canvas / bg-surface / text-muted / text-quiet */
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-sidebar: var(--sidebar-neutral);
+  --color-ink: var(--ink);
+  --color-muted-ink: var(--muted);
+  --color-quiet: var(--quiet);
+
+  /* accent / brand shades */
+  --color-plum: var(--plum);
+  --color-plum-deep: var(--plum-deep);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-ink: var(--accent-ink);
+
+  /* health status palette — text-normal / bg-monitor / text-attention / text-empty */
+  --color-normal: var(--normal);
+  --color-monitor: var(--monitor);
+  --color-attention: var(--attention);
+  --color-empty: var(--quiet);
+
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   --radius-sm: 0.5rem;
   --radius-md: 0.625rem;

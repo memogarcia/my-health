@@ -13,9 +13,15 @@ import { ReportResultsDialog } from "./report-results-dialog";
 
 export function DocumentsPage({ controller }: { controller: DashboardController }) {
   return (
-    <div className="documents-page">
-      <header className="documents-heading"><div><h1>{t("documents.title")}</h1><p>{t("documents.description")}</p></div><span>{t("database.localRecords")}</span></header>
-      <section className="document-intake" aria-label={t("documents.title")}>
+    <div className="grid max-w-[960px] gap-5">
+      <header className="flex items-start justify-between gap-5">
+        <div>
+          <h1 className="text-xl tracking-[-0.02em]">{t("documents.title")}</h1>
+          <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-muted-ink">{t("documents.description")}</p>
+        </div>
+        <span className="inline-flex min-w-max items-center rounded-full bg-secondary px-[8px] py-[5px] text-xs text-muted-ink">{t("database.localRecords")}</span>
+      </header>
+      <section aria-label={t("documents.title")} className="grid grid-cols-[repeat(2,minmax(0,1fr))] border-y border-border max-[880px]:grid-cols-1">
         <DocumentDrop accept={resultDocumentAccept} description={t("documents.pdfDescription")} icon={<FileText />} inputId="document-result-file" label={t("documents.pdfLabel")} onFile={controller.prepareDocumentResult} />
         <DocumentDrop accept=".xml,application/xml,text/xml" description={t("documents.appleDescription")} icon={<Sparkles />} inputId="apple-health-export-file" label={t("documents.appleLabel")} onFile={(file) => void controller.importAppleHealthFile(file)} />
       </section>
@@ -48,7 +54,7 @@ function DocumentDrop({
   }
   return (
     <Field
-      className="document-drop"
+      className="grid min-h-[96px] grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-3 rounded-none border-0 border-r border-border bg-transparent p-4 transition-colors hover:bg-secondary focus-within:bg-secondary [&:last-child]:border-r-0 max-[880px]:border-r-0 max-[880px]:border-b max-[880px]:[&:last-child]:border-b-0"
       data-document-drop
       onDragOver={(event) => {
         event.preventDefault();
@@ -59,12 +65,13 @@ function DocumentDrop({
         handleFile(event.dataTransfer.files[0]);
       }}
     >
-      <span className="document-drop-icon">{icon}</span>
-      <span className="document-drop-copy"><FieldLabel htmlFor={inputId}>{label}</FieldLabel><FieldDescription id={descriptionId}>{description}</FieldDescription></span>
-      <Button className="document-drop-button" size="sm" type="button" variant="outline" onClick={() => inputRef.current?.click()}>{t("documents.chooseFile")}</Button>
+      <span className="grid size-[34px] place-items-center rounded-sm bg-accent text-accent-ink">{icon}</span>
+      <span className="grid min-w-0 gap-[3px]"><FieldLabel className="text-sm font-semibold text-ink" htmlFor={inputId}>{label}</FieldLabel><FieldDescription className="line-clamp-2 text-xs text-muted-ink" id={descriptionId}>{description}</FieldDescription></span>
+      <Button className="whitespace-nowrap" size="sm" type="button" variant="outline" onClick={() => inputRef.current?.click()}>{t("documents.chooseFile")}</Button>
       <Input
         accept={accept}
         aria-describedby={descriptionId}
+        className="sr-only"
         id={inputId}
         ref={inputRef}
         type="file"
@@ -92,10 +99,10 @@ function LabReports({ controller }: { controller: DashboardController }) {
     );
   }
   return (
-    <div className="documents-list-section grid gap-2">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("documents.savedReports")}</h3>
+    <div className="grid gap-2 border-t border-border pt-3">
+      <h3 className="pb-2 text-xs font-semibold text-muted-ink">{t("documents.savedReports")}</h3>
       {reports.map((report) => (
-        <div className="documents-list-row grid gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={report.id}>
+        <div className="grid gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={report.id}>
           <div className="flex items-center gap-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-primary"><FileText /></span>
             <div className="min-w-0 flex-1">
@@ -109,12 +116,12 @@ function LabReports({ controller }: { controller: DashboardController }) {
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" size="sm" onClick={() => setSelectedReportId(report.id)}>{t("documents.viewResults")}</Button>
-            <details className="report-actions">
-              <summary>{t("documents.manageReport")}</summary>
-              <div>
-                <Button type="button" size="sm" variant="outline" onClick={() => void controller.unlinkLabReport(report.id)}>{t("documents.unlink")}</Button>
-                <Button type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(t("documents.deleteReportConfirm"))) void controller.deleteLabReport(report.id, false); }}>{t("documents.deleteReport")}</Button>
-                <Button type="button" size="sm" variant="destructive" onClick={() => { if (window.confirm(t("documents.deleteReportResultsConfirm"))) void controller.deleteLabReport(report.id, true); }}>{t("documents.deleteReportResults")}</Button>
+            <details className="relative">
+              <summary className="inline-flex min-h-8 cursor-pointer list-none rounded-sm border border-border px-2.5 py-[7px] text-xs font-semibold text-ink [&::-webkit-details-marker]:hidden">{t("documents.manageReport")}</summary>
+              <div className="absolute right-0 top-[calc(100%+5px)] z-20 grid min-w-[180px] w-max gap-1 rounded-lg border border-border bg-surface p-1 shadow-[var(--elev-2)]">
+                <Button className="justify-start" type="button" size="sm" variant="outline" onClick={() => void controller.unlinkLabReport(report.id)}>{t("documents.unlink")}</Button>
+                <Button className="justify-start" type="button" size="sm" variant="outline" onClick={() => { if (window.confirm(t("documents.deleteReportConfirm"))) void controller.deleteLabReport(report.id, false); }}>{t("documents.deleteReport")}</Button>
+                <Button className="justify-start" type="button" size="sm" variant="destructive" onClick={() => { if (window.confirm(t("documents.deleteReportResultsConfirm"))) void controller.deleteLabReport(report.id, true); }}>{t("documents.deleteReportResults")}</Button>
               </div>
             </details>
           </div>
@@ -138,10 +145,10 @@ function AppleHealthImports({ controller }: { controller: DashboardController })
     );
   }
   return (
-    <div className="documents-list-section grid gap-2">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("documents.recentImports")}</h3>
+    <div className="grid gap-2 border-t border-border pt-3">
+      <h3 className="pb-2 text-xs font-semibold text-muted-ink">{t("documents.recentImports")}</h3>
       {imports.map((item) => (
-        <div className="documents-list-row flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={item.id || item.importedAt}>
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 px-3 py-2.5" key={item.id || item.importedAt}>
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-primary"><Sparkles /></span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-3">

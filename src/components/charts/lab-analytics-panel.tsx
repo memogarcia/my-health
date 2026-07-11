@@ -19,7 +19,7 @@ export function LabAnalyticsPanel({ labs, organs }: { labs: LabResult[]; organs:
   const markerSelector = series.length > 1 ? (
     <label className="grid gap-1 text-xs font-medium text-muted-foreground">
       {t("charts.lab.markerLabel")}
-      <select className="chart-select" value={selected?.key || ""} onChange={(event) => setSelectedKey(event.target.value)}>
+      <select className="min-w-[12rem] rounded-sm border border-input bg-background px-2 py-1 text-sm text-foreground" value={selected?.key || ""} onChange={(event) => setSelectedKey(event.target.value)}>
         {series.map((item) => <option key={item.key} value={item.key}>{item.marker} · {organName(item.organKey, organs)}</option>)}
       </select>
     </label>

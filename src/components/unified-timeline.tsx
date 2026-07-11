@@ -33,6 +33,10 @@ const filters: Array<{ key: TimelineFilter; label: string }> = [
   { key: "notes", label: t("workspace.timeline.notes") },
 ];
 
+const nodeStatus =
+  "data-[status=normal]:text-[color-mix(in_srgb,var(--normal)_88%,var(--ink))] data-[status=normal]:bg-[color-mix(in_srgb,var(--normal)_11%,var(--surface))] data-[status=monitor]:text-[color-mix(in_srgb,var(--monitor)_88%,var(--ink))] data-[status=monitor]:bg-[color-mix(in_srgb,var(--monitor)_12%,var(--surface))] data-[status=attention]:text-[color-mix(in_srgb,var(--attention)_88%,var(--ink))] data-[status=attention]:bg-[color-mix(in_srgb,var(--attention)_10%,var(--surface))]";
+const dotStatus = "size-[5px] rounded-full data-[status=normal]:bg-normal data-[status=monitor]:bg-monitor data-[status=attention]:bg-attention data-[status=empty]:bg-quiet";
+
 export function UnifiedTimeline({ controller }: { controller: DashboardController }) {
   const [filter, setFilter] = useState<TimelineFilter>("all");
   const [manage, setManage] = useState(false);
@@ -48,20 +52,31 @@ export function UnifiedTimeline({ controller }: { controller: DashboardControlle
 
   const canManage = filter === "results" || filter === "symptoms";
   return (
-    <section className="timeline-workspace">
-      <header className="timeline-header">
-        <div><h1>{t("workspace.timeline")}</h1><p>{t("workspace.timelineHint")}</p></div>
-        <div className="timeline-actions">
-          {canManage ? <button className="quiet-button" onClick={() => setManage((value) => !value)} type="button">{manage ? t("workspace.timeline.return") : t("workspace.timeline.manage")}</button> : null}
-          <button className="quiet-button" onClick={() => controller.setSelectedNav("activity")} type="button"><Icon name="activity" size={15} />{t("nav.activity.label")}</button>
-          <button className="quiet-button" onClick={() => controller.openDialog("symptom")} type="button"><Icon name="symptom" size={15} />{t("body.detail.logSymptom")}</button>
+    <section className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-surface">
+      <header className="mx-auto flex max-w-[864px] items-start justify-between gap-5 px-7 pb-3 pt-5 max-[880px]:px-[var(--page-gutter)]">
+        <div>
+          <h1 className="text-xl tracking-[-0.02em]">{t("workspace.timeline")}</h1>
+          <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-muted-ink">{t("workspace.timelineHint")}</p>
+        </div>
+        <div className="flex gap-1">
+          {canManage ? <Button size="sm" variant="ghost" onClick={() => setManage((value) => !value)} type="button">{manage ? t("workspace.timeline.return") : t("workspace.timeline.manage")}</Button> : null}
+          <Button size="sm" variant="ghost" onClick={() => controller.setSelectedNav("activity")} type="button"><Icon name="activity" size={15} />{t("nav.activity.label")}</Button>
+          <Button size="sm" variant="ghost" onClick={() => controller.openDialog("symptom")} type="button"><Icon name="symptom" size={15} />{t("body.detail.logSymptom")}</Button>
         </div>
       </header>
-      <div className="timeline-filter" role="group" aria-label={t("workspace.timeline.filter")}>
-        {filters.map((item) => <button aria-pressed={filter === item.key} key={item.key} onClick={() => selectFilter(item.key)} type="button">{item.label}</button>)}
+      <div aria-label={t("workspace.timeline.filter")} className="sticky top-0 z-[4] mx-auto flex max-w-[864px] gap-1 overflow-x-auto border-b border-border bg-surface pb-3 max-[880px]:mx-[var(--page-gutter)]" role="group">
+        {filters.map((item) => (
+          <button
+            aria-pressed={filter === item.key}
+            className="min-w-max min-h-8 rounded-sm border-0 bg-transparent px-2.5 text-xs font-semibold text-muted-ink transition-colors hover:bg-secondary hover:text-ink aria-pressed:bg-accent aria-pressed:text-accent-ink"
+            key={item.key}
+            onClick={() => selectFilter(item.key)}
+            type="button"
+          >{item.label}</button>
+        ))}
       </div>
       {manage && canManage ? (
-        <div className="timeline-manage">
+        <div className="mx-auto max-w-[960px] px-7 pb-8 pt-5 max-[880px]:px-[var(--page-gutter)]">
           <Suspense fallback={<div className="grid gap-3"><Skeleton className="h-10 w-full" /><Skeleton className="h-72 w-full" /></div>}>
             <HistoryPage controller={controller} />
           </Suspense>
@@ -72,25 +87,29 @@ export function UnifiedTimeline({ controller }: { controller: DashboardControlle
 }
 
 function TimelineReading({ items }: { items: TimelineItem[] }) {
-  if (!items.length) return <div className="timeline-empty"><Icon name="activity" size={22} /><h2>{t("workspace.timeline.empty")}</h2><p>{t("workspace.timeline.emptyHint")}</p></div>;
+  if (!items.length) return <div className="mx-auto grid min-h-[340px] max-w-[864px] place-items-center content-center py-8 text-center text-muted-ink max-[880px]:mx-[var(--page-gutter)]"><Icon name="activity" size={22} /><h2 className="mt-3 text-[0.9375rem] text-ink">{t("workspace.timeline.empty")}</h2><p className="mt-1 max-w-[46ch] text-sm leading-relaxed">{t("workspace.timeline.emptyHint")}</p></div>;
   let previousDate = "";
   return (
-    <div className="timeline-reading">
-      {items.map((item) => {
+    <div className="mx-auto max-w-[864px] pb-8 pt-5 max-[880px]:mx-[var(--page-gutter)]">
+      {items.map((item, index) => {
         const showDate = item.date !== previousDate;
         previousDate = item.date;
+        const isLast = index === items.length - 1;
         return (
-          <div className="timeline-entry" key={item.id}>
-            <time>{showDate ? item.date : ""}</time>
-            <span className="timeline-node" data-status={item.status || "neutral"}><Icon name={item.icon} size={15} /></span>
-            <div className="timeline-entry-content">
-              <button className="timeline-entry-main" onClick={item.onOpen} type="button">
-                <span><strong>{item.title}</strong><small>{labelForKind(item.kind)}</small></span>
-                <p>{item.detail}</p>
-                {item.status ? <em data-status={item.status}><i />{statusLabel[item.status]}</em> : null}
+          <div className="grid min-h-[74px] grid-cols-[92px_30px_minmax(0,1fr)]" key={item.id}>
+            <time className="pt-[14px] pr-3 text-right text-xs font-semibold tabular-nums text-muted-ink">{showDate ? item.date : ""}</time>
+            <span className={`relative z-[1] mt-[6px] grid size-7 place-items-center rounded-sm bg-secondary text-muted-ink ${nodeStatus}`} data-status={item.status || "neutral"}>
+              <Icon name={item.icon} size={15} />
+              {isLast ? null : <span aria-hidden="true" className="absolute left-1/2 top-7 -bottom-9 -z-[1] w-px -translate-x-1/2 bg-border" />}
+            </span>
+            <div className="grid min-h-[64px] grid-cols-[minmax(0,1fr)_auto] items-center border-b border-border transition-colors hover:bg-secondary">
+              <button className="grid min-h-[63px] min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 border-0 bg-transparent p-[10px_8px_12px_12px] text-left text-ink" onClick={item.onOpen} type="button">
+                <span className="flex min-w-0 items-baseline gap-2"><strong className="overflow-hidden text-ellipsis whitespace-nowrap text-sm">{item.title}</strong><small className="text-xs text-muted-ink">{labelForKind(item.kind)}</small></span>
+                <p className="col-start-1 mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-muted-ink">{item.detail}</p>
+                {item.status ? <em className="col-start-2 row-span-2 inline-flex items-center gap-[5px] rounded-full bg-secondary px-[7px] py-1 text-xs font-semibold not-italic text-muted-ink" data-status={item.status}><i className={dotStatus} data-status={item.status} />{statusLabel[item.status]}</em> : null}
               </button>
               {item.onDelete ? (
-                <div className="timeline-entry-actions">
+                <div className="flex gap-0.5 pr-2">
                   <Button aria-label={t("workspace.timeline.editEntry", { title: item.title })} onClick={item.onOpen} size="icon-xs" type="button" variant="ghost"><Pencil /></Button>
                   <Button aria-label={t("workspace.timeline.deleteEntry", { title: item.title })} onClick={() => {
                     if (!item.deleteConfirm || window.confirm(item.deleteConfirm)) item.onDelete?.();

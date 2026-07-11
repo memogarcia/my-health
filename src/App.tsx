@@ -9,13 +9,10 @@ import { t } from "./i18n";
 import { configureNativeDatabaseMenu, configureNativeShell } from "./native-shell";
 import { useDashboardController } from "./use-dashboard-controller";
 import "./styles/tailwind.css";
-import "./animations.css";
-import "./components.css";
-import "./redesign.css";
+import "./styles/foundations.css";
+import "./styles/app.css";
 import "./fasting.css";
 import "./breathing.css";
-import "./styles/foundations.css";
-import "./styles/workspace.css";
 
 export function App() {
   const controller = useDashboardController();
@@ -80,21 +77,23 @@ export function App() {
 
 function LoadingScreen() {
   return (
-    <main className="loading-screen" aria-label={t("app.loading")}>
-      <span className="brand-mark"><Icon name="heart" /></span>
-      <span className="loading-line" />
+    <main className="grid min-h-full place-items-center content-center gap-[18px] bg-[radial-gradient(circle_at_50%_40%,var(--surface-soft),var(--canvas))]" aria-label={t("app.loading")}>
+      <span className="grid size-[34px] place-items-center rounded-[11px] bg-primary text-white [corner-shape:superellipse(1.6)] shadow-[0_2px_5px_oklch(0.2_0.08_350/0.2)]"><Icon name="heart" /></span>
+      <span className="relative h-[3px] w-16 overflow-hidden rounded-full bg-secondary">
+        <span className="absolute left-0 top-0 h-full w-[45%] animate-[loading_1s_var(--ease-out)_infinite_alternate] rounded-full bg-primary" />
+      </span>
     </main>
   );
 }
 
 function DesktopOnlyScreen({ error }: { error: string }) {
   return (
-    <main className="centered-screen">
-      <section className="message-card squircle">
-        <span className="brand-mark"><Icon name="lock" /></span>
-        <h1>{t("desktop.requiredTitle")}</h1>
-        <p>{error}</p>
-        <p>{t("desktop.requiredBody")} <code>bun run tauri:dev</code>. {t("desktop.requiredTail")}</p>
+    <main className="grid min-h-full place-items-center bg-[radial-gradient(circle_at_50%_40%,var(--surface-soft),var(--canvas))]">
+      <section className="max-w-[520px] rounded-[14px] bg-surface p-8 [corner-shape:superellipse(1.6)] shadow-[var(--shadow-float)]">
+        <span className="grid size-[34px] place-items-center rounded-[11px] bg-primary text-white [corner-shape:superellipse(1.6)] shadow-[0_2px_5px_oklch(0.2_0.08_350/0.2)]"><Icon name="lock" /></span>
+        <h1 className="mb-2 mt-5 text-2xl">{t("desktop.requiredTitle")}</h1>
+        <p className="mt-2.5 text-sm leading-relaxed text-muted-ink">{error}</p>
+        <p className="mt-2.5 text-sm leading-relaxed text-muted-ink">{t("desktop.requiredBody")} <code>bun run tauri:dev</code>. {t("desktop.requiredTail")}</p>
       </section>
     </main>
   );

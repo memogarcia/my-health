@@ -252,13 +252,9 @@ export const navItems: Array<{ key: NavKey; label: string; description: string }
   { key: "developer", label: t("nav.developer.label"), description: t("nav.developer.description") },
 ];
 
-// Sidebar grouping. Order follows navItems so digit shortcuts stay sequential.
-export const navGroups: Array<{ label: string; keys: NavKey[] }> = [
-  { label: t("nav.group.health"), keys: ["body", "labs", "symptoms", "activity", "medications", "fasting", "breathing"] },
-  { label: t("nav.group.assistant"), keys: ["plan", "research"] },
-  { label: t("nav.group.library"), keys: ["documents"] },
-];
-
+// navItems is the single source of truth for destinations. The sidebar rail
+// (health-workspace) and the Library sub-index (library-workspace) both derive
+// from it; do not duplicate the destination list elsewhere.
 export const statusLabel: Record<OrganHealthStatus, string> = {
   normal: t("status.normal"),
   monitor: t("status.monitor"),

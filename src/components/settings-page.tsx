@@ -17,7 +17,7 @@ import type { DashboardController } from "../use-dashboard-controller";
 import { DataExportSettings } from "./data-export-settings";
 export function SettingsPage({ controller }: { controller: DashboardController }) {
   return (
-    <div className="settings-page">
+    <div className="grid w-full max-w-[760px] gap-4">
       <ProfileSettings controller={controller} />
       <AiSettings controller={controller} />
       <DataExportSettings controller={controller} />
@@ -28,7 +28,7 @@ function ProfileSettings({ controller }: { controller: DashboardController }) {
   const profile = controller.userState.profile;
   const fieldCount = [profile.age, profile.sex, profile.heightCm, profile.weightKg].filter(Boolean).length;
   return (
-    <Card className="settings-surface settings-profile-surface">
+    <Card>
       <CardHeader>
         <CardTitle>{t("settings.profile.title")}</CardTitle>
         <CardDescription>{fieldCount === 0 ? t("settings.profile.notSet") : t("settings.profile.fieldsSet", { count: fieldCount })}</CardDescription>
@@ -161,7 +161,7 @@ function AiSettings({ controller }: { controller: DashboardController }) {
   }
 
   return (
-    <Card className="settings-surface settings-ai-surface">
+    <Card>
       <CardHeader>
         <CardTitle>{t("settings.ai.title")}</CardTitle>
         <CardDescription>{provider.statusLabel}</CardDescription>
@@ -261,7 +261,7 @@ function AiSettings({ controller }: { controller: DashboardController }) {
               </Field>
             ) : null}
             {showRemoteConsent ? (
-              <Field orientation="horizontal" className="sm:col-span-2">
+              <Field orientation="horizontal" className="sm:col-span-2 rounded-sm border border-border bg-secondary p-3">
                 <Checkbox aria-describedby="ai-remote-description" checked={allowRemote} onCheckedChange={(checked) => setAllowRemote(checked === true)} id="allowRemoteHealthContext" />
                 <FieldContent>
                   <FieldLabel htmlFor="allowRemoteHealthContext">{t("settings.ai.allowRemoteTitle")}</FieldLabel>

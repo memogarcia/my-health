@@ -24,8 +24,6 @@ A Tauri-only local-first personal health dashboard. Health data lives in a
 SQLCipher-encrypted SQLite database owned by the Rust backend. The raw Vite URL
 is unsupported; the renderer guards on `isTauriRuntime()`.
 
-UI concept image: `assets/health-dashboard-ui-concept.png`.
-
 ## Product Direction
 
 See `PRODUCT.md` for the full direction. Summary for daily work:
@@ -82,10 +80,18 @@ Full spec in `ARCHITECTURE.md` → "AI Configuration" and "AI Boundary".
   call `invoke` directly from leaf components; add a controller method.
 - All user-facing strings go through `t(key, values)` from `src/i18n.ts`. Never
   hardcode UI text — the `check:i18n` gate fails on any violation.
-- Use shadcn primitives from `src/components/ui/`. Add new primitives through
-  `components.json`, not hand-rolled equivalents.
-- Use Tailwind utilities and the design tokens in `DESIGN.md`. Do not introduce
-  raw hex/oklch values in components.
+- Style with **Tailwind utilities and shadcn primitives exclusively**. Add new
+  shadcn primitives through `components.json`, not hand-rolled equivalents.
+- Design tokens (OKLCH colors, radii) are exposed as Tailwind theme colors in
+  `src/styles/tailwind.css` (`@theme inline`): prefer `bg-canvas`, `bg-surface`,
+  `bg-secondary`, `bg-primary`, `text-muted-ink`, `text-quiet`,
+  `text-normal`/`text-monitor`/`text-attention`, `border-border`, `ring-ring`.
+  Do not introduce raw hex/oklch values in components.
+- Bespoke CSS lives only in `src/styles/app.css` and is reserved for what
+  Tailwind cannot express: SVG data-viz (charts), the chat/markdown surface, and
+  the developer diagnostics page. Do **not** add component/layout classes there
+  for new UI — use Tailwind utilities. `src/styles/foundations.css` holds only
+  token values and base resets.
 - Do not add browser-only persistence (localStorage, IndexedDB). Health data
   belongs in the encrypted SQLite backend.
 

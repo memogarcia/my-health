@@ -40,13 +40,15 @@ health-review workspaces.
 
 ## Navigation
 
-The 88 px icon rail contains Overview, Timeline, Library, and Assistant.
+A 248 px text-labelled sidebar contains Overview, Timeline, Library, and
+Assistant. It follows the quiet, native density of a code workspace while
+retaining the health app's own terminology.
 
-- The active workspace uses a berry-tinted squircle and a three-pixel window
-  edge marker.
+- Each destination has an icon and a visible label. The current workspace uses
+  a shallow neutral row fill, never an edge marker or high-chroma container.
 - Settings, diagnostics, and encrypted-local status stay at the bottom.
-- Tooltips and accessible labels provide the text labels; the rail does not
-  expand into a destination catalog.
+- Sidebar and main canvas are differentiated by adjacent neutral surfaces, not
+  a structural border.
 - Command-1 through Command-4 map to the four workspaces.
 
 ## Layout
@@ -93,12 +95,13 @@ navigation to the global rail.
 
 All colors are OKLCH tokens in `src/styles/foundations.css`.
 
-- Canvas and chrome are chroma-neutral with a slight violet bias.
-- Berry is reserved for active navigation, primary actions, and selected AI
-  controls. The renderer and shadcn primitives use the same berry token.
+- Canvas and chrome are dark, chroma-neutral surfaces with a slight violet
+  bias. Content planes are one restrained step lighter than the canvas.
+- Berry is reserved for primary actions, selected AI controls, and compact
+  identity marks. The renderer and shadcn primitives use the same berry token.
 - Normal is green, Monitor is amber, and Attention is vermilion.
 - Every health status includes text and position in addition to color.
-- Large dark colored sidebars are not part of the product identity.
+- The dark sidebar stays neutral and functional. It never competes with health status colors or primary actions.
 
 ### Typography
 
@@ -120,8 +123,10 @@ All colors are OKLCH tokens in `src/styles/foundations.css`.
 ### Materials and elevation
 
 - Opaque content surfaces carry health data.
-- Translucency is limited to native-style chrome over the anatomy image and the
-  top/bottom bars.
+- The top bar blends into the canvas without a separator. The sidebar is
+  defined by its neighboring surface, not a line.
+- The persistent AI composer is a compact inset surface with no outline and a
+  two-pixel-or-less shadow.
 - Selected list rows use a shallow three-pixel shadow at most.
 - Cards never combine a decorative outline with a wide diffuse shadow.
 
@@ -161,8 +166,10 @@ daily context are separated by hairlines.
 
 Result, symptom, daily-log, body-note, and document-review capture use the same
 modal vocabulary. Save buttons name the record being saved. Required fields
-have visible focus and validation states. Body-note editing remains available
-for legacy entries in Timeline; there is no surface capture mode.
+have visible focus and validation states. The persistent AI composer centers at
+the bottom of non-AI workspaces, with a writing area above its provider and
+send controls. Body-note editing remains available for legacy entries in
+Timeline; there is no surface capture mode.
 
 ### Empty and loading states
 

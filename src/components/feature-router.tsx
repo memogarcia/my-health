@@ -29,7 +29,7 @@ export function FeatureRouter({ controller }: { controller: DashboardController 
 
 function PageSkeleton() {
   return (
-    <div className="feature-page-loading" aria-busy="true">
+    <div className="grid mx-auto my-6 max-w-[920px] gap-3" aria-busy="true">
       <Skeleton className="h-8 w-52" />
       <Skeleton className="h-4 w-96 max-w-full" />
       <Skeleton className="mt-4 h-72 w-full rounded-2xl" />

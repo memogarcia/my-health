@@ -24,9 +24,9 @@ export function MedicationsPage({ controller }: { controller: DashboardControlle
   const stopped = items.filter((item) => !item.active);
 
   return (
-    <div className="medications-page grid items-start gap-4 xl:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.1fr)]">
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(20rem,0.9fr)_minmax(0,1.1fr)]">
       <AddRegimenForm controller={controller} />
-      <section className="medications-list grid gap-4" aria-label={t("medications.listLabel")}>
+      <section className="grid gap-4" aria-label={t("medications.listLabel")}>
         <RegimenSummary activeCount={active.length} stoppedCount={stopped.length} />
         <RegimenTimeline items={items} />
         {items.length === 0 ? (
@@ -51,7 +51,7 @@ export function MedicationsPage({ controller }: { controller: DashboardControlle
 function AddRegimenForm({ controller }: { controller: DashboardController }) {
   const draft = controller.regimenDraft?.input;
   return (
-    <Card className="medications-editor xl:sticky xl:top-4">
+    <Card className="xl:sticky xl:top-4">
       <CardHeader>
         <CardTitle>{t("medications.addTitle")}</CardTitle>
         <CardDescription>{draft ? t("medications.draftDescription") : t("medications.defaultDescription")}</CardDescription>
@@ -141,7 +141,7 @@ function AddRegimenForm({ controller }: { controller: DashboardController }) {
 
 function RegimenSummary({ activeCount, stoppedCount }: { activeCount: number; stoppedCount: number }) {
   return (
-    <div className="regimen-summary grid gap-2 sm:grid-cols-2">
+    <div className="grid gap-2 sm:grid-cols-2">
       <div className="rounded-lg border border-border bg-card px-3 py-2.5">
         <p className="text-xs text-muted-foreground">{t("medications.active")}</p>
         <strong className="text-lg font-semibold tnum">{formatCount(activeCount)}</strong>
@@ -156,7 +156,7 @@ function RegimenSummary({ activeCount, stoppedCount }: { activeCount: number; st
 
 function RegimenList({ controller, items, title, muted }: { controller: DashboardController; items: RegimenItem[]; title: string; muted?: boolean }) {
   return (
-    <Card className="regimen-list-surface" size="sm">
+    <Card size="sm">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{t("medications.savedLocally", { count: formatCount(items.length) })}</CardDescription>
@@ -180,7 +180,7 @@ function RegimenItemRow({ controller, item, muted }: { controller: DashboardCont
     return <RegimenEditForm controller={controller} item={item} onCancel={() => setEditing(false)} />;
   }
   return (
-    <div className={cn("regimen-row grid gap-3 rounded-lg border border-border bg-card px-3 py-3", muted && "bg-muted/30 opacity-75")}>
+    <div className={cn("grid gap-3 rounded-lg border border-border bg-card px-3 py-3", muted && "bg-muted/30 opacity-75")}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-2">
           <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-accent text-primary"><Pill /></span>

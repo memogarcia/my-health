@@ -30,7 +30,7 @@ export function DataExportSettings({ controller }: { controller: DashboardContro
           : t("settings.export.ready");
 
   return (
-    <Card className="settings-surface settings-export-surface">
+    <Card>
       <CardHeader>
         <CardTitle>{t("settings.export.title")}</CardTitle>
         <CardDescription>{t("settings.export.description")}</CardDescription>
