@@ -130,9 +130,11 @@ export type DisplaySnapshot = DashboardSnapshot;
 export type UserProfile = {
   age: number | null;
   sex: string;
-  anatomyModel: "default" | "female";
+  anatomyModel: "male" | "female";
+  unitSystem: "metric" | "imperial";
   heightCm: number | null;
   weightKg: number | null;
+  theme?: "system" | "light" | "dark";
 };
 
 export type ActivityEntry = {
@@ -394,11 +396,13 @@ export function normalizeUserState(value: Partial<UserState> = {}): UserState {
     profile: {
       age: numberOrNull(profile.age),
       sex: typeof profile.sex === "string" ? profile.sex : "",
-      anatomyModel: profile.anatomyModel === "female" || profile.anatomyModel === "default"
+      anatomyModel: profile.anatomyModel === "female" || profile.anatomyModel === "male"
         ? profile.anatomyModel
-        : profile.sex === "female" ? "female" : "default",
+        : profile.sex === "female" ? "female" : "male",
+      unitSystem: profile.unitSystem === "imperial" ? "imperial" : "metric",
       heightCm: numberOrNull(profile.heightCm),
       weightKg: numberOrNull(profile.weightKg),
+      theme: profile.theme === "light" || profile.theme === "dark" ? profile.theme : "system",
     },
     activityEntries: Array.isArray(value.activityEntries)
       ? value.activityEntries.map(normalizeActivityEntry).filter((entry) => entry.loggedAt)

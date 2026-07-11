@@ -7,9 +7,11 @@ export function profileFromForm(form: FormData): UserProfile {
   return {
     age: optionalNumber(form, "age"),
     sex: String(form.get("sex") || ""),
-    anatomyModel: form.get("anatomyModel") === "female" ? "female" : "default",
+    anatomyModel: form.get("anatomyModel") === "female" ? "female" : "male",
+    unitSystem: form.get("unitSystem") === "imperial" ? "imperial" : "metric",
     heightCm: optionalNumber(form, "heightCm"),
     weightKg: optionalNumber(form, "weightKg"),
+    theme: (form.get("theme") as UserProfile["theme"]) || "system",
   };
 }
 

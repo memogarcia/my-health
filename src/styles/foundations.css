@@ -10,30 +10,31 @@
  */
 
 :root {
-  color: oklch(0.92 0.008 290);
-  background: oklch(0.275 0.005 290);
+  color: oklch(0.18 0.01 290);
+  background: oklch(0.98 0.005 290);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --ink: oklch(0.92 0.008 290);
-  --muted: oklch(0.72 0.012 290);
-  --quiet: oklch(0.59 0.012 290);
-  --canvas: oklch(0.275 0.005 290);
-  --surface: oklch(0.295 0.005 290);
-  --surface-soft: oklch(0.345 0.007 290);
-  --sidebar-neutral: var(--canvas);
+  
+  --ink: oklch(0.18 0.01 290);
+  --muted: oklch(0.38 0.01 290);
+  --quiet: oklch(0.52 0.01 290);
+  --canvas: oklch(0.98 0.005 290);
+  --surface: oklch(1 0 0);
+  --surface-soft: oklch(0.95 0.005 290);
+  --sidebar-neutral: oklch(0.96 0.005 290);
   --plum: oklch(0.58 0.12 342);
   --plum-deep: oklch(0.51 0.11 342);
-  --accent: var(--plum);
-  --accent-strong: oklch(0.53 0.12 342);
-  --accent-ink: oklch(0.84 0.06 342);
-  --accent-soft: oklch(0.37 0.045 342);
-  --normal: oklch(0.74 0.11 165);
-  --monitor: oklch(0.78 0.12 78);
-  --attention: oklch(0.7 0.15 28);
-  --focus: oklch(0.72 0.14 260);
-  --hairline: color-mix(in oklch, var(--ink) 9%, transparent);
-  --shadow-float: 0 2px 6px oklch(0.08 0.01 290 / 0.18);
+  --accent: oklch(0.45 0.12 342);
+  --accent-strong: oklch(0.38 0.12 342);
+  --accent-ink: oklch(0.30 0.11 342);
+  --accent-soft: oklch(0.92 0.04 342);
+  --normal: oklch(0.48 0.15 165);
+  --monitor: oklch(0.50 0.18 78);
+  --attention: oklch(0.48 0.18 28);
+  --focus: oklch(0.50 0.15 260);
+  --hairline: color-mix(in oklch, var(--ink) 18%, transparent);
+  --shadow-float: 0 2px 6px oklch(0.1 0.02 290 / 0.08);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* shadcn semantic aliases (kept so un-migrated primitives resolve var()) */
@@ -70,6 +71,32 @@
   --dur-state: 200ms;
   --page-gutter: 1.75rem;
   --page-gutter-compact: 1.25rem;
+}
+
+.dark {
+  color: oklch(0.92 0.008 290);
+  background: oklch(0.275 0.005 290);
+  
+  --ink: oklch(0.92 0.008 290);
+  --muted: oklch(0.72 0.012 290);
+  --quiet: oklch(0.59 0.012 290);
+  --canvas: oklch(0.275 0.005 290);
+  --surface: oklch(0.295 0.005 290);
+  --surface-soft: oklch(0.345 0.007 290);
+  --sidebar-neutral: var(--canvas);
+  --plum: oklch(0.58 0.12 342);
+  --plum-deep: oklch(0.51 0.11 342);
+  --accent: var(--plum);
+  --accent-strong: oklch(0.53 0.12 342);
+  --accent-ink: oklch(0.84 0.06 342);
+  --accent-soft: oklch(0.37 0.045 342);
+  --normal: oklch(0.74 0.11 165);
+  --monitor: oklch(0.78 0.12 78);
+  --attention: oklch(0.7 0.15 28);
+  --focus: oklch(0.72 0.14 260);
+  --hairline: color-mix(in oklch, var(--ink) 9%, transparent);
+  --shadow-float: 0 2px 6px oklch(0.08 0.01 290 / 0.18);
+  --primary-foreground: oklch(0.98 0.002 290);
 }
 
 * { box-sizing: border-box; }

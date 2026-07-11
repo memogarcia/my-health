@@ -465,7 +465,8 @@ Tables:
 - `user_state`
 
 `user_state` stores profile/activity/import/conversation data, including an
-anatomy illustration preference that is independent from demographic sex, a
+anatomy illustration preference (male or female, independent from demographic
+sex), a metric/imperial measurement-unit display preference, a
 fasting timer and its recent completed sessions, legacy body notes, plus recent
 `backgroundJobs`, `developerLogs`, and `llmCalls` entries. Each job has a kind
 (`document-analysis`, `deep-research`, or `ai-chat`), status, created/finished
@@ -519,6 +520,7 @@ Database:
 
 - `get_database_status`
 - `select_database`
+- `change_database_password`
 - `unlock_database`
 - `lock_database`
 - `export_database`

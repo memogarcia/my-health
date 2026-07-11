@@ -5,7 +5,7 @@ import type { DashboardController } from "../use-dashboard-controller";
 import { Icon } from "./icon";
 
 const promptShell =
-  "grid w-[min(720px,calc(100%-3.5rem))] mx-auto mb-4 gap-2 rounded-2xl bg-secondary p-[10px_12px_8px] shadow-[0_1px_2px_oklch(0.08_0.01_290/0.22)]";
+  "grid w-[min(720px,calc(100%-3.5rem))] mx-auto mb-4 gap-2 rounded-2xl border border-transparent bg-secondary p-[10px_12px_8px] shadow-[0_1px_2px_oklch(0.08_0.01_290/0.22)] transition-all focus-within:bg-surface focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/35";
 
 export function CompactPrompt({ controller }: { controller: DashboardController }) {
   const [prompt, setPrompt] = useState("");
@@ -45,7 +45,7 @@ export function CompactPrompt({ controller }: { controller: DashboardController 
     >
       <textarea
         aria-label={t("appShell.promptPlaceholder")}
-        className="min-h-[42px] w-full min-w-0 resize-none border-0 bg-transparent p-[7px_4px] text-sm leading-relaxed text-ink outline-0 placeholder:text-quiet disabled:opacity-60"
+        className="min-h-[42px] w-full min-w-0 resize-none border-0 bg-transparent p-[7px_4px] text-sm leading-relaxed text-ink outline-none focus:outline-none focus-visible:outline-none placeholder:text-quiet disabled:opacity-60"
         disabled={pending}
         onChange={(event) => setPrompt(event.target.value)}
         onKeyDown={(event) => {

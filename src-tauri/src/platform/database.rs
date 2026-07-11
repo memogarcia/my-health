@@ -11,7 +11,7 @@ mod paths;
 mod schema;
 mod seed;
 use paths::{is_plaintext_sqlite, migration_paths, unix_nanos};
-use schema::{backfill_lab_result_derivatives, migrate_legacy_document_copies, SCHEMA};
+use schema::{migrate_schema, SCHEMA};
 use seed::seed_organs;
 const APPLICATION_ID: i64 = 0x4D45_4844;
 const APPLICATION_NAME: &str = "me-health-dashboard";
@@ -238,6 +238,31 @@ pub fn lock_database(state: &AppState) -> Result<DatabaseStatus, String> {
     drop(inner);
     Ok(state.status())
 }
+
+#[tauri::command]
+pub fn change_database_password(
+    state: tauri::State<'_, AppState>,
+    current_passphrase: &str,
+    new_passphrase: &str,
+) -> Result<(), String> {
+    let new_passphrase = validate_passphrase(new_passphrase)?;
+    let inner = state.inner.lock().map_err(|error| error.to_string())?;
+
+    // Test the current passphrase
+    let test_conn = open_encrypted_database(&inner.db_path, current_passphrase)
+        .map_err(|_| "Incorrect current password.".to_string())?;
+    drop(test_conn);
+
+    let conn = inner
+        .conn
+        .as_ref()
+        .ok_or_else(|| "Database locked. Unlock it first.".to_string())?;
+
+    conn.execute("PRAGMA rekey = ?1", params![new_passphrase])
+        .map_err(|error| error.to_string())?;
+
+    Ok(())
+}
 pub fn with_connection<T>(
     state: &AppState,
     action: impl FnOnce(&Connection) -> Result<T, String>,
@@ -416,58 +441,6 @@ fn persist_active_database_path(active_path_file: &Path, db_path: &Path) -> Resu
         use std::os::unix::fs::PermissionsExt;
         fs::set_permissions(active_path_file, fs::Permissions::from_mode(0o600))
             .map_err(|error| error.to_string())?;
-    }
-    Ok(())
-}
-
-fn migrate_schema(conn: &Connection) -> rusqlite::Result<()> {
-    for (table, name, sql) in [
-        ("organs", "display_order", "ALTER TABLE organs ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0"),
-        ("lab_reports", "source_name", "ALTER TABLE lab_reports ADD COLUMN source_name TEXT NOT NULL DEFAULT ''"),
-        ("lab_reports", "file_type", "ALTER TABLE lab_reports ADD COLUMN file_type TEXT NOT NULL DEFAULT ''"),
-        ("lab_reports", "size_label", "ALTER TABLE lab_reports ADD COLUMN size_label TEXT NOT NULL DEFAULT ''"),
-        ("lab_reports", "local_copy_path", "ALTER TABLE lab_reports ADD COLUMN local_copy_path TEXT NOT NULL DEFAULT ''"),
-        ("lab_reports", "document_bytes", "ALTER TABLE lab_reports ADD COLUMN document_bytes BLOB NOT NULL DEFAULT X''"),
-        ("lab_reports", "updated_at", "ALTER TABLE lab_reports ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
-        ("lab_reports", "deleted_at", "ALTER TABLE lab_reports ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
-        ("lab_results", "report_id", "ALTER TABLE lab_results ADD COLUMN report_id INTEGER REFERENCES lab_reports(id) ON DELETE SET NULL"),
-        ("lab_results", "value_number", "ALTER TABLE lab_results ADD COLUMN value_number REAL"),
-        ("lab_results", "flag", "ALTER TABLE lab_results ADD COLUMN flag TEXT NOT NULL DEFAULT 'unknown' CHECK (flag IN ('low', 'normal', 'high', 'unknown'))"),
-        ("lab_results", "reference_range", "ALTER TABLE lab_results ADD COLUMN reference_range TEXT NOT NULL DEFAULT ''"),
-        ("lab_results", "reference_low", "ALTER TABLE lab_results ADD COLUMN reference_low REAL"),
-        ("lab_results", "reference_high", "ALTER TABLE lab_results ADD COLUMN reference_high REAL"),
-        ("lab_results", "updated_at", "ALTER TABLE lab_results ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
-        ("lab_results", "deleted_at", "ALTER TABLE lab_results ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
-        ("symptoms", "updated_at", "ALTER TABLE symptoms ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
-        ("symptoms", "deleted_at", "ALTER TABLE symptoms ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
-        ("conditions", "updated_at", "ALTER TABLE conditions ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
-        ("conditions", "deleted_at", "ALTER TABLE conditions ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
-        ("regimen_items", "updated_at", "ALTER TABLE regimen_items ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
-        ("regimen_items", "deleted_at", "ALTER TABLE regimen_items ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
-    ] {
-        add_column_if_missing(conn, table, name, sql)?;
-    }
-    backfill_lab_result_derivatives(conn)?;
-    migrate_legacy_document_copies(conn)?;
-    Ok(())
-}
-
-fn add_column_if_missing(
-    conn: &Connection,
-    table: &str,
-    column: &str,
-    sql: &str,
-) -> rusqlite::Result<()> {
-    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
-    let columns = stmt
-        .query_map([], |row| row.get::<_, String>(1))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    drop(stmt);
-    if columns.is_empty() {
-        return Ok(());
-    }
-    if !columns.iter().any(|name| name.eq_ignore_ascii_case(column)) {
-        conn.execute(sql, [])?;
     }
     Ok(())
 }

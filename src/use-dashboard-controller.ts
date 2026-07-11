@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react
 import { invokeCommand } from "./platform/tauri-client";
 import { toast } from "sonner";
 import { normalizeAiSettings, type AiSettings, type CodexModelOption } from "./ai-sdk-config";
-import { summarizeAppleHealthFile } from "./apple-health-import";
 import { type DatabaseStatus } from "./database-gate";
 import { isDatabasePassphraseLongEnough, normalizeDatabasePassphrase } from "./database-passphrase";
 import { newLocalDatabasePath, pickExistingDatabase } from "./platform/database-picker";
@@ -30,6 +29,7 @@ import { makeDeveloperDiagnostics } from "./use-developer-diagnostics";
 import { makeBodyNoteActions, type BodyNoteDraft } from "./use-body-notes";
 import { makeFastingActions } from "./use-fasting-actions";
 import { makeDatabaseLockAction } from "./use-database-lock";
+import { makeDatabaseOps } from "./use-database-ops";
 import { makeUserStateActions } from "./use-user-state-actions";
 export type { BulkResultUpdateInput, ResultInput, SymptomInput };
 type DialogName = Exclude<DialogKey, null>;
@@ -362,41 +362,7 @@ export function useDashboardController() {
     }
   }
 
-  async function importAppleHealthFile(file: File): Promise<void> {
-    const epoch = databaseEpochRef.current;
-    try {
-      const summary = await summarizeAppleHealthFile(file);
-      if (epoch !== databaseEpochRef.current) return;
-      const next = normalizeUserState({
-        ...userState,
-        appleHealthImports: [summary, ...userState.appleHealthImports],
-      });
-      setUserStateWithRef(next);
-      if (await persistUserState(next)) toast.success(t("toast.appleHealthSaved", { count: summary.recordCount }));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    }
-  }
-  async function exportDatabase(passphrase: string, confirmPassphrase: string): Promise<void> {
-    const normalizedPassphrase = normalizeDatabasePassphrase(passphrase);
-    const normalizedConfirmation = normalizeDatabasePassphrase(confirmPassphrase);
-    if (!isDatabasePassphraseLongEnough(normalizedPassphrase)) {
-      toast.error(t("settings.export.passphraseTooShort"));
-      return;
-    }
-    if (normalizedPassphrase !== normalizedConfirmation) {
-      toast.error(t("toast.exportPassphrasesMismatch"));
-      return;
-    }
-    try {
-      const path = await invokeCommand<string>("export_database", { passphrase: normalizedPassphrase });
-      setLoadError("");
-      toast.success(t("toast.exportSaved", { path }));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error));
-    }
-  }
-
+  const databaseOps = makeDatabaseOps({ databaseEpochRef, getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState, setLoadError });
   const recordActions = makeRecordActions({
     closeDialog,
     loadDashboard,
@@ -474,14 +440,13 @@ export function useDashboardController() {
     ...userStateActions,
     ...fastingActions,
     ...bodyNoteActions,
-    importAppleHealthFile,
+    ...databaseOps,
     prepareDocumentResult: documentIntake.prepareDocumentResult,
     setActiveDocumentSessionId: documentIntake.setActiveDocumentSessionId,
     updateDocumentResult: documentIntake.updateDocumentResult,
     removeDocumentResult: documentIntake.removeDocumentResult,
     addDocumentResultRow: documentIntake.addDocumentResultRow,
     acceptDocumentResults: documentIntake.acceptDocumentResults,
-    exportDatabase,
     cancelBackgroundJob, clearFinishedBackgroundJobs, clearDeveloperData,
     startAiConversation: promptActions.startAiConversation,
     selectAiConversation: promptActions.selectAiConversation,

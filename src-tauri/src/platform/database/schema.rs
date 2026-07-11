@@ -212,3 +212,55 @@ pub(super) fn backfill_lab_result_derivatives(conn: &Connection) -> rusqlite::Re
     }
     Ok(())
 }
+
+pub(super) fn migrate_schema(conn: &Connection) -> rusqlite::Result<()> {
+    for (table, name, sql) in [
+        ("organs", "display_order", "ALTER TABLE organs ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0"),
+        ("lab_reports", "source_name", "ALTER TABLE lab_reports ADD COLUMN source_name TEXT NOT NULL DEFAULT ''"),
+        ("lab_reports", "file_type", "ALTER TABLE lab_reports ADD COLUMN file_type TEXT NOT NULL DEFAULT ''"),
+        ("lab_reports", "size_label", "ALTER TABLE lab_reports ADD COLUMN size_label TEXT NOT NULL DEFAULT ''"),
+        ("lab_reports", "local_copy_path", "ALTER TABLE lab_reports ADD COLUMN local_copy_path TEXT NOT NULL DEFAULT ''"),
+        ("lab_reports", "document_bytes", "ALTER TABLE lab_reports ADD COLUMN document_bytes BLOB NOT NULL DEFAULT X''"),
+        ("lab_reports", "updated_at", "ALTER TABLE lab_reports ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("lab_reports", "deleted_at", "ALTER TABLE lab_reports ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
+        ("lab_results", "report_id", "ALTER TABLE lab_results ADD COLUMN report_id INTEGER REFERENCES lab_reports(id) ON DELETE SET NULL"),
+        ("lab_results", "value_number", "ALTER TABLE lab_results ADD COLUMN value_number REAL"),
+        ("lab_results", "flag", "ALTER TABLE lab_results ADD COLUMN flag TEXT NOT NULL DEFAULT 'unknown' CHECK (flag IN ('low', 'normal', 'high', 'unknown'))"),
+        ("lab_results", "reference_range", "ALTER TABLE lab_results ADD COLUMN reference_range TEXT NOT NULL DEFAULT ''"),
+        ("lab_results", "reference_low", "ALTER TABLE lab_results ADD COLUMN reference_low REAL"),
+        ("lab_results", "reference_high", "ALTER TABLE lab_results ADD COLUMN reference_high REAL"),
+        ("lab_results", "updated_at", "ALTER TABLE lab_results ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("lab_results", "deleted_at", "ALTER TABLE lab_results ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
+        ("symptoms", "updated_at", "ALTER TABLE symptoms ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("symptoms", "deleted_at", "ALTER TABLE symptoms ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
+        ("conditions", "updated_at", "ALTER TABLE conditions ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("conditions", "deleted_at", "ALTER TABLE conditions ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
+        ("regimen_items", "updated_at", "ALTER TABLE regimen_items ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"),
+        ("regimen_items", "deleted_at", "ALTER TABLE regimen_items ADD COLUMN deleted_at TEXT NOT NULL DEFAULT ''"),
+    ] {
+        add_column_if_missing(conn, table, name, sql)?;
+    }
+    backfill_lab_result_derivatives(conn)?;
+    migrate_legacy_document_copies(conn)?;
+    Ok(())
+}
+
+fn add_column_if_missing(
+    conn: &Connection,
+    table: &str,
+    column: &str,
+    sql: &str,
+) -> rusqlite::Result<()> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let columns = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    drop(stmt);
+    if columns.is_empty() {
+        return Ok(());
+    }
+    if !columns.iter().any(|name| name.eq_ignore_ascii_case(column)) {
+        conn.execute(sql, [])?;
+    }
+    Ok(())
+}

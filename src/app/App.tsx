@@ -12,7 +12,6 @@ import { useDashboardController } from "@/use-dashboard-controller";
 import "@/styles/tailwind.css";
 import "@/styles/foundations.css";
 import "@/styles/app.css";
-import "@/fasting.css";
 import "@/breathing.css";
 
 export function App() {
@@ -37,6 +36,16 @@ export function App() {
     if (controller.databaseStatus && !controller.databaseStatus.unlocked) return;
     return bindDocumentDrop(window, controller.prepareDocumentResult);
   }, [controller.databaseStatus, controller.prepareDocumentResult]);
+
+  useEffect(() => {
+    const theme = controller.userState.profile?.theme || "system";
+    const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [controller.userState.profile?.theme]);
 
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent): void {

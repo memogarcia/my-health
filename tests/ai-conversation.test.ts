@@ -10,7 +10,7 @@ import {
 import { normalizeUserState, type DisplaySnapshot, type UserState } from "../src/dashboard-model";
 
 const base: UserState = {
-  profile: { age: null, sex: "", anatomyModel: "default", heightCm: null, weightKg: null },
+  profile: { age: null, sex: "", anatomyModel: "male", heightCm: null, weightKg: null, unitSystem: "metric" },
   activityEntries: [],
   fasting: { activeStartedAt: "", targetHours: 16, sessions: [] },
   bodyNotes: [],
@@ -39,7 +39,7 @@ const display: DisplaySnapshot = {
 test("mergeAiConversationState preserves non-AI user state", () => {
   const current: UserState = {
     ...base,
-    profile: { age: 42, sex: "other", anatomyModel: "default", heightCm: 170, weightKg: 70 },
+    profile: { age: 42, sex: "other", anatomyModel: "male", heightCm: 170, weightKg: 70, unitSystem: "metric" },
     activityEntries: [{ id: "activity", loggedAt: "2026-07-08", cigarettes: 0, drinks: 0, activityName: "Walk", durationMinutes: 20, notes: "" }],
   };
   const next: UserState = {

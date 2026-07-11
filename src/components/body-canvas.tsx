@@ -3,18 +3,18 @@ import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
 import { Icon } from "./icon";
 
-const anatomyDefault = new URL("../../assets/anatomy-body-dashboard.jpg", import.meta.url).href;
+const anatomyMale = new URL("../../assets/anatomy-body-dashboard.jpg", import.meta.url).href;
 const anatomyFemale = new URL("../../assets/anatomy-body-women-dashboard.png", import.meta.url).href;
 
 export function BodyCanvas({ controller }: { controller: DashboardController }) {
   const female = controller.userState.profile.anatomyModel === "female";
-  const anatomy = female ? anatomyFemale : anatomyDefault;
-  const imageAlt = female ? t("body.anatomy.altFemale") : t("body.anatomy.alt");
+  const anatomy = female ? anatomyFemale : anatomyMale;
+  const imageAlt = female ? t("body.anatomy.altFemale") : t("body.anatomy.altMale");
 
   return (
-    <section aria-label={t("body.anatomy.label")} className="grid min-h-0 min-w-0 grid-cols-[184px_minmax(0,1fr)] border-r border-border bg-surface max-[1040px]:grid-cols-[140px_minmax(0,1fr)] max-[880px]:grid-cols-[108px_minmax(0,1fr)]">
+    <section aria-label={t("body.anatomy.label")} className="grid min-h-0 min-w-0 grid-cols-[184px_minmax(0,1fr)] border-r border-border bg-canvas max-[1040px]:grid-cols-[140px_minmax(0,1fr)] max-[880px]:grid-cols-[108px_minmax(0,1fr)]">
       <OrganIndex controller={controller} />
-      <div className="relative min-h-0 min-w-0 overflow-hidden bg-[color-mix(in_srgb,var(--accent-soft)_34%,var(--surface-soft))]">
+      <div className="relative flex min-h-0 min-w-0 items-center justify-center overflow-hidden bg-canvas">
         <OrganView anatomy={anatomy} controller={controller} imageAlt={imageAlt} />
       </div>
     </section>
@@ -24,9 +24,17 @@ export function BodyCanvas({ controller }: { controller: DashboardController }) 
 function OrganView({ anatomy, controller, imageAlt }: { anatomy: string; controller: DashboardController; imageAlt: string }) {
   const visibleOrgans = controller.display.organs.filter((organ) => !wholeBodySystems.has(organ.key));
   return (
-    <>
-      <img alt={imageAlt} className="h-full w-full object-cover object-center [filter:saturate(0.8)_contrast(1.01)]" src={anatomy} />
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,color-mix(in_srgb,var(--ink)_7%,transparent),transparent_20%,transparent_80%,color-mix(in_srgb,var(--ink)_10%,transparent))]" />
+    <div className="absolute inset-0 h-full w-full">
+      <img 
+        alt={imageAlt} 
+        className="h-full w-full object-cover object-center [filter:saturate(0.75)_contrast(0.95)_brightness(1.05)_sepia(0.05)] transition-all duration-700 ease-out" 
+        src={anatomy} 
+        style={{ 
+          WebkitMaskImage: "radial-gradient(ellipse 130% 110% at 50% 50%, black 75%, transparent 100%)", 
+          maskImage: "radial-gradient(ellipse 130% 110% at 50% 50%, black 75%, transparent 100%)" 
+        }}
+      />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,color-mix(in_srgb,var(--ink)_3%,transparent)_0%,transparent_15%,transparent_80%,var(--canvas)_100%)]" />
       {visibleOrgans.map((organ) => {
         const visual = getOrganVisual(organ.key);
         const selected = organ.key === controller.selectedOrganKey;
@@ -52,7 +60,7 @@ function OrganView({ anatomy, controller, imageAlt }: { anatomy: string; control
           </button>
         );
       })}
-    </>
+    </div>
   );
 }
 
@@ -77,7 +85,7 @@ function OrganIndex({ controller }: { controller: DashboardController }) {
             type="button"
           >
             <span className={statusDot} data-status={organ.status} />
-            <span className="grid min-w-0 gap-[2px]"><strong className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold">{organ.name}</strong><small className="overflow-hidden text-ellipsis whitespace-nowrap text-xs text-muted-ink max-[880px]:hidden">{organ.system}</small></span>
+            <span className="grid min-w-0 gap-[2px]"><strong className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold">{organ.name}</strong></span>
             <span className={`${statusLabelCls} max-[880px]:hidden`} data-status={organ.status}>{statusLabel[organ.status]}</span>
             <Icon className="text-quiet max-[1040px]:hidden" name="chevron" size={12} />
           </button>

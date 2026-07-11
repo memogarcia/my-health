@@ -7,6 +7,7 @@ export type TauriCommand =
   | "unlock_database"
   | "lock_database"
   | "export_database"
+  | "change_database_password"
   | "get_dashboard_snapshot"
   | "add_lab_result"
   | "update_lab_result"

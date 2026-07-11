@@ -19,7 +19,6 @@ export function DocumentsPage({ controller }: { controller: DashboardController 
           <h1 className="text-xl tracking-[-0.02em]">{t("documents.title")}</h1>
           <p className="mt-1 max-w-[62ch] text-sm leading-relaxed text-muted-ink">{t("documents.description")}</p>
         </div>
-        <span className="inline-flex min-w-max items-center rounded-full bg-secondary px-[8px] py-[5px] text-xs text-muted-ink">{t("database.localRecords")}</span>
       </header>
       <section aria-label={t("documents.title")} className="grid grid-cols-[repeat(2,minmax(0,1fr))] border-y border-border max-[880px]:grid-cols-1">
         <DocumentDrop accept={resultDocumentAccept} description={t("documents.pdfDescription")} icon={<FileText />} inputId="document-result-file" label={t("documents.pdfLabel")} onFile={controller.prepareDocumentResult} />

@@ -25,7 +25,7 @@ export function AddResultDropdown({ controller }: { controller: DashboardControl
   return (
     <>
       <Select key={key} onValueChange={choose}>
-        <SelectTrigger aria-label={t("addResult.label")} className="border-transparent bg-primary text-primary-foreground hover:bg-accent-strong" size="sm">
+        <SelectTrigger aria-label={t("addResult.label")} className="border-transparent bg-primary text-primary-foreground hover:bg-accent-strong data-placeholder:text-primary-foreground [&_svg]:text-primary-foreground" size="sm">
           <SelectValue placeholder={<><Plus data-icon="inline-start" />{t("addResult.label")}</>} />
         </SelectTrigger>
         <SelectContent>

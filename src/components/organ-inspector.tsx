@@ -18,7 +18,7 @@ export function OrganInspector({ controller }: { controller: DashboardController
   const recordCount = controller.organLabs.length + controller.organSymptoms.length + controller.organConditions.length;
   const summaryKey = recordCount === 0 ? "body.summary.empty" : `body.summary.${organ.status}` as const;
   return (
-    <article className="min-h-0 min-w-0 overflow-y-auto bg-surface pb-4 px-7 pt-6 max-[880px]:pb-3 max-[880px]:px-4 max-[880px]:pt-5" id="selected-organ-details">
+    <article className="min-h-0 min-w-0 overflow-y-auto bg-canvas pb-4 px-7 pt-6 max-[880px]:pb-3 max-[880px]:px-4 max-[880px]:pt-5" id="selected-organ-details">
       <header className="border-b border-border pb-5">
         <div className="flex items-center gap-1 text-xs text-muted-ink"><span>{organ.system}</span><Icon name="chevron" size={11} /><span>{t("body.recent.title")}</span></div>
         <div className="mt-2 flex items-center justify-between gap-3">
@@ -66,7 +66,6 @@ export function OrganInspector({ controller }: { controller: DashboardController
         <Suspense fallback={null}><ConditionsCard controller={controller} showHeading={false} /></Suspense>
       </details>
 
-      <footer className="mt-6 flex items-center gap-2 border-t border-border pt-3 text-xs text-muted-ink"><Icon name="lock" size={13} />{t("database.localRecords")}</footer>
     </article>
   );
 }

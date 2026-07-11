@@ -190,11 +190,18 @@ pub fn run() {
         .setup(|app| {
             let state = database::init_database_state(app)?;
             app.manage(state);
+            #[cfg(target_os = "macos")]
+            {
+                let handle = app.handle();
+                let menu = tauri::menu::Menu::default(handle)?;
+                app.set_menu(menu)?;
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_database_status,
             platform::database::select_database,
+            platform::database::change_database_password,
             unlock_database,
             lock_database,
             export_database,

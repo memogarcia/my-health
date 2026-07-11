@@ -23,9 +23,9 @@ const railItems: Array<{ key: WorkspaceKey; nav: NavKey; icon: IconName; label: 
   { key: "overview", nav: "body", icon: "body", label: t("workspace.overview") },
   { key: "timeline", nav: "labs", icon: "activity", label: t("workspace.timeline") },
   { key: "regimen", nav: "medications", icon: "medication", label: t("workspace.library.regimen") },
-  { key: "fasting", nav: "fasting", icon: "activity", label: t("workspace.library.fasting") },
-  { key: "breathing", nav: "breathing", icon: "activity", label: t("workspace.library.breathing") },
-  { key: "library", nav: "documents", icon: "document", label: t("workspace.library") },
+  { key: "fasting", nav: "fasting", icon: "timer", label: t("workspace.library.fasting") },
+  { key: "breathing", nav: "breathing", icon: "wind", label: t("workspace.library.breathing") },
+  { key: "library", nav: "documents", icon: "book-open", label: t("workspace.library") },
   { key: "assistant", nav: "plan", icon: "sparkles", label: t("workspace.assistant") },
 ];
 
@@ -104,13 +104,13 @@ export function HealthWorkspace({ controller }: { controller: DashboardControlle
         </button>
         <button
           aria-label={t("database.lock")}
-          className="flex w-full min-h-9 items-center justify-center gap-2 rounded-sm px-2.5 text-left text-[0.75rem] font-medium text-quiet transition-colors hover:bg-secondary/70 hover:text-ink max-[1040px]:px-0"
+          className={railButtonBase}
           onClick={() => void controller.lockDatabase()}
           title={t("database.lock")}
           type="button"
         >
-          <Icon name="lock" size={14} />
-          <span className="max-[1040px]:sr-only">{t("database.lock")}</span>
+          <Icon name="lock" size={17} />
+          <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap max-[1040px]:sr-only">{t("database.lock")}</span>
         </button>
       </aside>
 
@@ -158,7 +158,12 @@ export function HealthWorkspace({ controller }: { controller: DashboardControlle
               <LibraryWorkspace controller={controller} />
             </PageShell>
           ) : null}
-          {workspace === "assistant" || workspace === "utility" || workspace === "regimen" || workspace === "fasting" || workspace === "breathing" ? (
+          {workspace === "assistant" ? (
+            <PageShell fullBleed>
+              <FeatureRouter controller={controller} />
+            </PageShell>
+          ) : null}
+          {workspace === "utility" || workspace === "regimen" || workspace === "fasting" || workspace === "breathing" ? (
             <PageShell>
               <FeatureRouter controller={controller} />
             </PageShell>
