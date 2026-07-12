@@ -15,6 +15,7 @@ use schema::{migrate_schema, SCHEMA};
 use seed::seed_organs;
 const APPLICATION_ID: i64 = 0x4D45_4844;
 const APPLICATION_NAME: &str = "me-health-dashboard";
+#[cfg(any(not(debug_assertions), test))]
 const ACTIVE_DATABASE_FILE: &str = "active-database-path";
 #[cfg(any(debug_assertions, test))]
 const DEV_MOCK_DATABASE_NAME: &str = "mock-health-dashboard.sqlite3";
@@ -35,6 +36,7 @@ pub struct DatabaseStatus {
     configured: bool,
     unlocked: bool,
     has_legacy_plaintext: bool,
+    requires_encryption: bool,
 }
 impl AppState {
     #[cfg(any(debug_assertions, test))]
@@ -60,6 +62,7 @@ impl AppState {
             }),
         }
     }
+    #[cfg(any(not(debug_assertions), test))]
     fn persistent(db_path: PathBuf, active_path_file: PathBuf) -> Self {
         Self {
             inner: Mutex::new(DatabaseSession {
@@ -84,6 +87,7 @@ impl AppState {
                 configured: false,
                 unlocked: false,
                 has_legacy_plaintext: false,
+                requires_encryption: true,
             };
         };
         database_status(
@@ -115,6 +119,7 @@ fn database_status(db_path: &Path, unlocked: bool, requires_encryption: bool) ->
         configured: has_db && (!requires_encryption || !has_legacy_plaintext),
         unlocked,
         has_legacy_plaintext,
+        requires_encryption,
     }
 }
 pub fn init_database_state(app: &mut tauri::App) -> Result<AppState, Box<dyn std::error::Error>> {
@@ -139,21 +144,16 @@ pub fn init_database_state(app: &mut tauri::App) -> Result<AppState, Box<dyn std
 }
 #[cfg(any(debug_assertions, test))]
 fn init_dev_database_state(app_data_dir: &Path) -> Result<AppState, Box<dyn std::error::Error>> {
-    if std::env::var("ME_HEALTH_USE_MOCK_DB").ok().as_deref() == Some("1") {
-        let db_path = app_data_dir.join(DEV_MOCK_DATABASE_NAME);
-        if !db_path.exists() {
-            // ponytail: copy once; delete the app-data mock DB when the fixture needs a clean refresh.
-            fs::copy(dev_mock_database_path(), &db_path)?;
-        }
-        let conn = open_plaintext_database(&db_path)?;
-        install_schema(&conn)?;
-        return Ok(AppState::unlocked_plaintext(db_path, conn));
+    let db_path = app_data_dir.join(DEV_MOCK_DATABASE_NAME);
+    if !db_path.exists() {
+        // ponytail: copy once; delete the app-data mock DB when the fixture needs a clean refresh.
+        fs::copy(dev_mock_database_path(), &db_path)?;
     }
-    Ok(persistent_database_state(
-        app_data_dir,
-        app_data_dir.join("health-dashboard-dev.sqlite3"),
-    ))
+    let conn = open_plaintext_database(&db_path)?;
+    install_schema(&conn)?;
+    Ok(AppState::unlocked_plaintext(db_path, conn))
 }
+#[cfg(any(not(debug_assertions), test))]
 fn persistent_database_state(app_data_dir: &Path, default_path: PathBuf) -> AppState {
     let active_path_file = app_data_dir.join(ACTIVE_DATABASE_FILE);
     let db_path = fs::read_to_string(&active_path_file)
@@ -194,8 +194,11 @@ pub fn select_database(
     select_database_path(&state, &path)
 }
 pub fn select_database_path(state: &AppState, path: &str) -> Result<DatabaseStatus, String> {
-    let path = normalize_database_path(path)?;
     let mut inner = state.inner.lock().map_err(|error| error.to_string())?;
+    if !inner.requires_encryption {
+        return Err("Database selection is unavailable in development mock mode.".into());
+    }
+    let path = normalize_database_path(path)?;
     if let Some(active_path_file) = &inner.active_path_file {
         persist_active_database_path(active_path_file, &path)?;
     }
@@ -234,6 +237,10 @@ pub fn unlock_database(state: &AppState, passphrase: &str) -> Result<DatabaseSta
 }
 pub fn lock_database(state: &AppState) -> Result<DatabaseStatus, String> {
     let mut inner = state.inner.lock().map_err(|error| error.to_string())?;
+    if !inner.requires_encryption {
+        drop(inner);
+        return Ok(state.status());
+    }
     inner.conn = None;
     drop(inner);
     Ok(state.status())

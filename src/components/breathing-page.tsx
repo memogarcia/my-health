@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Pause, Play, RotateCcw, Wind } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { advanceBreathingSession, createBreathingSession } from "../breathing-state";
-import { t, type TranslationKey } from "../i18n";
-import type { DashboardController } from "../use-dashboard-controller";
-import { AlertTriangle, Wind } from "./health-icons";
+import { advanceBreathingSession, createBreathingSession } from "@/breathing-state";
+import { t, type TranslationKey } from "@/i18n";
+import type { DashboardController } from "@/use-dashboard-controller";
 
 type TechniqueId = "paced" | "box" | "wimHof";
 type BreathPhase = { labelKey: TranslationKey; seconds: number; phaseKind: "inhale" | "hold" | "exhale" };
@@ -51,129 +49,66 @@ export function BreathingPage(_props: { controller: DashboardController }) {
 
   function startBreathing(): void {
     if (selectedTechnique === "wimHof" && !safetyAcknowledged) return;
-    setSession((current) => current.status === "paused"
-      ? { ...current, status: "running" }
-      : createBreathingSession(activeTechnique.phases, "running"));
+    setSession((current) => current.status === "paused" ? { ...current, status: "running" } : createBreathingSession(activeTechnique.phases, "running"));
+  }
+
+  function resetBreathing(): void {
+    setSession(createBreathingSession(activeTechnique.phases));
   }
 
   return (
-    <div className="grid gap-8 max-w-4xl mx-auto py-8 px-4 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
-      <Alert className="rounded-2xl border-primary/20 bg-primary/5 backdrop-blur-md">
-        <AlertTriangle className="text-primary" />
-        <AlertTitle className="text-ink">{t("breathing.title")}</AlertTitle>
-        <AlertDescription className="text-muted-ink leading-relaxed">{t("breathing.description")}</AlertDescription>
-      </Alert>
+    <div className="mx-auto grid w-full max-w-[960px] gap-6 px-8 py-7 max-[880px]:px-5">
+      <header className="border-b border-border/55 pb-5">
+        <h1 className="text-[1.35rem] font-semibold tracking-[-0.025em] text-ink">{t("breathing.title")}</h1>
+        <p className="mt-1.5 max-w-[68ch] text-sm leading-relaxed text-muted-ink">{t("breathing.description")}</p>
+      </header>
 
-      <div className="grid gap-4 sm:grid-cols-3" role="group" aria-label={t("breathing.title")}>
+      <div className="grid grid-cols-3 rounded-xl bg-secondary p-1" role="group" aria-label={t("breathing.title")}>
         {techniques.map((technique) => (
-          <button
-            className={cn(
-              "group flex flex-col items-start gap-3 rounded-2xl border border-border/50 bg-surface/40 p-5 text-left shadow-sm backdrop-blur-md transition-all duration-300 hover:bg-surface/60 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
-              technique.id === selectedTechnique && "border-primary/40 bg-primary/5 ring-1 ring-primary/20 shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.1)]"
-            )}
-            type="button"
-            key={technique.id}
-            aria-pressed={technique.id === selectedTechnique}
-            onClick={() => chooseTechnique(technique.id)}
-          >
-            <div className={cn(
-              "grid size-10 place-items-center rounded-xl bg-canvas/60 shadow-inner transition-colors",
-              technique.id === selectedTechnique ? "bg-primary/20 text-primary" : "text-muted-ink group-hover:text-ink"
-            )}>
-              <Wind aria-hidden="true" className="size-5" />
-            </div>
-            <div className="grid gap-1">
-              <strong className={cn("text-base font-semibold tracking-tight transition-colors", technique.id === selectedTechnique ? "text-primary drop-shadow-sm" : "text-ink")}>{t(technique.titleKey)}</strong>
-              <small className="text-sm leading-relaxed text-muted-ink/90">{t(technique.descriptionKey)}</small>
-            </div>
+          <button aria-pressed={technique.id === selectedTechnique} className="grid min-h-[54px] rounded-lg px-3 py-2 text-left text-muted-ink transition-colors hover:text-ink aria-pressed:bg-surface aria-pressed:text-ink aria-pressed:shadow-[var(--elev-1)]" key={technique.id} onClick={() => chooseTechnique(technique.id)} type="button">
+            <strong className="text-xs font-semibold">{t(technique.titleKey)}</strong>
+            <small className="mt-0.5 text-[11px] leading-snug text-muted-ink">{t(technique.descriptionKey)}</small>
           </button>
         ))}
       </div>
 
-      <Card className="overflow-hidden border border-border/60 bg-surface/60 shadow-lg backdrop-blur-xl rounded-3xl transition-all duration-500">
-        <CardContent className="grid items-center gap-10 p-8 md:grid-cols-[0.85fr_1fr] md:gap-12 md:p-10">
-          <div
-            className={cn(
-              "breathing-orb mx-auto flex flex-col items-center justify-center !border-border/30",
-              `is-${phase.phaseKind}`,
-              session.status !== "idle" && "is-started",
-              session.status === "paused" && "is-paused",
-              session.status === "complete" && "is-complete",
-              phase.phaseKind === "hold" && `after-${previousPhase.phaseKind}`,
-            )}
-            key={`${selectedTechnique}-${session.completedCycles}-${session.phaseIndex}`}
-            style={{ "--breath-phase": `${phase.seconds}s` } as CSSProperties}
-          >
-            <div className="absolute inset-0 rounded-full shadow-[inset_0_2px_15px_rgba(0,0,0,0.05)] pointer-events-none"></div>
-            <span className="text-sm font-semibold uppercase tracking-wider text-primary drop-shadow-sm">{t(phase.labelKey)}</span>
-            <strong aria-hidden="true" className="mt-1 text-5xl font-semibold tracking-tighter text-ink tnum drop-shadow-sm">{remainingSeconds}</strong>
-            <small className="mt-2 text-xs font-medium text-muted-ink">{t("breathing.secondsRemaining")}</small>
-          </div>
+      <section className="grid items-center gap-8 rounded-xl bg-surface px-7 py-8 md:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.2fr)]" aria-label={t(activeTechnique.titleKey)}>
+        <div className={cn("breathing-orb", `is-${phase.phaseKind}`, session.status !== "idle" && "is-started", session.status === "paused" && "is-paused", session.status === "complete" && "is-complete", phase.phaseKind === "hold" && `after-${previousPhase.phaseKind}`)} key={`${selectedTechnique}-${session.completedCycles}-${session.phaseIndex}`} style={{ "--breath-phase": `${phase.seconds}s` } as CSSProperties}>
+          <span>{t(phase.labelKey)}</span>
+          <strong aria-hidden="true">{remainingSeconds}</strong>
+          <small>{t("breathing.secondsRemaining")}</small>
+        </div>
 
-          <div className="flex flex-col gap-6">
-            <div className="grid gap-1.5">
-              <strong className="text-2xl font-semibold tracking-tight text-ink drop-shadow-sm">{t(activeTechnique.titleKey)}</strong>
-              <p className="text-sm leading-relaxed text-muted-ink">{t(activeTechnique.safetyKey)}</p>
-            </div>
-            
-            <ol className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap m-0 p-0" aria-label={t("breathing.phaseSequence")}>
-              {activeTechnique.phases.map((item, index) => (
-                <li 
-                  data-current={index === session.phaseIndex} 
-                  key={`${item.labelKey}-${index}`}
-                  className={cn(
-                    "flex flex-col gap-1 rounded-xl border border-border/40 bg-surface/40 px-4 py-3 shadow-sm backdrop-blur-sm transition-all duration-300",
-                    index === session.phaseIndex && "scale-105 border-primary/30 bg-primary/10 shadow-md ring-1 ring-primary/20"
-                  )}
-                >
-                  <span className={cn("text-xs font-semibold uppercase tracking-wider", index === session.phaseIndex ? "text-primary drop-shadow-sm" : "text-muted-ink")}>{t(item.labelKey)}</span>
-                  <small className={cn("text-sm font-medium tnum", index === session.phaseIndex ? "text-ink" : "text-muted-ink/80")}>{t("breathing.seconds", { seconds: item.seconds })}</small>
-                </li>
-              ))}
-            </ol>
-            
-            {selectedTechnique === "wimHof" ? (
-              <label className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 backdrop-blur-md cursor-pointer transition-colors hover:bg-primary/10">
-                <Checkbox className="mt-0.5 border-primary/50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground" checked={safetyAcknowledged} onCheckedChange={(checked) => setSafetyAcknowledged(checked === true)} />
-                <span className="text-sm font-medium leading-relaxed text-ink/90">{t("breathing.wimHof.acknowledge")}</span>
-              </label>
-            ) : null}
-            
-            <p className="sr-only" role="status">{t("breathing.liveStatus", { phase: t(phase.labelKey), round: session.completedCycles + 1 })}</p>
-            
-            {session.status === "complete" ? (
-              <p className="rounded-xl border border-status-normal/30 bg-status-normal/10 px-4 py-3 text-sm font-semibold text-status-normal backdrop-blur-md" role="status">
-                {t("breathing.complete")}
-              </p>
-            ) : null}
-            
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <Button 
-                type="button" 
-                size="lg"
-                className={cn(
-                  "rounded-xl font-medium shadow-md transition-all active:scale-95",
-                  breathing ? "bg-surface text-ink hover:bg-surface/80 border border-border" : "bg-primary text-primary-foreground hover:bg-primary/90"
-                )}
-                onClick={breathing ? () => setSession((current) => ({ ...current, status: "paused" })) : startBreathing} 
-                disabled={selectedTechnique === "wimHof" && !safetyAcknowledged}
-              >
-                {breathing ? t("breathing.pause") : session.status === "paused" ? t("breathing.resume") : t("breathing.start")}
-              </Button>
-              {session.status !== "idle" ? (
-                <Button type="button" variant="outline" className="rounded-xl border-border/60 bg-surface/40 font-medium backdrop-blur-sm transition-colors hover:bg-surface/80" onClick={() => setSession(createBreathingSession(activeTechnique.phases))}>
-                  {t("breathing.reset")}
-                </Button>
-              ) : null}
-              {session.status !== "idle" ? (
-                <span className="ml-auto rounded-lg bg-canvas/50 px-3 py-1.5 text-sm font-medium text-muted-ink backdrop-blur-sm tnum">
-                  {t("breathing.round", { count: session.completedCycles + (session.status === "complete" ? 0 : 1), total: activeTechnique.cycles || "∞" })}
-                </span>
-              ) : null}
-            </div>
+        <div className="grid gap-5">
+          <div>
+            <div className="flex items-center gap-2"><Wind className="size-4 text-primary" /><h2 className="text-base font-semibold text-ink">{t(activeTechnique.titleKey)}</h2></div>
+            <p className="mt-1.5 max-w-[58ch] text-sm leading-relaxed text-muted-ink">{t(activeTechnique.safetyKey)}</p>
           </div>
-        </CardContent>
-      </Card>
+          <ol className="grid grid-cols-[repeat(auto-fit,minmax(92px,1fr))] gap-2" aria-label={t("breathing.phaseSequence")}>
+            {activeTechnique.phases.map((item, index) => (
+              <li className="rounded-lg bg-secondary px-3 py-2 text-muted-ink data-[current=true]:bg-accent data-[current=true]:text-accent-ink" data-current={index === session.phaseIndex} key={`${item.labelKey}-${index}`}>
+                <span className="block text-xs font-semibold">{t(item.labelKey)}</span>
+                <small className="text-[11px] tabular-nums">{t("breathing.seconds", { seconds: item.seconds })}</small>
+              </li>
+            ))}
+          </ol>
+          {selectedTechnique === "wimHof" ? (
+            <label className="flex items-start gap-2.5 rounded-lg bg-monitor/8 p-3 text-xs leading-relaxed text-muted-ink">
+              <Checkbox className="mt-0.5" checked={safetyAcknowledged} onCheckedChange={(checked) => setSafetyAcknowledged(checked === true)} />
+              <span>{t("breathing.wimHof.acknowledge")}</span>
+            </label>
+          ) : null}
+          <p className="sr-only" role="status">{t("breathing.liveStatus", { phase: t(phase.labelKey), round: session.completedCycles + 1 })}</p>
+          {session.status === "complete" ? <p className="rounded-lg bg-normal/10 px-3 py-2.5 text-xs font-semibold text-normal" role="status">{t("breathing.complete")}</p> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button disabled={selectedTechnique === "wimHof" && !safetyAcknowledged} onClick={breathing ? () => setSession((current) => ({ ...current, status: "paused" })) : startBreathing} type="button">
+              {breathing ? <Pause /> : <Play />}{breathing ? t("breathing.pause") : session.status === "paused" ? t("breathing.resume") : t("breathing.start")}
+            </Button>
+            <Button onClick={resetBreathing} type="button" variant="ghost"><RotateCcw />{t("breathing.reset")}</Button>
+            {activeTechnique.cycles ? <span className="ml-auto text-xs tabular-nums text-muted-ink">{t("breathing.round", { count: Math.min(activeTechnique.cycles, session.completedCycles + 1), total: activeTechnique.cycles })}</span> : null}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

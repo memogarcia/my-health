@@ -2,6 +2,7 @@ import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import assistantModule from "@/modules/assistant";
 import appleHealthModule from "@/modules/apple-health";
 import conditionsModule from "@/modules/conditions";
+import challengesModule from "@/modules/challenges";
 import documentsModule from "@/modules/documents";
 import healthCoreModule from "@/modules/health-core";
 import labsModule from "@/modules/labs";
@@ -18,6 +19,7 @@ export const rendererModules = validateRendererCatalog([
   labsModule,
   symptomsModule,
   conditionsModule,
+  challengesModule,
   regimenModule,
   documentsModule,
   appleHealthModule,

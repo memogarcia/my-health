@@ -11,11 +11,15 @@ export type FastingState = {
   sessions: FastingSession[];
 };
 
+export function isValidFastingTarget(value: number): boolean {
+  return Number.isFinite(value) && Number.isInteger(value) && value >= 1 && value <= 72;
+}
+
 export function normalizeFastingState(value: Partial<FastingState> | undefined): FastingState {
   const requestedTarget = typeof value?.targetHours === "number" && Number.isFinite(value.targetHours)
     ? Math.trunc(value.targetHours)
     : 16;
-  const targetHours = [12, 14, 16, 18].includes(requestedTarget) ? requestedTarget : 16;
+  const targetHours = isValidFastingTarget(requestedTarget) ? requestedTarget : 16;
   return {
     activeStartedAt: validTimestamp(value?.activeStartedAt) ? value.activeStartedAt || "" : "",
     targetHours,
@@ -30,8 +34,8 @@ function normalizeFastingSession(session: Partial<FastingSession>): FastingSessi
     id: typeof session.id === "string" ? session.id : "",
     startedAt: typeof session.startedAt === "string" ? session.startedAt : "",
     endedAt: typeof session.endedAt === "string" ? session.endedAt : "",
-    targetHours: typeof session.targetHours === "number" && Number.isFinite(session.targetHours)
-      ? Math.min(24, Math.max(12, Math.trunc(session.targetHours)))
+    targetHours: typeof session.targetHours === "number" && isValidFastingTarget(Math.trunc(session.targetHours))
+      ? Math.trunc(session.targetHours)
       : 16,
   };
 }

@@ -6,11 +6,12 @@ import type { HealthStatus } from "../dashboard-model";
 import { statusLabel } from "../dashboard-model";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
+import { formatElapsed } from "./fasting-format";
 import { Icon, type IconName } from "./icon";
 
 const HistoryPage = lazy(() => import("./history-page").then((module) => ({ default: module.HistoryPage })));
 
-type TimelineFilter = "all" | "results" | "symptoms" | "conditions" | "regimen" | "notes";
+type TimelineFilter = "all" | "results" | "symptoms" | "conditions" | "regimen" | "diet" | "fasting" | "notes";
 type TimelineItem = {
   id: string;
   date: string;
@@ -20,6 +21,7 @@ type TimelineItem = {
   icon: IconName;
   status?: HealthStatus;
   onOpen?: () => void;
+  onEdit?: () => void;
   onDelete?: () => void;
   deleteConfirm?: string;
 };
@@ -30,6 +32,8 @@ const filters: Array<{ key: TimelineFilter; label: string }> = [
   { key: "symptoms", label: t("workspace.timeline.symptoms") },
   { key: "conditions", label: t("workspace.timeline.conditions") },
   { key: "regimen", label: t("workspace.timeline.regimen") },
+  { key: "diet", label: t("workspace.timeline.diet") },
+  { key: "fasting", label: t("workspace.timeline.fasting") },
   { key: "notes", label: t("workspace.timeline.notes") },
 ];
 
@@ -108,12 +112,12 @@ function TimelineReading({ items }: { items: TimelineItem[] }) {
                 <p className="col-start-1 mt-1 overflow-hidden text-ellipsis whitespace-nowrap text-xs text-muted-ink">{item.detail}</p>
                 {item.status ? <em className="col-start-2 row-span-2 inline-flex items-center gap-[5px] rounded-full bg-secondary px-[7px] py-1 text-xs font-semibold not-italic text-muted-ink" data-status={item.status}><i className={dotStatus} data-status={item.status} />{statusLabel[item.status]}</em> : null}
               </button>
-              {item.onDelete ? (
+              {item.onEdit || item.onDelete ? (
                 <div className="flex gap-0.5 pr-2">
-                  <Button aria-label={t("workspace.timeline.editEntry", { title: item.title })} onClick={item.onOpen} size="icon-xs" type="button" variant="ghost"><Pencil /></Button>
-                  <Button aria-label={t("workspace.timeline.deleteEntry", { title: item.title })} onClick={() => {
+                  {item.onEdit ? <Button aria-label={t("workspace.timeline.editEntry", { title: item.title })} onClick={item.onEdit} size="icon-xs" type="button" variant="ghost"><Pencil /></Button> : null}
+                  {item.onDelete ? <Button aria-label={t("workspace.timeline.deleteEntry", { title: item.title })} onClick={() => {
                     if (!item.deleteConfirm || window.confirm(item.deleteConfirm)) item.onDelete?.();
-                  }} size="icon-xs" type="button" variant="destructive"><Trash2 /></Button>
+                  }} size="icon-xs" type="button" variant="destructive"><Trash2 /></Button> : null}
                 </div>
               ) : null}
             </div>
@@ -130,8 +134,53 @@ function buildTimeline(controller: DashboardController): TimelineItem[] {
   const symptoms = controller.display.recentSymptoms.map((item) => ({ id: `symptom-${item.id}`, date: item.observedAt, title: item.name, detail: t("workspace.timeline.severity", { severity: item.severity, organ: organName(controller, item.organKey) }), kind: "symptoms" as const, icon: "symptom" as const, status: item.severity >= 4 ? "attention" as const : item.severity >= 2 ? "monitor" as const : "normal" as const, onOpen: () => openOrgan(item.organKey) }));
   const conditions = controller.display.conditions.map((item) => ({ id: `condition-${item.id}`, date: item.diagnosedAt, title: item.name, detail: `${organName(controller, item.organKey)} · ${item.status}`, kind: "conditions" as const, icon: "heart" as const, onOpen: () => openOrgan(item.organKey) }));
   const regimen = controller.display.regimenItems.map((item) => ({ id: `regimen-${item.id}`, date: item.startDate, title: item.name, detail: [item.dose, item.unit, item.frequency].filter(Boolean).join(" · "), kind: "regimen" as const, icon: "medication" as const, onOpen: () => controller.setSelectedNav("medications") }));
-  const bodyNotes = controller.userState.bodyNotes.map((item) => ({ id: `note-${item.id}`, date: item.createdAt.slice(0, 10), title: item.area, detail: item.note, kind: "notes" as const, icon: "body" as const, onOpen: () => controller.editBodyNote(item), onDelete: () => void controller.deleteBodyNote(item.id), deleteConfirm: t("body.notes.deleteConfirm") }));
-  return [...results, ...symptoms, ...conditions, ...regimen, ...bodyNotes].sort((a, b) => b.date.localeCompare(a.date));
+  const activities = controller.userState.activityEntries.map((item) => ({
+    id: `activity-${item.id}`,
+    date: item.loggedAt,
+    title: item.activityName || t("body.recent.dailyEntry"),
+    detail: item.notes || t("workspace.timeline.activityDetail", { minutes: item.durationMinutes }),
+    kind: "notes" as const,
+    icon: "activity" as const,
+    onOpen: () => controller.editActivity(item),
+    onEdit: () => controller.editActivity(item),
+    onDelete: () => void controller.deleteActivity(item.id),
+    deleteConfirm: t("intake.activity.deleteConfirm"),
+  }));
+  const diet = controller.userState.dietEntries.map((item) => ({
+    id: `diet-${item.id}`,
+    date: item.loggedAt,
+    title: item.title,
+    detail: [t(`diet.meal.${item.meal}`), item.notes].filter(Boolean).join(" · "),
+    kind: "diet" as const,
+    icon: "diet" as const,
+    onOpen: () => controller.setSelectedNav("diet"),
+    onDelete: () => void controller.deleteDietEntry(item.id),
+    deleteConfirm: t("diet.deleteConfirm"),
+  }));
+  const fasting = controller.userState.fasting.sessions.map((item) => {
+    const duration = Math.max(0, Math.floor((Date.parse(item.endedAt) - Date.parse(item.startedAt)) / 1000));
+    return {
+      id: `fasting-${item.id}`,
+      date: localDateString(item.endedAt),
+      title: t("workspace.timeline.fastingTitle", { hours: item.targetHours }),
+      detail: t("workspace.timeline.fastingDetail", { duration: formatElapsed(duration) }),
+      kind: "fasting" as const,
+      icon: "timer" as const,
+      onOpen: () => controller.setSelectedNav("fasting"),
+      onDelete: () => void controller.deleteFastingSession(item.id),
+      deleteConfirm: t("fasting.history.deleteConfirm"),
+    };
+  });
+  const bodyNotes = controller.userState.bodyNotes.map((item) => ({ id: `note-${item.id}`, date: item.createdAt.slice(0, 10), title: item.area, detail: item.note, kind: "notes" as const, icon: "body" as const, onOpen: () => controller.editBodyNote(item), onEdit: () => controller.editBodyNote(item), onDelete: () => void controller.deleteBodyNote(item.id), deleteConfirm: t("body.notes.deleteConfirm") }));
+  return [...results, ...symptoms, ...conditions, ...regimen, ...activities, ...diet, ...fasting, ...bodyNotes].sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function localDateString(value: string): string {
+  const date = new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function organName(controller: DashboardController, key: string): string {

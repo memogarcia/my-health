@@ -3,31 +3,54 @@ use super::llm_http::{
 };
 use super::process::run_command_with_timeout;
 use super::{
-    codex_exec_command, ensure_remote_ai_allowed, load_ai_runtime_settings, normalize_prompt,
-    parse_codex_models, truncate, CodexRunOptions, MAX_OUTPUT_CHARS, MAX_PROMPT_CHARS,
+    codex_exec_command, ensure_remote_ai_allowed, is_loopback_base_url, load_ai_runtime_settings,
+    normalize_prompt, parse_codex_models, truncate, CodexRunOptions, LlmMode, MAX_OUTPUT_CHARS,
+    MAX_PROMPT_CHARS, MAX_RESEARCH_OUTPUT_CHARS,
 };
 use crate::database::{self, AppState};
 use std::{path::Path, process::Command, time::Duration};
 
 #[test]
 fn rejects_empty_prompt() {
-    assert!(normalize_prompt("  ").is_err());
+    assert!(normalize_prompt("  ", LlmMode::Chat).is_err());
 }
 
 #[test]
 fn rejects_long_prompt() {
-    assert!(normalize_prompt(&"x".repeat(MAX_PROMPT_CHARS + 1)).is_err());
+    assert!(normalize_prompt(&"x".repeat(MAX_PROMPT_CHARS + 1), LlmMode::Chat).is_err());
 }
 
 #[test]
 fn accepts_deep_research_sized_prompt() {
-    assert!(normalize_prompt(&"x".repeat(5_000)).is_ok());
+    let prompt = normalize_prompt(&"x".repeat(5_000), LlmMode::Research).unwrap();
+    assert!(prompt.contains("thorough analysis"));
+    assert!(!prompt.contains("and concise"));
 }
 
 #[test]
 fn truncates_output() {
     let output = truncate("x".repeat(MAX_OUTPUT_CHARS + 2), MAX_OUTPUT_CHARS);
     assert_eq!(output.chars().count(), MAX_OUTPUT_CHARS + 3);
+}
+
+#[test]
+fn research_allows_a_larger_output() {
+    let output = truncate(
+        "x".repeat(MAX_RESEARCH_OUTPUT_CHARS + 2),
+        MAX_RESEARCH_OUTPUT_CHARS,
+    );
+    assert_eq!(output.chars().count(), MAX_RESEARCH_OUTPUT_CHARS + 3);
+}
+
+#[test]
+fn recognizes_only_http_loopback_ai_endpoints_as_local() {
+    assert!(is_loopback_base_url("http://localhost:11434/v1"));
+    assert!(is_loopback_base_url("https://127.42.0.8:1234/v1"));
+    assert!(is_loopback_base_url("http://[::1]:11434/v1"));
+    assert!(!is_loopback_base_url("https://remote.example/v1"));
+    assert!(!is_loopback_base_url("http://token@localhost:11434/v1"));
+    assert!(!is_loopback_base_url("file:///tmp/model"));
+    assert!(!is_loopback_base_url("not a URL"));
 }
 
 #[test]
@@ -159,9 +182,48 @@ fn local_openai_compatible_chat_does_not_require_remote_consent() {
     })
     .unwrap();
 
-    let settings = load_ai_runtime_settings(&state, Some("llama3.2")).unwrap();
+    let settings = load_ai_runtime_settings(&state, Some("llama3.2"), None).unwrap();
     assert_eq!(settings.provider_id, "ollama");
     assert_eq!(settings.base_url, "http://localhost:11434/v1");
+
+    database::with_connection(&state, |conn| {
+        conn.execute(
+            "UPDATE ai_settings SET settings = ?1 WHERE id = 1",
+            [r#"{"providerId":"ollama","modelId":"llama3.2","baseUrl":"https://remote.example/v1","allowRemoteHealthContext":false}"#],
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(())
+    })
+    .unwrap();
+    assert!(load_ai_runtime_settings(&state, Some("llama3.2"), None).is_err());
+
+    database::with_connection(&state, |conn| {
+        conn.execute(
+            "UPDATE ai_settings SET settings = ?1 WHERE id = 1",
+            [r#"{"providerId":"ollama","modelId":"llama3.2","baseUrl":"https://remote.example/v1","allowRemoteHealthContext":true}"#],
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(())
+    })
+    .unwrap();
+    assert!(load_ai_runtime_settings(&state, Some("llama3.2"), None).is_ok());
+
+    database::with_connection(&state, |conn| {
+        conn.execute(
+            "UPDATE ai_settings SET settings = ?1 WHERE id = 1",
+            [r#"{"providerId":"custom","modelId":"local-model","baseUrl":"http://127.0.0.1:8080/v1","allowRemoteHealthContext":false}"#],
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(())
+    })
+    .unwrap();
+    assert!(load_ai_runtime_settings(&state, Some("local-model"), None).is_ok());
+    assert!(load_ai_runtime_settings(
+        &state,
+        Some("local-model"),
+        Some(path.with_extension("other").to_string_lossy().as_ref()),
+    )
+    .is_err());
     drop(state);
     let _ = std::fs::remove_file(path);
 }

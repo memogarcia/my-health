@@ -1,6 +1,6 @@
 # Features
 
-This document is the behavior inventory for Me Health Dashboard as of 2026-07-10.
+This document is the behavior inventory for Me Health Dashboard as of 2026-07-11.
 It covers the current renderer and Rust data layer. `DESIGN.md` owns visual and
 interaction rules; `ARCHITECTURE.md` owns technical contracts.
 
@@ -18,22 +18,26 @@ advice, diagnosis, treatment, or emergency triage.
   only error state.
 - Loads the database status before loading the rest of the app.
 - Shows a loading state while the native database state is being prepared.
-- Supports a first-run setup flow for creating a new encrypted database.
-- Supports opening an existing SQLite database through the native file picker.
-- Supports creating a new local database path through the native file picker.
+- Release supports a first-run setup flow for creating a new encrypted database.
+- Release supports opening an existing SQLite database through the native file picker.
+- Release supports creating a new local database path through the native file picker.
 - Supports unlocking an existing database with a passphrase.
 - Requires a minimum passphrase length and validates confirmation during setup
   and migration.
 - Supports migrating an older plaintext local database into encrypted storage.
 - Does not store the SQLCipher passphrase.
 - Resets the active in-memory snapshot when the user switches databases.
-- Configures native menu actions for opening and creating databases.
-- Supports platform-aware keyboard shortcuts in the previous renderer,
-  including settings, new result, and numbered navigation shortcuts.
+- Configures release-only native menu actions for opening and creating databases.
+- Debug always opens the plaintext synthetic mock and disables Lock, Open, New,
+  password controls, and their native shortcuts.
+- Supports platform-aware keyboard shortcuts for settings, new result, and
+  numbered navigation destinations.
 
 ## Local storage and privacy
 
-- Stores records in SQLCipher-encrypted SQLite owned by the Rust backend.
+- Release stores records in SQLCipher-encrypted SQLite owned by the Rust backend.
+- Development stores synthetic fixtures in a plaintext copy-once mock; real
+  health data, documents, and secrets must never be used there.
 - Keeps the active database connection locked until the user unlocks it.
 - Routes renderer mutations through Tauri commands and Rust validation.
 - Uses soft deletion for lab results, symptoms, conditions, regimen items, and
@@ -53,7 +57,7 @@ advice, diagnosis, treatment, or emergency triage.
 - Exports an encrypted SQLCipher copy to a generated local file path.
 - Never stores remote provider API key values in the database. Remote settings
   store the name of an environment variable instead.
-- Allows an LM Studio local server token to be stored in encrypted settings.
+- Allows an LM Studio local server token to be stored in encrypted release settings.
 - Treats health data, reports, prompts, and API credentials as sensitive.
 
 ## Body and organ workspace
@@ -185,18 +189,29 @@ The body workspace is the primary product concept in the existing implementation
 
 ## Daily health context
 
-- Opens a daily-log entry form from the shell, body workspace, or lifestyle
-  area.
+- Opens a daily-log entry form from the shell, body workspace, or timeline.
 - Stores date, activity name, duration in minutes, cigarette count, drink count,
   and notes.
 - Shows saved daily entries in reverse chronological order.
 - Uses a dedicated Daily Log page for adding, editing, and deleting entries.
-- Uses daily entries as local context for lifestyle suggestions and AI prompts.
+- Uses daily entries as local context for AI chat and Deep Research.
 - Keeps daily log data in encrypted user state.
+
+## Diet
+
+- Adds, edits, and deletes dated breakfast, lunch, dinner, and snack entries.
+- Stores a factual food description plus optional timing, appetite, symptom, or
+  comparison notes in local user state.
+- Shows saved meals in reverse chronological order and includes them in the
+  unified health timeline.
+- Includes saved meal context in Chat and Deep Research only through the central
+  provider-consent boundary.
+- Does not infer calories, macros, diagnoses, or dietary treatment.
 
 ## Fasting
 
-- Stores a selected fasting target of 12, 14, 16, or 18 hours.
+- Stores an integer fasting target from 1 through 72 hours, with common targets
+  available as one-click choices.
 - Starts a local fasting timer.
 - Updates elapsed time once per second while active.
 - Prevents changing the target while a fast is active.
@@ -266,14 +281,6 @@ The body workspace is the primary product concept in the existing implementation
 - Deletes a report while keeping linked results when requested.
 - Deletes a report and its linked results when requested.
 - Migrates eligible older sidecar document copies into encrypted report bytes.
-
-### Genetics area
-
-- Provides a genetics report upload area in the current Documents surface.
-- Currently routes supported uploads through the same document result-review
-  flow as other lab/result documents.
-- Does not currently parse raw genotype data or calculate genetic risk scores.
-- Clearly labels future genetics capabilities as future work.
 
 ## Apple Health
 
@@ -349,23 +356,27 @@ The body workspace is the primary product concept in the existing implementation
   each request.
 - Uses five-minute request timeouts and bounded output handling.
 
-## Lifestyle planning and research
+## Deep Research
 
-- Generates local, non-AI lifestyle suggestions from saved records and daily
-  context.
-- Groups local suggestions into categories such as activity, exercise, and
-  breathing.
-- Shows supporting evidence labels and a follow-up priority.
-- Shows a weekly routine based on the local plan.
-- Opens the daily log from the lifestyle surface.
-- Offers an AI refine action when a configured model is available.
-- Provides a combined Research area with Lifestyle and Deep Research tabs.
-- Builds a deep-research brief from the current local context.
-- Shows context coverage counts and data coverage bars.
-- Requires the user to open and review the generated research prompt before
-  starting deep research.
-- Starts deep research as a tracked background job.
-- Labels lifestyle and research output as advisory.
+- Provides a dedicated research page instead of a Lifestyle tab.
+- Accepts a focused user question and a focused or complete depth choice.
+- Shows the exact record categories and counts available to the report.
+- Uses the configured local or remote LLM through the same consent-checked AI
+  boundary as Chat.
+- Runs two model passes: an evidence-map/analysis plan followed by a final
+  report that must verify those draft notes against the original dated records.
+- Gives research requests an 8,192-token provider budget and a 32,000-character
+  saved-output ceiling instead of the smaller chat budget.
+- Skips result and medication prompt drafting so a research question always
+  starts research.
+- Creates a separate `research` conversation, keeps the user on the report page,
+  and saves the resulting Markdown with conversation history.
+- Asks the model to compare exact dates and values, distinguish record evidence
+  from general knowledge, expose uncertainty and data gaps, and finish with
+  clinician-discussion questions.
+- Does not claim web browsing, external sources, diagnosis, treatment, or
+  emergency triage.
+- Starts each run as a tracked background job.
 
 ## Background jobs
 
@@ -426,7 +437,6 @@ The current renderer provides:
 - No automatic medication dosing or clinical decision support.
 - No live iOS HealthKit bridge or background HealthKit delivery yet.
 - No normalized sample display for the current `export.xml` import.
-- No raw genotype parsing or genetic-risk scoring.
 - No automatic acceptance of AI-extracted result rows.
 - No raw API key persistence for remote providers.
 - No storage of the SQLCipher passphrase.

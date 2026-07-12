@@ -1,5 +1,5 @@
 export type DeveloperLogLevel = "info" | "success" | "error";
-export type DeveloperLogArea = "document" | "chat" | "system";
+export type DeveloperLogArea = "document" | "chat" | "research" | "system";
 
 export type DeveloperLog = {
   id: string;
@@ -12,7 +12,7 @@ export type DeveloperLog = {
 
 export type DeveloperLogInput = Pick<DeveloperLog, "level" | "area" | "message" | "detail">;
 
-export type LlmCallKind = "chat" | "document-analysis";
+export type LlmCallKind = "chat" | "research" | "document-analysis";
 export type LlmCallStatus = "running" | "completed" | "failed";
 
 export type LlmCall = {
@@ -41,7 +41,7 @@ export function normalizeDeveloperLog(entry: Partial<DeveloperLog>): DeveloperLo
     id: typeof entry.id === "string" ? entry.id : "",
     createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
     level: entry.level === "success" || entry.level === "error" ? entry.level : "info",
-    area: entry.area === "document" || entry.area === "chat" ? entry.area : "system",
+    area: entry.area === "document" || entry.area === "chat" || entry.area === "research" ? entry.area : "system",
     message: typeof entry.message === "string" ? limitText(entry.message, 180) : "",
     detail: typeof entry.detail === "string" ? limitText(entry.detail, 1200) : "",
   };
@@ -50,7 +50,7 @@ export function normalizeDeveloperLog(entry: Partial<DeveloperLog>): DeveloperLo
 export function normalizeLlmCall(entry: Partial<LlmCall>): LlmCall {
   return {
     id: typeof entry.id === "string" ? entry.id : "",
-    kind: entry.kind === "document-analysis" ? "document-analysis" : "chat",
+    kind: entry.kind === "document-analysis" || entry.kind === "research" ? entry.kind : "chat",
     command: typeof entry.command === "string" ? limitText(entry.command, 80) : "",
     inputLabel: typeof entry.inputLabel === "string" ? limitText(entry.inputLabel, 180) : "",
     modelId: typeof entry.modelId === "string" ? limitText(entry.modelId, 120) : "",

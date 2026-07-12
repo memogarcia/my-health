@@ -7,6 +7,10 @@ export const lifestyleModule: RendererModuleDefinition = {
   commands: [],
   pages: [
     {
+      routeId: "diet",
+      load: () => import("./pages/diet-page"),
+    },
+    {
       routeId: "fasting",
       load: () => import("./pages/fasting-page"),
     },

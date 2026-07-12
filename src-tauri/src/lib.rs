@@ -190,6 +190,8 @@ pub fn run() {
         .setup(|app| {
             let state = database::init_database_state(app)?;
             app.manage(state);
+            let shell_preferences = platform::shell_preferences::init_shell_preferences(app)?;
+            app.manage(shell_preferences);
             #[cfg(target_os = "macos")]
             {
                 let handle = app.handle();
@@ -200,6 +202,8 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_database_status,
+            platform::shell_preferences::get_shell_theme,
+            platform::shell_preferences::set_shell_theme,
             platform::database::select_database,
             platform::database::change_database_password,
             unlock_database,

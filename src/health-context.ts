@@ -55,6 +55,12 @@ export function buildHealthContext(display: DisplaySnapshot, userState: UserStat
       drinks: entry.drinks,
       notes: entry.notes,
     })),
+    dietHistory: userState.dietEntries.map((entry) => ({
+      date: entry.loggedAt,
+      meal: entry.meal,
+      food: entry.title,
+      notes: entry.notes,
+    })),
     fasting: {
       activeStartedAt: userState.fasting.activeStartedAt,
       targetHours: userState.fasting.targetHours,

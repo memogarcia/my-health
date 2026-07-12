@@ -11,6 +11,7 @@ import {
   DEFAULT_CODEX_REASONING_EFFORT,
   getAiProvider,
   isApiKeyEnvVarName,
+  isLoopbackAiBaseUrl,
 } from "../ai-sdk-config";
 import { t } from "../i18n";
 import type { DashboardController } from "../use-dashboard-controller";
@@ -31,7 +32,9 @@ export function AiSettings({ controller }: { controller: DashboardController }) 
   const showApiKeyEnvVar = !showApiToken && provider.kind !== "none" && provider.kind !== "codex-cli";
   const apiKeyEnvVarRequired = provider.kind === "anthropic" || provider.kind === "openai" || provider.kind === "google";
   const apiKeyEnvVarPlaceholder = provider.apiKeyEnvVar || t("settings.ai.apiKeyEnvVarPlaceholder");
-  const showRemoteConsent = hasProviderConfiguration && !provider.local;
+  const staysOnDevice = showBaseUrl && isLoopbackAiBaseUrl(baseUrl);
+  const showRemoteConsent = hasProviderConfiguration && !staysOnDevice;
+  const runtimeStatus = staysOnDevice ? t("aiConfig.status.localLive") : provider.statusLabel;
   const fallbackCodexModels = provider.models.map((item) => ({
     ...item,
     defaultReasoningEffort: DEFAULT_CODEX_REASONING_EFFORT,
@@ -102,7 +105,7 @@ export function AiSettings({ controller }: { controller: DashboardController }) 
     <Card>
       <CardHeader>
         <CardTitle>{t("settings.ai.title")}</CardTitle>
-        <CardDescription>{provider.statusLabel}</CardDescription>
+        <CardDescription>{runtimeStatus}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={(event) => {

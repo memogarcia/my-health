@@ -4,4 +4,5 @@ export type DatabaseStatus = {
   configured: boolean;
   unlocked: boolean;
   hasLegacyPlaintext: boolean;
+  requiresEncryption: boolean;
 };

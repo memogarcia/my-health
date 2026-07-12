@@ -83,6 +83,12 @@ pub const MODULES: &[ModuleDefinition] = &[
         commands: &[],
     },
     ModuleDefinition {
+        id: crate::modules::challenges::MODULE_ID,
+        version: "1.0.0",
+        dependencies: &[],
+        commands: &[],
+    },
+    ModuleDefinition {
         id: crate::modules::assistant::MODULE_ID,
         version: "1.0.0",
         dependencies: &["health-core", "labs", "symptoms", "conditions", "regimen"],
@@ -94,6 +100,8 @@ pub const MODULES: &[ModuleDefinition] = &[
         dependencies: &[],
         commands: &[
             "get_database_status",
+            "get_shell_theme",
+            "set_shell_theme",
             "select_database",
             "unlock_database",
             "lock_database",

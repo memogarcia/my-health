@@ -13,7 +13,8 @@ target or live HealthKit plugin is enabled yet.
 
 - Renderer: React + TypeScript in `src/`.
 - Backend: Rust commands in `src-tauri/src/`.
-- Storage: SQLCipher-encrypted SQLite owned by Rust.
+- Storage: SQLCipher-encrypted SQLite owned by Rust in release; plaintext
+  synthetic mock SQLite in debug.
 - Styling: Tailwind CSS v4 + shadcn primitives.
 - App config: `src-tauri/tauri.conf.json`.
 - Bundle identifier: `app.mehealth.dashboard`.
@@ -245,11 +246,12 @@ The current-to-target ownership map is:
 | `ai_settings` | platform AI gateway | Central provider, consent, and secret-shape policy. |
 | `user_state` profile and anatomy preferences | health-core | Typed profile data; bounded visual preferences may use namespaced module state. |
 | `user_state` body notes | health-core | Normalized body-annotation records shared through read contracts. |
-| `user_state` activity and fasting sessions | lifestyle | Normalized activity and fasting records. |
+| `user_state` activity, diet, and fasting sessions | lifestyle | Normalized daily context, meal, and fasting records. |
 | `user_state` Apple Health import summaries | apple-health | Import history or a projection derived from owned sync data. |
 | `user_state` conversations | assistant | Validated conversation and message records. |
 | `user_state` background jobs | platform jobs | Bounded resumable/interrupted job metadata. |
 | `user_state` developer logs and LLM calls | platform diagnostics | Bounded metadata only; never prompts, results, or secrets. |
+| `user_state` challenges and shortcut preferences | platform/user preferences | Bounded local routine definitions and portable keyboard mappings; no browser persistence. |
 
 Durable medical records, source files, conversations containing health context,
 and recoverable job state move out of the general `user_state` JSON document
@@ -347,8 +349,9 @@ The first extraction should use these ownership boundaries:
 - **documents:** bounded file intake, rendering, extraction, and review; accepted
   lab documents are persisted through the public labs service;
 - **apple-health:** normalized samples, provenance, tombstones, and sync anchors;
-- **lifestyle:** activity, fasting sessions, and breathing tools, with separate
+- **lifestyle:** activity, diet entries, fasting sessions, and breathing tools, with separate
   subdomains if their data or rules grow independently;
+- **challenges:** user-defined time-bound routines and explicit completion state;
 - **assistant:** conversations, research, and recommendations; it requests
   module-approved health context through the platform AI gateway;
 - **platform pages:** database gate, settings shell, privacy controls, and
@@ -408,8 +411,9 @@ The modular migration is complete when:
 
 ## Runtime Flow
 
-1. `app/App.tsx` mounts `DatabaseGate`.
-2. The user selects/unlocks a database.
+1. `app/App.tsx` mounts `DatabaseGate` when the active release database is locked.
+2. The user selects/unlocks a release database. Debug startup instead opens the
+   plaintext synthetic fixture automatically and reports that encryption is not required.
 3. `use-dashboard-controller.ts` owns the transitional app/session state.
 4. UI actions cross `platform/tauri-client.ts` through `invokeCommand()`.
 5. The static renderer module registry resolves the selected page and
@@ -439,10 +443,17 @@ adapters remain platform-owned.
 The release app defaults to `health-dashboard.sqlite3` in the user's Documents
 folder; New Database can choose another `.sqlite3` location. First run creates
 an encrypted database. An old plaintext local database is migrated once.
-Exports are encrypted SQLCipher copies.
+Exports are encrypted SQLCipher copies. A debug build always copies the tracked
+`src-tauri/dev/mock-health-dashboard.sqlite3` fixture into app data once and
+opens that copy as plaintext without a passphrase. The release branch is
+compiled separately and never resolves or opens the mock fixture.
 
 `AppState` holds the active database path and a locked `Option<Connection>`.
-All writes require an unlocked connection.
+All writes require an unlocked connection. `DatabaseStatus.requiresEncryption`
+lets the renderer distinguish a release session from the debug mock. Lock is a
+no-op for that already-open plaintext mock so development cannot fall into an
+unrecoverable passphrase gate. Open/New database actions and their native menu
+are also unavailable in debug, so the session cannot leave the mock database.
 
 Tables:
 
@@ -464,10 +475,10 @@ Tables:
 - `ai_settings`
 - `user_state`
 
-`user_state` stores profile/activity/import/conversation data, including an
+`user_state` stores profile/activity/diet/import/conversation data, including an
 anatomy illustration preference (male or female, independent from demographic
 sex), a metric/imperial measurement-unit display preference, a
-fasting timer and its recent completed sessions, legacy body notes, plus recent
+fasting timer and its recent completed sessions, dated meal entries, legacy body notes, local challenges, shortcut mappings, plus recent
 `backgroundJobs`, `developerLogs`, and `llmCalls` entries. Each job has a kind
 (`document-analysis`, `deep-research`, or `ai-chat`), status, created/finished
 timestamps, optional staged progress, and an error message. Developer entries
@@ -475,7 +486,12 @@ are bounded metadata and truncated errors, not prompt or result payloads. This
 is JSON state, not a new SQLite table or a separate hosted queue. The renderer
 supports update and deletion for daily entries and body notes, deletion for
 completed fasts and Apple Health import summaries, and rename or deletion for
-assistant conversations through the same encrypted state write path.
+assistant conversations through the same encrypted state write path. Meal
+entries store an ISO date, meal kind, factual food description, and optional
+notes. Assistant conversations carry a `chat` or `research` mode; research uses
+a two-pass evidence-map then verified-report workflow with a larger output
+budget and the same provider boundary, but skips record-drafting prompt intake and remains
+on the dedicated report page.
 
 Legacy body notes hold a local surface label, turntable angle, normalized X/Y
 coordinate, note text, and creation timestamp. They are encrypted with the
@@ -489,6 +505,7 @@ Enums:
 - Lab flag: `low`, `normal`, `high`, `unknown`
 - Condition status: `current`, `managed`, `past`
 - Regimen kind: `medication`, `supplement`
+- Diet meal: `breakfast`, `lunch`, `dinner`, `snack`
 - Apple Health sample kind: `quantity`, `category`, `workout`
 
 `lab_results.flag` is derived in Rust from numeric value and reference range.
@@ -562,13 +579,25 @@ Documents and AI:
 
 Settings and user state:
 
+- `get_shell_theme`
+- `set_shell_theme`
 - `get_ai_settings`
 - `save_ai_settings`
 - `get_user_state`
 - `save_user_state`
 
+The native macOS Database menu exposes Open Database, New Database, Close
+Database, and Lock Database. Close and Lock both end the active connection and
+return the renderer to the unlock gate; the separate labels make the two
+security actions discoverable in the native menu.
+
 Inputs use camelCase from the renderer. Rust validates required fields, ISO
 dates, enum values, ranges, and secret-shape rules before writes.
+
+The shell theme is the only preference mirrored outside SQLCipher. Rust stores
+the validated `system`, `light`, or `dark` value in a small unencrypted app-data
+file so a cold-start locked release can render the correct theme without
+opening health data. No health record, AI setting, or secret is stored there.
 
 ## Apple Health Boundary
 
@@ -600,18 +629,22 @@ for the bridge contract and iOS provisioning checklist.
 Provider settings live in `src/ai-sdk-config.ts` and persist in `ai_settings`.
 Remote API key values are never stored; settings store environment-variable
 names for remote providers. LM Studio can store a local server token directly
-in the encrypted settings JSON and Rust uses it as a bearer token when present.
+in the encrypted release settings JSON and Rust uses it as a bearer token when
+present; the synthetic-only debug mock is plaintext.
 
 The live chat execution path is provider-aware through
 `src-tauri/src/codex_cli.rs`. Each request includes its active conversation plus
 the complete dated local health history: lab results, symptoms, conditions,
-regimen, activity, fasting, body notes, Apple Health import coverage, report
+regimen, diet, activity, fasting, body notes, Apple Health import coverage, report
 metadata, organ status, and saved recommendations. Raw report files, local
 paths, database paths, and developer diagnostics are excluded. Codex uses its
 CLI; Anthropic, Gemini, OpenAI, and OpenAI-compatible providers use Rust HTTP
-adapters. Local providers do not require remote-context consent. Remote
-providers require the saved opt-in, and Rust resolves their API keys from
-environment-variable names. LM Studio can use the saved local token directly.
+adapters. Loopback OpenAI-compatible endpoints do not require remote-context
+consent; redirect following is disabled. Every non-loopback endpoint requires
+the saved opt-in, and Rust resolves remote API keys from environment-variable
+names. Each call also carries the expected database path as control metadata,
+so Rust rejects a request if the active database changed before execution.
+LM Studio can use the saved local token directly.
 
 Dropped PDFs and images are sent to Codex only after Rust validates the file,
 the saved provider and model, and the remote-health opt-in. Each request uses a
@@ -643,14 +676,16 @@ Renderer:
   renderer module contract, deterministic catalog validation, and lazy page registry.
 - `modules/<module-id>/index.ts` - public module definitions and page adapters;
   current pages remain compatibility wrappers while domain extraction proceeds.
-  Activity, labs, symptoms, library, assistant, settings, and diagnostics routes
+  Activity, labs, symptoms, documents, diet, regimen, fasting, breathing, challenges,
+  assistant, research, settings, and diagnostics routes
   now resolve through this registry rather than a conditional router.
 - `platform/tauri-client.ts` - the only renderer `invoke()` adapter.
 - `platform/runtime.ts`, `platform/database-status.ts`, `platform/i18n.ts` -
   native runtime, session types, and platform catalog adapters.
 - `use-dashboard-controller.ts` - transitional app/session state, navigation, dialogs, and settings.
 - `use-dashboard-record-actions.ts` - record mutation command wrappers.
-- `dashboard-model.ts` - shared types, organ visuals, snapshot shaping.
+- `dashboard-model.ts` - shared record types, user-state normalization, and snapshot shaping.
+- `navigation.ts`, `body-visuals.ts` - typed sidebar destinations and per-model anatomy hotspot maps.
 - `tauri-runtime.ts` - native-runtime guard.
 - `components/` - pages and UI primitives.
 - `components/ui/date-picker.tsx` - shared ISO-date picker composed from the
@@ -658,8 +693,11 @@ Renderer:
 - `components/job-center.tsx` - persisted document-analysis and AI work queue
   shown in the native app bar.
 - `components/developer-page.tsx` - local Codex call metadata and event log.
-- `components/fasting-page.tsx` - local fasting timer, conservative stage
-  guidance, and reduced-motion-aware breathing practice.
+- `components/fasting-page.tsx` - local fasting timer and conservative stage guidance.
+- `components/breathing-page.tsx` - reduced-motion-aware paced breathing practice.
+- `components/diet-page.tsx` - local meal editor and chronological meal history.
+- `components/deep-research-page.tsx` - scoped LLM research question, progress,
+  context coverage, and saved report surface.
 - `components/body-canvas.tsx` - organ index and the anatomy stage with clickable organ hotspots.
 - `components/organ-inspector.tsx` - selected-organ record: status, counts, recent signals, conditions.
 - `components/charts/` - SVG chart components for labs, symptoms, regimen periods, document coverage, and AI context coverage.
@@ -695,7 +733,8 @@ Backend:
 
 ## Invariants
 
-- Health data stays in encrypted local SQLite.
+- Health data stays in encrypted local SQLite in release builds. Debug builds
+  use only the synthetic plaintext mock fixture and label that state in the shell.
 - Browser-only storage is not used for health records.
 - Apple Health samples, provenance, tombstones, and anchors are not copied into
   developer diagnostics or remote AI context automatically.

@@ -3,6 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 /** Every renderer-to-Rust operation crosses this typed platform boundary. */
 export type TauriCommand =
   | "get_database_status"
+  | "get_shell_theme"
+  | "set_shell_theme"
   | "select_database"
   | "unlock_database"
   | "lock_database"

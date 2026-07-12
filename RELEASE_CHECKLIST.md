@@ -6,8 +6,8 @@ Use this before storing real health records or shipping a build.
 - Run `bun run check`.
 - Run `bun run lint:rust`.
 - Run `bun run tauri:build`.
-- Verify first-run encrypted setup in `bun run tauri:dev` without mock data.
-- Verify optional mock data only with `ME_HEALTH_USE_MOCK_DB=1`.
+- Verify plain `bun run tauri:dev` opens the labelled plaintext synthetic mock without a passphrase.
+- Verify a built release app starts with the encrypted setup flow and cannot resolve the development mock fixture.
 - Confirm AI defaults to Not configured and Codex requires explicit remote-context opt-in.
 - Confirm document imports require manual review of organ, date, status, and value before saving.
 - Confirm edit/delete flows hide deleted records from dashboard counts, trends, prompts, and documents.

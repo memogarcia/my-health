@@ -11,17 +11,19 @@ interface should recede behind that review.
 
 ## Product model
 
-The app has four workspaces rather than a page for every data type.
+The app uses one body-centered shell with direct, task-named destinations.
 
 1. **Overview** uses the body as navigation. Selecting an organ changes the
    health record at the right without leaving the scene.
-2. **Timeline** combines results, symptoms, conditions, regimen changes, and
-   legacy body notes into one chronological record. Daily Log is its own
-   focused page within this workspace.
-3. **Library** keeps source material and guided tools together: health files,
-   regimen, fasting, breathing, and research.
-4. **Assistant** is a conversation workspace. AI is also available from the
-   persistent capture surface where it is useful.
+2. **Timeline** combines results, symptoms, conditions, regimen changes, meals,
+   daily logs, and legacy body notes into one chronological record.
+3. **Documents** imports result files and Apple Health export summaries, then
+   keeps the saved source archive available for review.
+4. **Routines** contains Diet, Medications, Fasting, Breathing, and Challenges as direct
+   destinations. Each page performs one task and writes only its own local data.
+5. **Intelligence** contains Chat and Deep Research. Chat answers questions;
+   Deep Research creates a structured report from a focused question and the
+   complete approved record context.
 
 Settings and developer diagnostics are utilities. They do not compete with the
 health-review workspaces.
@@ -40,17 +42,19 @@ health-review workspaces.
 
 ## Navigation
 
-A 248 px text-labelled sidebar contains Overview, Timeline, Library, and
-Assistant. It follows the quiet, native density of a code workspace while
-retaining the health app's own terminology.
+A 248 px text-labelled sidebar groups direct destinations under Health record,
+Routines, and Intelligence. It follows the quiet, native density of a code
+workspace while retaining the health app's own terminology.
 
 - Each destination has an icon and a visible label. The current workspace uses
   a shallow neutral row fill, never an edge marker or high-chroma container.
-- Settings, diagnostics, and encrypted-local status stay at the bottom.
+- Settings, diagnostics, and the current storage status stay at the bottom.
 - The sidebar, top bar, and page canvas use one neutral background so the shell
   stays continuous. Selected rows and semantic panels provide grouping without
   introducing a second page background.
-- Command-1 through Command-4 map to the four workspaces.
+- Command-1 through Command-4 map to Overview, Timeline, Documents, and Chat.
+- Settings exposes the same shortcuts as editable, persisted preferences with
+  the Command/Control modifier kept portable across operating systems.
 
 ## Layout
 
@@ -82,21 +86,23 @@ context.
 Every routed page renders inside the standard page shell. The shell owns the
 scroll boundary, responsive horizontal gutter, maximum reading width, and
 canvas background. A page may opt into a full-bleed content layout for a
-workspace such as Library or Timeline, but it keeps the same shell plane and
+workspace such as Chat or Timeline, but it keeps the same shell plane and
 height contract.
 
-### Library
-
-Library uses a stable 228 px index and one detail canvas. It does not add page
-navigation to the global rail.
+### Task pages
 
 - Documents uses one two-source intake strip for result documents and Apple
-  Health exports, with a visible file chooser on each source, followed by a
-  saved-file archive.
-- Regimen uses one split composition: editor on the left, history and active
-  items on the right.
-- Settings uses a narrow, single-column preference sheet. Each section keeps
-  its title directly above its fields so controls never clip into a second pane.
+  Health exports, followed by a saved-file archive.
+- Challenges uses a compact definition form beside a local routine list, with
+  completion as an explicit state rather than a health status.
+- Diet and Regimen use one split composition: editor on the left, local history
+  on the right.
+- Fasting keeps the active timer and stage guidance in one view. Breathing keeps
+  technique selection, the paced orb, safety state, and controls in one view.
+- Deep Research keeps the report canvas, visible context coverage, depth choice,
+  and shared AI composer together. Its result remains part of conversation history.
+- Settings uses a narrow preference sheet. Each section keeps its title directly
+  above its fields so controls never clip into a second pane.
 
 ## Visual system
 
@@ -104,7 +110,7 @@ navigation to the global rail.
 
 All colors are OKLCH tokens in `src/styles/foundations.css`.
 
-- The app rail, top bar, and routed page canvas share the same dark,
+- The app rail, top bar, and routed page canvas share the same theme-aware,
   chroma-neutral canvas token with a slight violet bias. Surface tokens are
   reserved for semantic panels, cards, and controls rather than alternate page
   backgrounds.
@@ -112,7 +118,8 @@ All colors are OKLCH tokens in `src/styles/foundations.css`.
   identity marks. The renderer and shadcn primitives use the same berry token.
 - Normal is green, Monitor is amber, and Attention is vermilion.
 - Every health status includes text and position in addition to color.
-- The dark sidebar stays neutral and functional. It never competes with health status colors or primary actions.
+- The sidebar stays neutral and functional in both themes. It never competes
+  with health status colors or primary actions.
 
 ### Typography
 
@@ -136,15 +143,14 @@ All colors are OKLCH tokens in `src/styles/foundations.css`.
 - Opaque content surfaces carry health data.
 - The top bar and sidebar blend into the same canvas without a separator.
   Selected rows and semantic panels provide the visual grouping.
-- The persistent AI composer is a compact inset surface with no outline and a
-  two-pixel-or-less shadow.
+- The persistent AI composer is a compact inset surface with a hairline focus
+  ring and a two-pixel-or-less shadow.
 - Selected list rows use a shallow three-pixel shadow at most.
 - Cards never combine a decorative outline with a wide diffuse shadow.
 
 ### Motion
 
 - Feedback and state transitions run from 120 to 200 ms with ease-out curves.
-- Anatomy rotation communicates the selected body view.
 - Modal capture settles vertically over 180 ms.
 - The breathing orb expands and contracts for the complete inhale or exhale
   duration; pause preserves both the timer and visual phase position.
@@ -160,12 +166,15 @@ anatomy hotspot and right-side record together.
 
 ### Anatomy stage
 
-- Internal and Surface are a two-option segmented control.
-- Organ hotspots expand only for the current selection.
-- Surface mode supports front, right, back, and left controls plus horizontal
-  drag.
-- Exact-area body notes are created only in Surface mode and remain anchored to
-  their saved view.
+- The selected male or female anatomy asset and its hotspot map share one
+  intrinsic 3:2 coordinate plane, so responsive cropping cannot move a dot away
+  from its organ.
+- Localized organ hotspots use health-status color, matching the body index, and
+  expand only for the current selection.
+- Blood, bones, skin, and reproductive health are whole-body systems. They stay
+  selectable in the index but do not claim one misleading point on the image.
+- The anatomy grade changes with the app theme so the bright source illustration
+  does not overpower a dark canvas.
 
 ### Organ record
 
@@ -204,8 +213,8 @@ Timeline; there is no surface capture mode.
 
 - Run `bun run typecheck`, `bun run test`, and `bun run check`.
 - Run `bun run tauri:dev` in the native desktop runtime.
-- Verify Overview, Timeline, all Library sections, Assistant, Settings, and
-  diagnostics with real empty states.
+- Verify Overview, Timeline, Documents, Diet, Medications, Fasting, Breathing,
+  Challenges, Chat, Deep Research, Settings, and diagnostics with real empty states.
 - Verify organ selection, Daily Log, capture dialogs, record management,
   timers, document review, AI enabled and disabled states, keyboard focus,
   reduced motion, and the 820 by 680 minimum window.

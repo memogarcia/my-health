@@ -12,7 +12,7 @@ product
 ## Users
 
 One person reviewing labs, medical-result history, symptoms, conditions,
-medications, and daily health context on a local machine. Not a browser app:
+medications, meals, and daily health context on a local machine. Not a browser app:
 health data lives in local encrypted SQLite owned by the Tauri/Rust backend.
 
 ## Product Purpose
@@ -32,17 +32,24 @@ else supports reading and adding data around it.
 - **Symptoms and conditions** — log severity and dates against an organ.
 - **Daily Log** — keep activity, exposures, and notes in a dedicated
   reverse-chronological page.
+- **Diet** — record meals and factual context, then compare them with symptoms,
+  results, medication changes, fasting, and daily logs on the timeline.
 - **Medications and supplements** — track active and stopped regimen items.
 - **Fasting and breathwork** — save a local fasting timer and recent sessions,
   see conservative stage guidance, and use a short paced-breathing timer. The
   high-intensity Wim Hof option requires an explicit safety acknowledgment and
-  never guides a breath hold.
+ never guides a breath hold.
+- **Challenges** — define short, time-bound personal routines with a concrete
+  measure, dates, notes, and a local completion state.
 - **Documents** — drop a PDF or image, extract draft measurements with the
   configured opt-in AI, review them, then save the source bytes and accepted
   structured results inside encrypted SQLite. Saved reports open their linked
   results for individual or selected-group edits.
-- **Assistant** — advisory AI chat and deep research, gated by an explicit
-  remote-context opt-in.
+- **Chat** — ask advisory questions about the complete dated record.
+- **Deep Research** — give a configured LLM a focused question and receive a
+  structured report with record evidence, uncertainty, data gaps, and
+  clinician-discussion questions. It does not claim web browsing or sources it
+  did not use. Remote providers remain gated by explicit context consent.
 
 ## Brand Personality
 
@@ -72,7 +79,11 @@ Visual specifics (tokens, color, type, motion) live in `DESIGN.md`.
   or an intense breathing practice.
 - Use obviously synthetic sample data only when needed for local UI work.
 - Health data stays local unless the user explicitly opts in to sending specific context to a remote provider; that opt-in is off by default.
-- The database is SQLCipher-encrypted from the first run; remote API keys are referenced by environment-variable name, while a local LM Studio token can be stored in encrypted settings.
+- Release databases are SQLCipher-encrypted from the first run. Debug builds
+  open the tracked plaintext synthetic fixture automatically and never use it
+  for release builds. Remote API keys are referenced by environment-variable
+  name, while a local LM Studio token can be stored in encrypted release
+  settings. The plaintext development mock must use synthetic values only.
 
 The AI boundary and trust model are specified in `ARCHITECTURE.md`.
 
@@ -89,5 +100,6 @@ hero layout, or AI diagnosis surface.
 
 ## Scope Boundaries
 
-- In scope: local organ-scoped tracking, result intake, advisory AI, encrypted export.
+- In scope: local organ-scoped tracking, result intake, diet and routine logs,
+  advisory AI, detailed LLM research, and encrypted export.
 - Out of scope: hosted backend, browser deployment, diagnosis, automated treatment, emergency triage, syncing health data to the cloud by default.

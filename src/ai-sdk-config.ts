@@ -205,12 +205,26 @@ export function hasEnabledAiModel(settings: Pick<AiSettings, "providerId" | "mod
   const hasRequiredApiKeyEnvVar = provider.kind !== "anthropic" && provider.kind !== "openai" && provider.kind !== "google"
     || settings.apiKeyEnvVar.trim() !== "";
   const hasRequiredBaseUrl = provider.kind !== "openai-compatible" || settings.baseUrl.trim() !== "";
+  const staysOnDevice = provider.kind === "openai-compatible" && isLoopbackAiBaseUrl(settings.baseUrl);
   return provider.id !== "none"
     && provider.executionStatus === "live"
     && settings.modelId.trim() !== ""
     && hasRequiredApiKeyEnvVar
     && hasRequiredBaseUrl
-    && (provider.local || settings.allowRemoteHealthContext);
+    && (staysOnDevice || settings.allowRemoteHealthContext);
+}
+
+export function isLoopbackAiBaseUrl(value: string): boolean {
+  try {
+    const url = new URL(value.trim());
+    const host = url.hostname.toLowerCase();
+    return (url.protocol === "http:" || url.protocol === "https:")
+      && url.username === ""
+      && url.password === ""
+      && (host === "localhost" || host === "[::1]" || host === "::1" || /^127(?:\.\d{1,3}){3}$/u.test(host));
+  } catch {
+    return false;
+  }
 }
 
 export function isApiKeyEnvVarName(value: string): boolean {

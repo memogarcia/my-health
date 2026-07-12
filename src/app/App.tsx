@@ -1,16 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Toaster } from "sonner";
 import DatabaseGate from "@/modules/platform-pages/pages/database-gate";
 import { HealthWorkspace } from "@/app/shell";
 import { Icon } from "@/components/icon";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { NavKey } from "@/dashboard-model";
 import { bindDocumentDrop } from "@/document-intake";
 import { configureNativeDatabaseMenu, configureNativeShell } from "@/platform/native-shell";
 import { t } from "@/platform/i18n";
 import { TAURI_ONLY_MESSAGE } from "@/platform/runtime";
-import { resolveTheme } from "@/theme";
+import { applyResolvedTheme, resolveTheme } from "@/theme";
 import { useDashboardController } from "@/use-dashboard-controller";
+import { matchesShortcut } from "@/shortcuts";
 import "@/styles/tailwind.css";
 import "@/styles/foundations.css";
 import "@/styles/app.css";
@@ -19,6 +19,11 @@ import "@/breathing.css";
 export function App() {
   const controller = useDashboardController();
   const controllerRef = useRef(controller);
+  const [colorScheme, setColorScheme] = useState<"light" | "dark">(() => resolveTheme(controller.userState.profile?.theme, {
+    prefersDark: window.matchMedia("(prefers-color-scheme: dark)").matches,
+    prefersContrast: window.matchMedia("(prefers-contrast: more)").matches,
+    forcedColors: window.matchMedia("(forced-colors: active)").matches,
+  }).colorScheme);
 
   useEffect(() => {
     controllerRef.current = controller;
@@ -29,6 +34,7 @@ export function App() {
     configureNativeShell();
     void configureNativeDatabaseMenu({
       lockDatabase: () => controllerRef.current.lockDatabase(),
+      closeDatabase: () => controllerRef.current.closeDatabase(),
       openDatabase: () => controllerRef.current.openDatabaseFile(),
       newDatabase: () => controllerRef.current.newDatabaseFile(),
     }).catch(() => undefined);
@@ -39,7 +45,7 @@ export function App() {
     return bindDocumentDrop(window, controller.prepareDocumentResult);
   }, [controller.databaseStatus, controller.prepareDocumentResult]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const contrastQuery = window.matchMedia("(prefers-contrast: more)");
     const forcedColorsQuery = window.matchMedia("(forced-colors: active)");
@@ -51,11 +57,8 @@ export function App() {
         prefersContrast: contrastQuery.matches,
         forcedColors: forcedColorsQuery.matches,
       });
-      root.classList.toggle("dark", theme.dark);
-      root.classList.toggle("contrast", theme.contrast);
-      root.dataset.theme = theme.colorScheme;
-      root.dataset.contrast = theme.contrast ? "more" : "normal";
-      root.style.colorScheme = theme.colorScheme;
+      applyResolvedTheme(root, theme);
+      setColorScheme(theme.colorScheme);
     }
 
     syncTheme();
@@ -74,37 +77,50 @@ export function App() {
         return;
       }
       const isMac = document.documentElement.dataset.platform === "macos";
-      if (!(isMac ? event.metaKey : event.ctrlKey) || event.altKey) return;
-      const workspaceShortcuts: NavKey[] = ["body", "labs", "documents", "plan"];
-      const nav = /^\d$/u.test(event.key) ? workspaceShortcuts[Number(event.key) - 1] : undefined;
-      if (event.key.toLowerCase() === "l" && !event.shiftKey) {
+      const shortcuts = controller.userState.shortcuts;
+      if (matchesShortcut(event, shortcuts.lockDatabase, isMac)) {
         event.preventDefault();
-        void controller.lockDatabase();
-      } else if (event.key === ",") {
+        if (controller.databaseStatus?.requiresEncryption !== false) void controller.lockDatabase();
+      } else if (matchesShortcut(event, shortcuts.closeDatabase, isMac)) {
+        event.preventDefault();
+        if (controller.databaseStatus?.requiresEncryption !== false) void controller.closeDatabase();
+      } else if (matchesShortcut(event, shortcuts.settings, isMac)) {
         event.preventDefault();
         controller.setSelectedNav("settings");
-      } else if (event.key.toLowerCase() === "n" && !event.shiftKey) {
+      } else if (matchesShortcut(event, shortcuts.newResult, isMac)) {
         event.preventDefault();
         controller.openDialog("lab");
-      } else if (nav) {
+      } else if (matchesShortcut(event, shortcuts.focusPrompt, isMac)) {
         event.preventDefault();
-        controller.setSelectedNav(nav);
+        controller.setSelectedNav("plan");
+      } else if (matchesShortcut(event, shortcuts.overview, isMac)) {
+        event.preventDefault();
+        controller.setSelectedNav("body");
+      } else if (matchesShortcut(event, shortcuts.timeline, isMac)) {
+        event.preventDefault();
+        controller.setSelectedNav("labs");
+      } else if (matchesShortcut(event, shortcuts.documents, isMac)) {
+        event.preventDefault();
+        controller.setSelectedNav("documents");
+      } else if (matchesShortcut(event, shortcuts.chat, isMac)) {
+        event.preventDefault();
+        controller.setSelectedNav("plan");
       }
     }
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [controller.activeDialog, controller.closeDialog, controller.lockDatabase, controller.openDialog, controller.setSelectedNav]);
+  }, [controller.activeDialog, controller.closeDialog, controller.closeDatabase, controller.lockDatabase, controller.openDialog, controller.setSelectedNav, controller.userState.shortcuts]);
 
   if (!controller.hasLoadedOnce) return <LoadingScreen />;
   if (controller.tauriUnavailable) return <DesktopOnlyScreen error={controller.loadError || TAURI_ONLY_MESSAGE} />;
   if (controller.databaseStatus && !controller.databaseStatus.unlocked) {
-    return <><DatabaseGate controller={controller} /><Toaster position="top-center" richColors /></>;
+    return <><DatabaseGate controller={controller} /><Toaster position="top-center" richColors theme={colorScheme} /></>;
   }
 
   return (
     <TooltipProvider delayDuration={350}>
       <HealthWorkspace controller={controller} />
-      <Toaster position="top-center" richColors />
+      <Toaster position="top-center" richColors theme={colorScheme} />
     </TooltipProvider>
   );
 }
@@ -112,6 +128,7 @@ export function App() {
 function LoadingScreen() {
   return (
     <main className="grid min-h-full place-items-center content-center gap-[18px] bg-canvas" aria-label={t("app.loading")}>
+      <div className="fixed inset-x-0 top-0 h-10" data-tauri-drag-region="deep" />
       <span className="grid size-[34px] place-items-center rounded-[11px] bg-primary text-white [corner-shape:superellipse(1.6)] shadow-[0_2px_5px_oklch(0.2_0.08_350/0.2)]"><Icon name="heart" /></span>
       <span className="relative h-[3px] w-16 overflow-hidden rounded-full bg-secondary">
         <span className="absolute left-0 top-0 h-full w-[45%] animate-[loading_1s_var(--ease-out)_infinite_alternate] rounded-full bg-primary" />
@@ -123,6 +140,7 @@ function LoadingScreen() {
 function DesktopOnlyScreen({ error }: { error: string }) {
   return (
     <main className="grid min-h-full place-items-center bg-canvas">
+      <div className="fixed inset-x-0 top-0 h-10" data-tauri-drag-region="deep" />
       <section className="max-w-[520px] rounded-[14px] bg-surface p-8 [corner-shape:superellipse(1.6)] shadow-[var(--shadow-float)]">
         <span className="grid size-[34px] place-items-center rounded-[11px] bg-primary text-white [corner-shape:superellipse(1.6)] shadow-[0_2px_5px_oklch(0.2_0.08_350/0.2)]"><Icon name="lock" /></span>
         <h1 className="mb-2 mt-5 text-2xl">{t("desktop.requiredTitle")}</h1>

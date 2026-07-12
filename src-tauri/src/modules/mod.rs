@@ -1,5 +1,6 @@
 pub mod apple_health;
 pub mod assistant;
+pub mod challenges;
 pub mod conditions;
 pub mod documents;
 pub mod health_core;

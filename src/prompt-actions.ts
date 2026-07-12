@@ -52,7 +52,8 @@ export function makePromptActions(options: PromptActionsOptions) {
   function selectAiConversation(conversationId: string): void {
     const next = setActiveAiConversation(options.userState, conversationId);
     options.setUserState(next);
-    options.setSelectedNav("plan");
+    const conversation = next.aiConversations.find((entry) => entry.id === conversationId);
+    options.setSelectedNav(conversation?.mode === "research" ? "research" : "plan");
     void options.persistUserState(next);
   }
 
@@ -74,6 +75,23 @@ export function makePromptActions(options: PromptActionsOptions) {
   }
 
   async function submitAiPrompt(prompt: string, file?: File, requestedJob?: BackgroundJobInput): Promise<void> {
+    await submitPrompt(prompt, file, requestedJob, "chat");
+  }
+
+  async function submitDeepResearch(prompt: string): Promise<void> {
+    await submitPrompt(prompt, undefined, {
+      kind: "deep-research",
+      title: t("jobs.deepResearch"),
+      description: t("jobs.deepResearchDescription"),
+    }, "research");
+  }
+
+  async function submitPrompt(
+    prompt: string,
+    file: File | undefined,
+    requestedJob: BackgroundJobInput | undefined,
+    mode: "chat" | "research",
+  ): Promise<void> {
     if (options.aiPendingConversationId) {
       toast.info(t("toast.waitForAi"));
       return;
@@ -88,20 +106,22 @@ export function makePromptActions(options: PromptActionsOptions) {
       return;
     }
 
-    const intake = promptIntakeFromText(prompt, { today: todayString(), organKey: options.selectedOrganKey });
-    if (intake.kind === "result") {
-      options.documentIntake.preparePromptResults([intake.result]);
-      toast.info(t("toast.draftedResult"));
-      return;
-    }
-    if (intake.kind === "regimen") {
-      options.setRegimenDraft({ id: newDraftId(), input: intake.input });
-      options.setSelectedNav("medications");
-      toast.info(t("toast.draftedMedication"));
-      return;
+    if (mode === "chat") {
+      const intake = promptIntakeFromText(prompt, { today: todayString(), organKey: options.selectedOrganKey });
+      if (intake.kind === "result") {
+        options.documentIntake.preparePromptResults([intake.result]);
+        toast.info(t("toast.draftedResult"));
+        return;
+      }
+      if (intake.kind === "regimen") {
+        options.setRegimenDraft({ id: newDraftId(), input: intake.input });
+        options.setSelectedNav("medications");
+        toast.info(t("toast.draftedMedication"));
+        return;
+      }
     }
 
-    options.setSelectedNav("plan");
+    options.setSelectedNav(mode === "research" ? "research" : "plan");
     options.setAiPendingConversationId("pending");
     const jobId = options.onJobStart(requestedJob || {
       kind: "ai-chat",
@@ -113,16 +133,17 @@ export function makePromptActions(options: PromptActionsOptions) {
       aiSettings: options.aiSettings,
       display: options.display,
       userState: options.getUserState(),
-      onPending: async (nextState, conversationId, notice) => {
+      mode,
+      onPending: async (nextState, conversationId) => {
         if (!options.isDatabaseCurrent(options.databaseEpoch) || options.isBackgroundJobCancelled(jobId)) return;
         options.setUserState(nextState);
         options.setAiPendingConversationId(conversationId);
-        toast.info(notice);
         await options.persistUserState(nextState);
       },
       onDeveloperLog: options.onDeveloperLog,
       onLlmCallStart: options.onLlmCallStart,
       onLlmCallUpdate: options.onLlmCallUpdate,
+      shouldCancel: () => !options.isDatabaseCurrent(options.databaseEpoch) || options.isBackgroundJobCancelled(jobId),
     });
     if (!options.isDatabaseCurrent(options.databaseEpoch)) {
       options.onJobUpdate(jobId, { status: "failed", error: t("jobs.cancelled") });
@@ -145,7 +166,7 @@ export function makePromptActions(options: PromptActionsOptions) {
     }
   }
 
-  return { deleteAiConversation, renameAiConversation, selectAiConversation, startAiConversation, submitAiPrompt };
+  return { deleteAiConversation, renameAiConversation, selectAiConversation, startAiConversation, submitAiPrompt, submitDeepResearch };
 }
 
 function newDraftId(): string {

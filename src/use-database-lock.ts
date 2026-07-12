@@ -9,6 +9,7 @@ import type { RegimenDraft } from "./prompt-actions";
 
 type DatabaseLockOptions = {
   databaseStatus: DatabaseStatus | null;
+  getUserState: () => UserState;
   databaseEpochRef: MutableRefObject<number>;
   clearDocumentIntake: () => void;
   setActiveDialog: Dispatch<SetStateAction<DialogKey>>;
@@ -27,13 +28,24 @@ type DatabaseLockOptions = {
 export function makeDatabaseLockAction(options: DatabaseLockOptions) {
   async function lockDatabase(): Promise<void> {
     if (!options.databaseStatus?.unlocked) return;
+    if (!options.databaseStatus.requiresEncryption) return;
     try {
       const status = await invokeCommand<DatabaseStatus>("lock_database");
       options.databaseEpochRef.current += 1;
       options.setDatabaseStatus(status);
       options.setSnapshot(null);
       options.setAiSettings(normalizeAiSettings());
-      options.setUserState(normalizeUserState());
+      options.setUserState(normalizeUserState({
+        profile: {
+          age: null,
+          sex: "",
+          anatomyModel: "male",
+          unitSystem: "metric",
+          heightCm: null,
+          weightKg: null,
+          theme: options.getUserState().profile.theme,
+        },
+      }));
       options.setLoadError("");
       options.setSelectedOrganKey("heart");
       options.setSelectedNav("body");

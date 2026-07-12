@@ -13,16 +13,16 @@
   --color-popover: var(--surface);
   --color-popover-foreground: var(--ink);
   --color-primary: var(--accent);
-  --color-primary-foreground: oklch(0.99 0 0);
+  --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--surface-soft);
   --color-secondary-foreground: var(--ink);
   --color-muted: var(--surface-soft);
   --color-muted-foreground: var(--muted);
   --color-accent: var(--accent-soft);
-  --color-accent-foreground: var(--plum-deep);
+  --color-accent-foreground: var(--accent-ink);
   --color-destructive: var(--attention);
   --color-border: var(--hairline);
-  --color-input: var(--quiet);
+  --color-input: var(--hairline);
   --color-ring: var(--focus);
 
   /* raw design surfaces, usable as bg-canvas / bg-surface / text-muted / text-quiet */

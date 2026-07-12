@@ -30,6 +30,9 @@ import { makeBodyNoteActions, type BodyNoteDraft } from "./use-body-notes";
 import { makeFastingActions } from "./use-fasting-actions";
 import { makeDatabaseLockAction } from "./use-database-lock";
 import { makeDatabaseOps } from "./use-database-ops";
+import { makeChallengeActions } from "./use-challenge-actions";
+import { makeDietActions } from "./use-diet-actions";
+import { makeShortcutActions } from "./use-shortcut-actions";
 import { makeUserStateActions } from "./use-user-state-actions";
 export type { BulkResultUpdateInput, ResultInput, SymptomInput };
 type DialogName = Exclude<DialogKey, null>;
@@ -159,7 +162,7 @@ export function useDashboardController() {
     onJobStart: startBackgroundJob,
     onJobUpdate: updateBackgroundJob, isBackgroundJobCancelled: (jobId) => cancelledJobIdsRef.current.has(jobId), onDeveloperLog: recordDeveloperLog, onLlmCallStart: startLlmCall, onLlmCallUpdate: updateLlmCall,
   });
-  const { lockDatabase } = makeDatabaseLockAction({ databaseStatus, databaseEpochRef, clearDocumentIntake: documentIntake.clearDocumentIntake, setActiveDialog, setActiveHistoryTab, setAiPendingConversationId, setAiSettings, setDatabaseStatus, setLoadError, setRegimenDraft, setSelectedNav, setSelectedOrganKey, setSnapshot, setUserState: setUserStateWithRef });
+  const { lockDatabase } = makeDatabaseLockAction({ databaseStatus, databaseEpochRef, getUserState: () => userStateRef.current, clearDocumentIntake: documentIntake.clearDocumentIntake, setActiveDialog, setActiveHistoryTab, setAiPendingConversationId, setAiSettings, setDatabaseStatus, setLoadError, setRegimenDraft, setSelectedNav, setSelectedOrganKey, setSnapshot, setUserState: setUserStateWithRef });
   function openDialog(key: DialogName): void {
     if (key === "activity") setActivityDraft(null);
     setActiveDialog(key);
@@ -204,6 +207,10 @@ export function useDashboardController() {
     return save;
   }
 
+  async function persistShellTheme(theme: UserState["profile"]["theme"]): Promise<void> {
+    await invokeCommand("set_shell_theme", { theme: theme || "system" }).catch(() => undefined);
+  }
+
   async function loadDashboard(currentDatabaseStatus = databaseStatus): Promise<boolean> {
     try {
       const nextSnapshot = await invokeCommand<DashboardSnapshot>("get_dashboard_snapshot");
@@ -235,6 +242,16 @@ export function useDashboardController() {
       try {
         status = await invokeCommand<DatabaseStatus>("get_database_status");
         if (!alive) return;
+        const shellTheme = await invokeCommand<string>("get_shell_theme").catch(() => "system");
+        if (!alive) return;
+        const currentState = userStateRef.current;
+        setUserStateWithRef(normalizeUserState({
+          ...currentState,
+          profile: {
+            ...currentState.profile,
+            theme: shellTheme === "light" || shellTheme === "dark" ? shellTheme : "system",
+          },
+        }));
         setDatabaseStatus(status);
         databasePathRef.current = status.dbPath;
         setHasLoadedOnce(true);
@@ -252,7 +269,11 @@ export function useDashboardController() {
       }
       try {
         const state = await invokeCommand<string>("get_user_state");
-        if (alive) setUserStateWithRef(restoreUserState(JSON.parse(state)));
+        if (alive) {
+          const restored = restoreUserState(JSON.parse(state));
+          setUserStateWithRef(restored);
+          void persistShellTheme(restored.profile.theme);
+        }
       } catch {
         if (alive) setUserStateWithRef(normalizeUserState());
       }
@@ -300,7 +321,9 @@ export function useDashboardController() {
       const settings = await invokeCommand<string>("get_ai_settings").catch(() => "");
       const state = await invokeCommand<string>("get_user_state").catch(() => "");
       setAiSettings(settings ? normalizeAiSettings(JSON.parse(settings)) : normalizeAiSettings());
-      setUserStateWithRef(state ? restoreUserState(JSON.parse(state)) : normalizeUserState());
+      const restored = state ? restoreUserState(JSON.parse(state)) : normalizeUserState();
+      setUserStateWithRef(restored);
+      void persistShellTheme(restored.profile.theme);
       await loadDashboard(status);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : String(error));
@@ -308,6 +331,10 @@ export function useDashboardController() {
   }
 
   async function selectDatabasePath(path: string): Promise<void> {
+    if (databaseStatus?.requiresEncryption === false) {
+      toast.info(t("toast.developmentMockFixed"));
+      return;
+    }
     try {
       const status = await invokeCommand<DatabaseStatus>("select_database", { path });
       databasePathRef.current = status.dbPath;
@@ -348,7 +375,9 @@ export function useDashboardController() {
     const next = normalizeUserState({ ...userState, profile: profileFromForm(form) });
     setUserStateWithRef(next);
     setSelectedNav("settings");
-    if (await persistUserState(next)) toast.success(t("toast.profileSaved"));
+    const saved = await persistUserState(next);
+    await persistShellTheme(next.profile.theme);
+    if (saved) toast.success(t("toast.profileSaved"));
   }
 
   async function saveAiSettings(form: FormData): Promise<void> {
@@ -363,6 +392,7 @@ export function useDashboardController() {
   }
 
   const databaseOps = makeDatabaseOps({ databaseEpochRef, getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState, setLoadError });
+  const challengeActions = makeChallengeActions({ getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState }); const shortcutActions = makeShortcutActions({ getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
   const recordActions = makeRecordActions({
     closeDialog,
     loadDashboard,
@@ -370,6 +400,7 @@ export function useDashboardController() {
   });
   const bodyNoteActions = makeBodyNoteActions({ draft: bodyNoteDraft, setDraft: setBodyNoteDraft, setActiveDialog, getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
   const fastingActions = makeFastingActions({ getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
+  const dietActions = makeDietActions({ getUserState: () => userStateRef.current, setUserState: setUserStateWithRef, persistUserState });
   const userStateActions = makeUserStateActions({ activityDraft, getUserState: () => userStateRef.current, persistUserState, setActiveDialog, setActivityDraft, setUserState: setUserStateWithRef });
   const promptActions = makePromptActions({
     aiPendingConversationId,
@@ -388,7 +419,6 @@ export function useDashboardController() {
     onJobStart: startBackgroundJob,
     onJobUpdate: updateBackgroundJob, isBackgroundJobCancelled: (jobId) => cancelledJobIdsRef.current.has(jobId), onDeveloperLog: recordDeveloperLog, onLlmCallStart: startLlmCall, onLlmCallUpdate: updateLlmCall,
   });
-
   return {
     snapshot,
     display,
@@ -432,12 +462,16 @@ export function useDashboardController() {
     openDatabaseFile,
     newDatabaseFile,
     lockDatabase,
+    closeDatabase: lockDatabase,
     unlockDatabase,
     saveProfile,
     saveAiSettings,
     loadCodexOptions,
     ...recordActions,
     ...userStateActions,
+    ...dietActions,
+    ...challengeActions,
+    ...shortcutActions,
     ...fastingActions,
     ...bodyNoteActions,
     ...databaseOps,
@@ -453,6 +487,7 @@ export function useDashboardController() {
     renameAiConversation: promptActions.renameAiConversation,
     deleteAiConversation: promptActions.deleteAiConversation,
     submitAiPrompt: promptActions.submitAiPrompt,
+    submitDeepResearch: promptActions.submitDeepResearch,
     clearRegimenDraft: () => setRegimenDraft(null),
   };
 }

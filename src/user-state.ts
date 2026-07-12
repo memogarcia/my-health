@@ -1,5 +1,5 @@
 import { todayString } from "./dashboard-format";
-import { normalizeUserState, type ActivityEntry, type BodyNote, type UserProfile, type UserState } from "./dashboard-model";
+import { normalizeUserState, type ActivityEntry, type BodyNote, type DietEntry, type DietMeal, type UserProfile, type UserState } from "./dashboard-model";
 import { isApiKeyEnvVarName, normalizeAiSettings, type AiSettings } from "./ai-sdk-config";
 import { t } from "./i18n";
 
@@ -43,6 +43,20 @@ export function activityFromForm(form: FormData): ActivityEntry {
     activityName,
     durationMinutes: nonNegativeInteger(form, "durationMinutes"),
     notes,
+  };
+}
+
+export function dietEntryFromForm(form: FormData, id = makeId()): DietEntry {
+  const requestedMeal = String(form.get("meal") || "snack");
+  const meal: DietMeal = requestedMeal === "breakfast" || requestedMeal === "lunch" || requestedMeal === "dinner"
+    ? requestedMeal
+    : "snack";
+  return {
+    id,
+    loggedAt: String(form.get("loggedAt") || todayString()),
+    meal,
+    title: String(form.get("title") || "").trim().slice(0, 160),
+    notes: String(form.get("notes") || "").trim(),
   };
 }
 

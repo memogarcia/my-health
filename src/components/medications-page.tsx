@@ -25,16 +25,20 @@ export function MedicationsPage({ controller }: { controller: DashboardControlle
   const stopped = items.filter((item) => !item.active);
 
   return (
-    <div className="grid items-start gap-8 max-w-6xl mx-auto py-8 px-4 xl:grid-cols-[380px_minmax(0,1fr)] animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+    <div className="mx-auto grid w-full max-w-6xl items-start gap-7 px-8 py-7 xl:grid-cols-[360px_minmax(0,1fr)] max-[880px]:px-5">
+      <header className="border-b border-border/55 pb-5 xl:col-span-2">
+        <h1 className="text-[1.35rem] font-semibold tracking-[-0.025em] text-ink">{t("nav.medications.label")}</h1>
+        <p className="mt-1.5 max-w-[64ch] text-sm leading-relaxed text-muted-ink">{t("nav.medications.description")}</p>
+      </header>
       <AddRegimenForm controller={controller} />
-      <section className="grid gap-6 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-150 ease-out fill-mode-both" aria-label={t("medications.listLabel")}>
+      <section className="grid gap-5" aria-label={t("medications.listLabel")}>
         <RegimenSummary activeCount={active.length} stoppedCount={stopped.length} />
-        <div className="overflow-hidden rounded-2xl border border-border/50 bg-surface/30 p-4 shadow-sm backdrop-blur-md">
+        <div className="overflow-hidden rounded-xl bg-surface p-4">
           <RegimenTimeline items={items} />
         </div>
         {items.length === 0 ? (
-          <Empty className="min-h-48 rounded-2xl border border-dashed border-border/50 bg-surface/20 backdrop-blur-sm transition-all hover:bg-surface/40">
-            <EmptyMedia variant="icon"><Pill className="text-muted-ink drop-shadow-md" /></EmptyMedia>
+          <Empty className="min-h-48 bg-transparent">
+            <EmptyMedia variant="icon"><Pill className="text-muted-ink" /></EmptyMedia>
             <EmptyHeader>
               <EmptyTitle className="text-ink font-medium tracking-tight">{t("medications.emptyTitle")}</EmptyTitle>
               <EmptyDescription className="text-muted-ink">{t("medications.emptyDescription")}</EmptyDescription>
@@ -53,88 +57,93 @@ export function MedicationsPage({ controller }: { controller: DashboardControlle
 
 function AddRegimenForm({ controller }: { controller: DashboardController }) {
   const draft = controller.regimenDraft?.input;
+  const [saving, setSaving] = useState(false);
   return (
-    <Card className="xl:sticky xl:top-6 overflow-hidden border border-border/60 bg-surface/60 shadow-lg backdrop-blur-xl rounded-3xl transition-all duration-300 hover:shadow-xl hover:bg-surface/80">
+    <Card className="overflow-hidden xl:sticky xl:top-0">
       <CardHeader className="pb-4 pt-6 px-6">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-xl font-semibold tracking-tight text-ink">{t("medications.addTitle")}</CardTitle>
+            <CardTitle>{t("medications.addTitle")}</CardTitle>
             <CardDescription className="text-sm mt-1 text-muted-ink">{draft ? t("medications.draftDescription") : t("medications.defaultDescription")}</CardDescription>
           </div>
-          <Badge variant="secondary" className="bg-secondary/50 text-xs font-medium text-ink shadow-sm backdrop-blur-md">{t("medications.localOnly")}</Badge>
+          <Badge variant="secondary" className="text-xs font-medium">{t("medications.localOnly")}</Badge>
         </div>
       </CardHeader>
       <CardContent className="px-6 pb-6">
         <form key={controller.regimenDraft?.id || "blank"} onSubmit={(event) => {
           event.preventDefault();
+          if (saving) return;
           const formElement = event.currentTarget;
-          void controller.addRegimenItem(regimenInputFromForm(new FormData(formElement))).then((saved) => {
-            if (saved) formElement.reset();
-          });
+          setSaving(true);
+          void controller.addRegimenItem(regimenInputFromForm(new FormData(formElement)))
+            .then((saved) => {
+              if (saved) formElement.reset();
+            })
+            .finally(() => setSaving(false));
         }}>
           <FieldGroup className="gap-5">
             {draft ? (
-              <div className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary shadow-inner">
+              <div className="rounded-lg bg-accent px-4 py-3 text-sm text-accent-ink">
                 {t("medications.draftReady")}
               </div>
             ) : null}
             <div className="grid gap-5 sm:grid-cols-[0.8fr_1.2fr]">
               <Field>
-                <FieldLabel className="text-xs font-medium uppercase tracking-wider text-muted-ink" htmlFor="regimen-kind">{t("medications.kind")}</FieldLabel>
+                <FieldLabel htmlFor="regimen-kind">{t("medications.kind")}</FieldLabel>
                 <Select name="kind" defaultValue={draft?.kind || "supplement"}>
-                  <SelectTrigger aria-describedby="regimen-kind-description" className="w-full rounded-xl bg-canvas/50 transition-colors hover:bg-canvas/80 focus:ring-2 focus:ring-primary/20" id="regimen-kind"><SelectValue /></SelectTrigger>
-                  <SelectContent className="rounded-xl border-border/50 bg-surface/90 backdrop-blur-xl">
+                  <SelectTrigger aria-describedby="regimen-kind-description" className="w-full" id="regimen-kind"><SelectValue /></SelectTrigger>
+                  <SelectContent>
                     <SelectGroup>
-                      <SelectItem value="medication" className="rounded-lg cursor-pointer">{t("medications.kind.medication")}</SelectItem>
-                      <SelectItem value="supplement" className="rounded-lg cursor-pointer">{t("medications.kind.supplement")}</SelectItem>
+                      <SelectItem value="medication">{t("medications.kind.medication")}</SelectItem>
+                      <SelectItem value="supplement">{t("medications.kind.supplement")}</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
                 <FieldDescription className="text-[11px]" id="regimen-kind-description">{t("medications.kindDescription")}</FieldDescription>
               </Field>
               <Field>
-                <FieldLabel className="text-xs font-medium uppercase tracking-wider text-muted-ink" htmlFor="regimen-name">{t("medications.name")}</FieldLabel>
-                <Input className="rounded-xl bg-canvas/50 transition-all hover:bg-canvas/80 focus:bg-canvas focus:ring-2 focus:ring-primary/20" id="regimen-name" name="name" placeholder={t("medications.placeholder.name")} defaultValue={draft?.name || ""} required />
+                <FieldLabel htmlFor="regimen-name">{t("medications.name")}</FieldLabel>
+                <Input id="regimen-name" name="name" placeholder={t("medications.placeholder.name")} defaultValue={draft?.name || ""} required />
               </Field>
             </div>
             <div className="grid gap-5 sm:grid-cols-3">
               <Field>
-                <FieldLabel className="text-xs font-medium uppercase tracking-wider text-muted-ink" htmlFor="regimen-dose">{t("medications.dose")}</FieldLabel>
-                <Input className="rounded-xl bg-canvas/50 transition-all hover:bg-canvas/80 focus:bg-canvas focus:ring-2 focus:ring-primary/20" id="regimen-dose" name="dose" placeholder={t("medications.placeholder.dose")} defaultValue={draft?.dose || ""} />
+                <FieldLabel htmlFor="regimen-dose">{t("medications.dose")}</FieldLabel>
+                <Input id="regimen-dose" name="dose" placeholder={t("medications.placeholder.dose")} defaultValue={draft?.dose || ""} />
               </Field>
               <Field>
-                <FieldLabel className="text-xs font-medium uppercase tracking-wider text-muted-ink" htmlFor="regimen-unit">{t("medications.unit")}</FieldLabel>
-                <Input className="rounded-xl bg-canvas/50 transition-all hover:bg-canvas/80 focus:bg-canvas focus:ring-2 focus:ring-primary/20" id="regimen-unit" name="unit" placeholder={t("medications.placeholder.unit")} defaultValue={draft?.unit || ""} />
+                <FieldLabel htmlFor="regimen-unit">{t("medications.unit")}</FieldLabel>
+                <Input id="regimen-unit" name="unit" placeholder={t("medications.placeholder.unit")} defaultValue={draft?.unit || ""} />
               </Field>
               <Field>
-                <FieldLabel className="text-xs font-medium uppercase tracking-wider text-muted-ink" htmlFor="regimen-frequency">{t("medications.frequency")}</FieldLabel>
-                <Input className="rounded-xl bg-canvas/50 transition-all hover:bg-canvas/80 focus:bg-canvas focus:ring-2 focus:ring-primary/20" id="regimen-frequency" name="frequency" placeholder={t("medications.placeholder.frequency")} defaultValue={draft?.frequency || ""} />
+                <FieldLabel htmlFor="regimen-frequency">{t("medications.frequency")}</FieldLabel>
+                <Input id="regimen-frequency" name="frequency" placeholder={t("medications.placeholder.frequency")} defaultValue={draft?.frequency || ""} />
               </Field>
             </div>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field>
-                <FieldLabel className="text-xs font-medium uppercase tracking-wider text-muted-ink" htmlFor="regimen-start">{t("medications.startDate")}</FieldLabel>
-                <DatePicker id="regimen-start" name="startDate" defaultValue={draft?.startDate || ""} clearable className="rounded-xl" />
+                <FieldLabel htmlFor="regimen-start">{t("medications.startDate")}</FieldLabel>
+                <DatePicker id="regimen-start" name="startDate" defaultValue={draft?.startDate || ""} clearable />
               </Field>
               <Field>
-                <FieldLabel className="text-xs font-medium uppercase tracking-wider text-muted-ink" htmlFor="regimen-stop">{t("medications.stopDate")}</FieldLabel>
-                <DatePicker ariaDescribedBy="regimen-stop-description" id="regimen-stop" name="stopDate" defaultValue={draft?.stopDate || ""} clearable className="rounded-xl" />
+                <FieldLabel htmlFor="regimen-stop">{t("medications.stopDate")}</FieldLabel>
+                <DatePicker ariaDescribedBy="regimen-stop-description" id="regimen-stop" name="stopDate" defaultValue={draft?.stopDate || ""} clearable />
                 <FieldDescription className="text-[11px]" id="regimen-stop-description">{t("medications.stopDescription")}</FieldDescription>
               </Field>
             </div>
             <Field>
-              <FieldLabel className="text-xs font-medium uppercase tracking-wider text-muted-ink" htmlFor="regimen-reason">{t("medications.reason")}</FieldLabel>
-              <Input className="rounded-xl bg-canvas/50 transition-all hover:bg-canvas/80 focus:bg-canvas focus:ring-2 focus:ring-primary/20" id="regimen-reason" name="reason" placeholder={t("medications.placeholder.reason")} defaultValue={draft?.reason || ""} />
+              <FieldLabel htmlFor="regimen-reason">{t("medications.reason")}</FieldLabel>
+              <Input id="regimen-reason" name="reason" placeholder={t("medications.placeholder.reason")} defaultValue={draft?.reason || ""} />
             </Field>
             <Field>
-              <FieldLabel className="text-xs font-medium uppercase tracking-wider text-muted-ink" htmlFor="regimen-notes">{t("common.notes")}</FieldLabel>
-              <Textarea className="min-h-[80px] rounded-xl bg-canvas/50 transition-all hover:bg-canvas/80 focus:bg-canvas focus:ring-2 focus:ring-primary/20" id="regimen-notes" name="notes" placeholder={t("medications.placeholder.notes")} defaultValue={draft?.notes || ""} />
+              <FieldLabel htmlFor="regimen-notes">{t("common.notes")}</FieldLabel>
+              <Textarea className="min-h-[80px]" id="regimen-notes" name="notes" placeholder={t("medications.placeholder.notes")} defaultValue={draft?.notes || ""} />
             </Field>
             <div className="mt-2 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border/40 pt-5">
               <p className="max-w-[200px] text-xs text-muted-ink/80 leading-relaxed">{t("medications.savedLocal")}</p>
               <div className="flex w-full sm:w-auto gap-3">
-                {draft ? <Button type="button" variant="ghost" className="rounded-xl hover:bg-secondary/60 transition-colors" onClick={controller.clearRegimenDraft}>{t("common.clear")}</Button> : null}
-                <Button type="submit" className="w-full sm:w-auto rounded-xl shadow-md transition-transform active:scale-95"><Plus className="mr-1.5 size-4" /> {t("medications.saveItem")}</Button>
+                {draft ? <Button type="button" variant="ghost" onClick={controller.clearRegimenDraft}>{t("common.clear")}</Button> : null}
+                <Button disabled={saving} type="submit" className="w-full sm:w-auto"><Plus className="mr-1.5 size-4" /> {t("medications.saveItem")}</Button>
               </div>
             </div>
           </FieldGroup>
@@ -146,16 +155,9 @@ function AddRegimenForm({ controller }: { controller: DashboardController }) {
 
 function RegimenSummary({ activeCount, stoppedCount }: { activeCount: number; stoppedCount: number }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <div className="group relative overflow-hidden rounded-2xl border border-border/50 bg-gradient-to-br from-surface/80 to-surface/40 px-5 py-4 shadow-sm backdrop-blur-xl transition-all hover:shadow-md hover:border-border/80">
-        <div className="absolute -right-4 -top-4 size-24 rounded-full bg-primary/5 blur-2xl transition-all group-hover:bg-primary/10"></div>
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-ink">{t("medications.active")}</p>
-        <strong className="mt-1 block text-3xl font-semibold tracking-tight text-ink tnum drop-shadow-sm">{formatCount(activeCount)}</strong>
-      </div>
-      <div className="group relative overflow-hidden rounded-2xl border border-border/30 bg-surface/20 px-5 py-4 shadow-sm backdrop-blur-md transition-all hover:bg-surface/30 hover:border-border/50">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-ink">{t("medications.stopped")}</p>
-        <strong className="mt-1 block text-3xl font-semibold tracking-tight text-muted-ink tnum">{formatCount(stoppedCount)}</strong>
-      </div>
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-border/55 py-3">
+      <p className="text-xs text-muted-ink"><strong className="mr-1.5 text-sm tabular-nums text-ink">{activeCount}</strong>{t("medications.active")}</p>
+      <p className="text-xs text-muted-ink"><strong className="mr-1.5 text-sm tabular-nums text-ink">{stoppedCount}</strong>{t("medications.stopped")}</p>
     </div>
   );
 }
@@ -182,57 +184,54 @@ function RegimenItemRow({ controller, item, muted }: { controller: DashboardCont
   if (dose) facts.push([t("medications.fact.dose"), dose]);
   if (item.frequency) facts.push([t("medications.fact.when"), item.frequency]);
   if (dateRange) facts.push([t("medications.fact.dates"), dateRange]);
-  
+
   if (editing) {
     return <RegimenEditForm controller={controller} item={item} onCancel={() => setEditing(false)} />;
   }
-  
+
   return (
-    <div className={cn(
-      "group relative overflow-hidden rounded-2xl border border-border/50 bg-surface/50 p-4 shadow-sm backdrop-blur-xl transition-all duration-300 hover:shadow-md hover:bg-surface/70 hover:border-border/80", 
-      muted && "bg-surface/20 border-border/20 opacity-80 hover:opacity-100 grayscale-[0.2]"
-    )}>
+    <div className={cn("group rounded-xl bg-surface p-4", muted && "bg-secondary/45 text-muted-ink")}>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3.5">
-          <div className={cn("mt-0.5 grid size-10 shrink-0 place-items-center rounded-xl shadow-inner transition-colors", item.kind === "medication" ? "bg-primary/10 text-primary" : "bg-secondary text-ink")}>
+          <div className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg", item.kind === "medication" ? "bg-accent text-accent-ink" : "bg-secondary text-ink")}>
             <Pill className="size-5" />
           </div>
           <div className="min-w-0">
-            <strong className="block truncate text-base font-medium tracking-tight text-ink drop-shadow-sm">{item.name}</strong>
+            <strong className="block truncate text-sm font-semibold text-ink">{item.name}</strong>
             <div className="mt-1.5 flex flex-wrap gap-2">
-              <Badge variant={item.kind === "medication" ? "default" : "secondary"} className="rounded-md font-medium px-2 py-0.5 text-[10px] uppercase tracking-wider backdrop-blur-sm">
+              <Badge variant={item.kind === "medication" ? "default" : "secondary"} className="rounded-md px-2 py-0.5 text-[10px] font-medium">
                 {item.kind === "medication" ? t("medications.kind.medication") : t("medications.kind.supplement")}
               </Badge>
-              <Badge variant={item.active ? "outline" : "secondary"} className="rounded-md font-medium px-2 py-0.5 text-[10px] uppercase tracking-wider bg-canvas/40 backdrop-blur-sm">
+              <Badge variant={item.active ? "outline" : "secondary"} className="rounded-md px-2 py-0.5 text-[10px] font-medium">
                 {item.active ? t("medications.active") : t("medications.stopped")}
               </Badge>
             </div>
           </div>
         </div>
       </div>
-      
+
       {facts.length ? (
         <dl className="mt-4 grid gap-2 sm:grid-cols-3">
           {facts.map(([label, value]) => (
-            <div className="rounded-xl border border-border/30 bg-canvas/30 px-3 py-2 backdrop-blur-sm transition-colors group-hover:bg-canvas/50" key={label}>
-              <dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-ink/80">{label}</dt>
-              <dd className="mt-0.5 truncate text-sm font-medium text-ink tnum drop-shadow-sm">{value}</dd>
+            <div className="rounded-lg bg-secondary/60 px-3 py-2" key={label}>
+              <dt className="text-[10px] font-medium text-muted-ink">{label}</dt>
+              <dd className="mt-0.5 truncate text-xs font-semibold text-ink tnum">{value}</dd>
             </div>
           ))}
         </dl>
       ) : null}
-      
+
       {item.reason ? (
         <p className="mt-4 text-sm text-muted-ink">
-          <span className="font-semibold text-ink drop-shadow-sm">{t("medications.reasonLabel")}</span> {item.reason}
+          <span className="font-semibold text-ink">{t("medications.reasonLabel")}</span> {item.reason}
         </p>
       ) : null}
-      
+
       {item.notes ? (
-        <p className="mt-3 text-sm leading-relaxed text-muted-ink/90 italic border-l-2 border-primary/20 pl-3">{item.notes}</p>
+        <p className="mt-3 rounded-lg bg-secondary/55 px-3 py-2 text-sm leading-relaxed text-muted-ink">{item.notes}</p>
       ) : null}
-      
-      <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-border/30 pt-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100 sm:opacity-100">
+
+      <div className="mt-4 flex flex-wrap justify-end gap-1 border-t border-border/45 pt-3">
         <Button type="button" size="sm" variant="ghost" className="h-8 rounded-lg px-3 hover:bg-secondary/60 text-xs font-medium" onClick={() => setEditing(true)}>
           <Pencil className="mr-1.5 size-3.5" />{t("common.edit")}
         </Button>

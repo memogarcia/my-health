@@ -1,10 +1,5 @@
 use super::*;
-use std::{
-    sync::Mutex,
-    time::{SystemTime, UNIX_EPOCH},
-};
-
-static ENV_LOCK: Mutex<()> = Mutex::new(());
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
 fn encrypted_database_is_not_plaintext_and_rejects_wrong_passphrase() {
@@ -149,27 +144,9 @@ fn lock_database_closes_the_active_connection() {
 }
 
 #[test]
-fn dev_database_state_defaults_to_encrypted_setup() {
-    let _guard = ENV_LOCK.lock().unwrap();
-    let dir = temp_dir_path("dev-default");
-    fs::create_dir_all(&dir).unwrap();
-    std::env::remove_var("ME_HEALTH_USE_MOCK_DB");
-
-    let state = init_dev_database_state(&dir).unwrap();
-    let status = state.status();
-
-    assert_eq!(status.state, "needsSetup");
-    assert!(!status.unlocked);
-    assert!(with_connection(&state, |_| Ok(())).is_err());
-    let _ = fs::remove_dir_all(dir);
-}
-
-#[test]
-fn dev_database_state_opens_plaintext_mock_database_when_enabled() {
-    let _guard = ENV_LOCK.lock().unwrap();
+fn dev_database_state_always_opens_plaintext_mock_database() {
     let dir = temp_dir_path("dev-mock");
     fs::create_dir_all(&dir).unwrap();
-    std::env::set_var("ME_HEALTH_USE_MOCK_DB", "1");
 
     let state = init_dev_database_state(&dir).unwrap();
     let status = state.status();
@@ -177,6 +154,7 @@ fn dev_database_state_opens_plaintext_mock_database_when_enabled() {
     assert_eq!(status.state, "unlocked");
     assert!(status.configured);
     assert!(!status.has_legacy_plaintext);
+    assert!(!status.requires_encryption);
     assert!(is_plaintext_sqlite(&PathBuf::from(&status.db_path)));
     with_connection(&state, |conn| {
         let count: i64 = conn
@@ -186,7 +164,11 @@ fn dev_database_state_opens_plaintext_mock_database_when_enabled() {
         Ok(())
     })
     .unwrap();
-    std::env::remove_var("ME_HEALTH_USE_MOCK_DB");
+    assert!(lock_database(&state).unwrap().unlocked);
+    let alternate = dir.join("alternate.sqlite3");
+    assert!(select_database_path(&state, alternate.to_string_lossy().as_ref()).is_err());
+    assert_eq!(state.status().db_path, status.db_path);
+    assert!(!alternate.exists());
     let _ = fs::remove_dir_all(dir);
 }
 

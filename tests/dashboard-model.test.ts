@@ -150,7 +150,7 @@ test("normalizeUserState restores a bounded local fasting timer and history", ()
 
   assert.equal(state.fasting.activeStartedAt, "2026-07-10T00:00:00.000Z");
   assert.equal(state.fasting.targetHours, 16);
-  assert.equal(state.fasting.sessions[0].targetHours, 12);
+  assert.equal(state.fasting.sessions[0].targetHours, 4);
 });
 
 test("normalizeUserState drops invalid fasting timestamps and impossible sessions", () => {
@@ -163,7 +163,7 @@ test("normalizeUserState drops invalid fasting timestamps and impossible session
   });
 
   assert.equal(state.fasting.activeStartedAt, "");
-  assert.equal(state.fasting.targetHours, 16);
+  assert.equal(state.fasting.targetHours, 13);
   assert.deepEqual(state.fasting.sessions, []);
 });
 
@@ -187,4 +187,15 @@ test("normalizeUserState falls back to the most recent thread only for a stale a
     aiConversations: [{ id: "chat-a", title: "Old thread", createdAt: "2026-07-01", updatedAt: "2026-07-01", messages: [] }],
   });
   assert.equal(missing.activeAiConversationId, "chat-a");
+});
+
+test("normalizeUserState validates persisted diet entries", () => {
+  const state = normalizeUserState({
+    dietEntries: [
+      { id: "meal-1", loggedAt: "2026-07-11", meal: "lunch", title: "  Synthetic meal  ", notes: " note " },
+      { id: "meal-2", loggedAt: "", meal: "snack", title: "Invalid", notes: "" },
+    ],
+  });
+
+  assert.deepEqual(state.dietEntries, [{ id: "meal-1", loggedAt: "2026-07-11", meal: "lunch", title: "Synthetic meal", notes: "note" }]);
 });

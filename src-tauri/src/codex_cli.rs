@@ -1,20 +1,28 @@
 use crate::database::{self, AppState};
 use rusqlite::OptionalExtension;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::{
     path::{Path, PathBuf},
     process::Command,
     time::Duration,
 };
+#[path = "ai_runtime.rs"]
+mod ai_runtime;
 pub(crate) mod document_analysis;
 #[path = "llm_http.rs"]
 mod llm_http;
+#[path = "llm_mode.rs"]
+mod llm_mode;
 mod process;
+#[cfg(test)]
+use ai_runtime::is_loopback_base_url;
+use ai_runtime::load_ai_runtime_settings;
 use llm_http::{run_http_provider, AiRuntimeSettings};
+#[cfg(test)]
+use llm_mode::MAX_RESEARCH_OUTPUT_CHARS;
+use llm_mode::{LlmMode, LlmRequestOptions, MAX_OUTPUT_CHARS};
 use process::{codex_bin, run_command_with_timeout, CodexWorkspace};
 const MAX_PROMPT_CHARS: usize = 240_000;
-const MAX_OUTPUT_CHARS: usize = 8_000;
 const CODEX_TIMEOUT: Duration = Duration::from_secs(300);
 const CODEX_MODEL_CATALOG_TIMEOUT: Duration = Duration::from_secs(20);
 #[derive(Deserialize)]
@@ -23,7 +31,11 @@ pub struct AskLlmInput {
     prompt: String,
     model_id: Option<String>,
     reasoning_effort: Option<String>,
+    db_path: String,
+    #[serde(default)]
+    mode: LlmMode,
 }
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodexOptions {
@@ -51,6 +63,7 @@ struct CodexRunOptions {
     image_paths: Vec<PathBuf>,
     output_schema_path: Option<PathBuf>,
     output_limit: usize,
+    mode: LlmMode,
 }
 impl CodexRunOptions {
     fn from_parts(model_id: Option<String>, reasoning_effort: Option<String>) -> Self {
@@ -60,6 +73,7 @@ impl CodexRunOptions {
             image_paths: Vec::new(),
             output_schema_path: None,
             output_limit: MAX_OUTPUT_CHARS,
+            mode: LlmMode::Chat,
         }
     }
 }
@@ -69,9 +83,14 @@ pub async fn ask_llm(
     app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
-    let settings = load_ai_runtime_settings(&state, input.model_id.as_deref())?;
+    let settings = load_ai_runtime_settings(
+        &state,
+        input.model_id.as_deref(),
+        Some(input.db_path.as_str()),
+    )?;
+    let mode = input.mode;
     tauri::async_runtime::spawn_blocking(move || {
-        run_llm(input.prompt, &app, settings, input.reasoning_effort)
+        run_llm(input.prompt, &app, settings, input.reasoning_effort, mode)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -81,16 +100,17 @@ fn run_llm(
     app: &tauri::AppHandle,
     settings: AiRuntimeSettings,
     reasoning_effort: Option<String>,
+    mode: LlmMode,
 ) -> Result<String, String> {
+    let request_options = mode.request_options();
     if settings.provider_id == "codex" {
-        return run_codex(
-            prompt,
-            app,
-            CodexRunOptions::from_parts(Some(settings.model_id), reasoning_effort),
-        );
+        let mut options = CodexRunOptions::from_parts(Some(settings.model_id), reasoning_effort);
+        options.output_limit = request_options.output_limit;
+        options.mode = mode;
+        return run_codex(prompt, app, options);
     }
-    let prompt = normalize_prompt(&prompt)?;
-    run_http_provider(&settings, &prompt)
+    let prompt = normalize_prompt(&prompt, mode)?;
+    run_http_provider(&settings, &prompt, request_options)
 }
 
 #[tauri::command]
@@ -112,7 +132,7 @@ fn run_codex_in_workspace(
     workspace: &Path,
     options: CodexRunOptions,
 ) -> Result<String, String> {
-    let prompt = normalize_prompt(&prompt)?;
+    let prompt = normalize_prompt(&prompt, options.mode)?;
     let output = run_command_with_timeout(
         codex_exec_command(workspace, &options),
         CODEX_TIMEOUT,
@@ -290,7 +310,7 @@ fn clean_reasoning_effort(value: Option<String>) -> Option<String> {
         _ => None,
     }
 }
-fn normalize_prompt(prompt: &str) -> Result<String, String> {
+fn normalize_prompt(prompt: &str, mode: LlmMode) -> Result<String, String> {
     let prompt = prompt.trim();
     if prompt.is_empty() {
         return Err("Prompt is required".into());
@@ -300,9 +320,12 @@ fn normalize_prompt(prompt: &str) -> Result<String, String> {
             "Prompt must be {MAX_PROMPT_CHARS} characters or fewer"
         ));
     }
-    Ok(format!(
-        "You are helping with a personal health dashboard. Keep the answer advisory, non-diagnostic, and concise.\n\n{prompt}"
-    ))
+    let instruction = if mode == LlmMode::Research {
+        "You are conducting a thorough analysis for a personal health dashboard. Produce a detailed, structured report grounded in the supplied dated records. Keep it advisory and non-diagnostic, distinguish evidence from hypotheses, and state uncertainty clearly."
+    } else {
+        "You are helping with a personal health dashboard. Keep the answer advisory, non-diagnostic, and concise."
+    };
+    Ok(format!("{instruction}\n\n{prompt}"))
 }
 
 fn ensure_remote_ai_allowed(state: &AppState, requested_model: Option<&str>) -> Result<(), String> {
@@ -337,96 +360,6 @@ fn ensure_remote_ai_allowed(state: &AppState, requested_model: Option<&str>) -> 
             return Err("The requested model does not match the saved AI settings.".into());
         }
         Ok(())
-    })
-}
-
-fn load_ai_runtime_settings(
-    state: &AppState,
-    requested_model: Option<&str>,
-) -> Result<AiRuntimeSettings, String> {
-    database::with_connection(state, |conn| {
-        let raw = conn
-            .query_row("SELECT settings FROM ai_settings WHERE id = 1", [], |row| {
-                row.get::<_, String>(0)
-            })
-            .optional()
-            .map_err(|error| error.to_string())?
-            .ok_or_else(|| "LLM is not configured.".to_string())?;
-        let value: Value = serde_json::from_str(&raw)
-            .map_err(|_| "Stored AI settings are invalid.".to_string())?;
-        let provider_id = value
-            .get("providerId")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .trim()
-            .to_string();
-        if !matches!(
-            provider_id.as_str(),
-            "codex" | "anthropic" | "openai" | "gemini" | "lmstudio" | "ollama" | "custom"
-        ) {
-            return Err("Choose an LLM provider before sending.".into());
-        }
-        let model_id = value
-            .get("modelId")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .trim()
-            .to_string();
-        if model_id.is_empty() {
-            return Err("Choose an LLM model before sending.".into());
-        }
-        if requested_model
-            .map(str::trim)
-            .filter(|model| !model.is_empty())
-            != Some(model_id.as_str())
-        {
-            return Err("The requested model does not match the saved AI settings.".into());
-        }
-        let allow_remote_health_context = value
-            .get("allowRemoteHealthContext")
-            .and_then(Value::as_bool)
-            .unwrap_or(false);
-        let local = matches!(provider_id.as_str(), "lmstudio" | "ollama");
-        if !local && !allow_remote_health_context {
-            return Err("Remote health context is disabled in AI settings.".into());
-        }
-        let base_url = value
-            .get("baseUrl")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .trim()
-            .to_string();
-        let api_key_env_var = value
-            .get("apiKeyEnvVar")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .trim()
-            .to_string();
-        let api_token = if provider_id == "lmstudio" {
-            value
-                .get("apiToken")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .trim()
-                .to_string()
-        } else {
-            String::new()
-        };
-        if matches!(provider_id.as_str(), "lmstudio" | "ollama" | "custom") && base_url.is_empty() {
-            return Err("An OpenAI-compatible base URL is required for this LLM.".into());
-        }
-        if matches!(provider_id.as_str(), "anthropic" | "openai" | "gemini")
-            && api_key_env_var.is_empty()
-        {
-            return Err("This LLM requires an API key environment variable in Settings.".into());
-        }
-        Ok(AiRuntimeSettings {
-            provider_id,
-            model_id,
-            base_url,
-            api_key_env_var,
-            api_token,
-        })
     })
 }
 

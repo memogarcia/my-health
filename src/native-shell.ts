@@ -1,1 +1,1 @@
-export { bindNativeShortcuts, configureNativeDatabaseMenu, configureNativeShell } from "./platform/native-shell";
+export { configureNativeDatabaseMenu, configureNativeShell } from "./platform/native-shell";

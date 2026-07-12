@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { summarizeAppleHealthFile } from "../src/apple-health-import";
 import { hasEnabledAiModel, hasEnabledCodexModel, normalizeAiSettings } from "../src/ai-sdk-config";
-import { activityFromForm, aiSettingsFromForm } from "../src/user-state";
+import { activityFromForm, aiSettingsFromForm, dietEntryFromForm } from "../src/user-state";
 import type { AppleHealthImport } from "../src/dashboard-model";
 
 test("aiSettingsFromForm rejects raw API key-looking text", () => {
@@ -52,6 +52,9 @@ test("hasEnabledAiModel allows configured non-Codex providers", () => {
   assert.equal(hasEnabledAiModel({ providerId: "openai", modelId: "gpt-4o", baseUrl: "", apiKeyEnvVar: "OPENAI_API_KEY", allowRemoteHealthContext: true }), true);
   assert.equal(hasEnabledAiModel({ providerId: "openai", modelId: "gpt-4o", baseUrl: "", apiKeyEnvVar: "OPENAI_API_KEY", allowRemoteHealthContext: false }), false);
   assert.equal(hasEnabledAiModel({ providerId: "ollama", modelId: "llama3.2", baseUrl: "http://localhost:11434/v1", apiKeyEnvVar: "", allowRemoteHealthContext: false }), true);
+  assert.equal(hasEnabledAiModel({ providerId: "ollama", modelId: "llama3.2", baseUrl: "https://remote.example/v1", apiKeyEnvVar: "", allowRemoteHealthContext: false }), false);
+  assert.equal(hasEnabledAiModel({ providerId: "ollama", modelId: "llama3.2", baseUrl: "https://remote.example/v1", apiKeyEnvVar: "", allowRemoteHealthContext: true }), true);
+  assert.equal(hasEnabledAiModel({ providerId: "custom", modelId: "local-model", baseUrl: "http://127.0.0.1:8080/v1", apiKeyEnvVar: "", allowRemoteHealthContext: false }), true);
 });
 
 test("activityFromForm maps structured fields and clamps negatives", () => {
@@ -71,6 +74,18 @@ test("activityFromForm maps structured fields and clamps negatives", () => {
   assert.equal(activity.cigarettes, 0);
   assert.equal(activity.drinks, 1);
   assert.equal(activity.notes, "synthetic note");
+});
+
+test("dietEntryFromForm normalizes meal input and preserves factual notes", () => {
+  const form = new FormData();
+  form.set("loggedAt", "2026-07-11");
+  form.set("meal", "lunch");
+  form.set("title", "  Synthetic lunch  ");
+  form.set("notes", "Felt fine afterward");
+
+  const entry = dietEntryFromForm(form, "meal-1");
+
+  assert.deepEqual(entry, { id: "meal-1", loggedAt: "2026-07-11", meal: "lunch", title: "Synthetic lunch", notes: "Felt fine afterward" });
 });
 
 test("summarizeAppleHealthFile rejects oversized XML before parsing", async () => {

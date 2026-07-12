@@ -12,18 +12,26 @@ or exploit details in public issues.
 
 ## Data Storage
 
-- The main database is SQLCipher-encrypted SQLite.
+- The release database is SQLCipher-encrypted SQLite.
 - The database is unlocked with a user passphrase.
 - The passphrase is not stored by the app.
 - Exports are encrypted SQLCipher database copies.
 - Mutations go through the Rust backend after the database is unlocked.
 - Browser-only storage is not used for health records.
 
+## Development Mock
+
+`bun run tauri:dev` always opens a copy-once plaintext database populated with
+synthetic fixtures. It has no passphrase, and Lock, Open, New, and password
+controls are disabled. Never put real health records, documents, API tokens, or
+other secrets in the development mock. Release builds compile a separate
+SQLCipher path and do not contain the mock fixture path.
+
 ## Apple Health
 
 The Apple Health sync foundation stores normalized samples, source provenance,
-deletion tombstones, and opaque anchored-query cursors in the same encrypted
-SQLCipher database as the rest of the health record.
+deletion tombstones, and opaque anchored-query cursors in the release
+SQLCipher database. Development uses synthetic mock data only.
 
 - The Rust boundary accepts only an explicit allowlist of HealthKit identifiers.
 - Batches are bounded to 5,000 samples and 5,000 deletions.
@@ -49,8 +57,9 @@ device-protected encrypted queue and must not weaken the main database key model
 
 Remote AI API keys are not stored in the database. AI settings store environment
 variable names for remote providers, such as `ANTHROPIC_API_KEY` or
-`OPENAI_API_KEY`. LM Studio can store a local server token in the encrypted
-settings database. The Rust backend rejects raw `apiKey` fields and raw-looking
+`OPENAI_API_KEY`. LM Studio can store a local server token in the release
+encrypted settings database; do not save a real token in the plaintext
+development mock. The Rust backend rejects raw `apiKey` fields and raw-looking
 key values outside the LM Studio token field.
 
 ## AI Privacy
@@ -64,8 +73,9 @@ See `AI.md` for provider details.
 
 ## Documents
 
-Imported document bytes are stored inside the SQLCipher-encrypted database in
-the same transaction as their structured result rows. When remote health
+Imported document bytes are stored inside the release SQLCipher database in the
+same transaction as their structured result rows. Development document intake
+is for synthetic fixtures only. When remote health
 context is enabled, a supported image or locally rendered PDF page is copied
 into a permission-restricted, per-request Codex workspace and sent to the
 configured model. Their original bytes are not placed in that workspace, and
@@ -73,9 +83,10 @@ Rust bounds the total rendered page payload before execution. Rust validates
 signatures, sizes, saved consent, and the selected model. The workspace is
 removed afterward.
 
-The native Developer page stores only bounded diagnostic metadata in encrypted
+The native Developer page stores only bounded diagnostic metadata in
 `user_state`: command, model, timing, counts, lifecycle messages, and truncated
-errors. Prompt text, extracted result rows, and API keys are excluded.
+errors. That state is encrypted in release and plaintext in the synthetic-only
+development mock. Prompt text, extracted result rows, and API keys are excluded.
 
 ## Known Limits
 

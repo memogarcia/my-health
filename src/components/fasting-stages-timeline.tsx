@@ -27,7 +27,7 @@ export function FastingStagesTimeline({ activeStartedAt, currentStage }: { activ
           return (
             <details
               className="group border-b border-border/55 px-4 last:border-b-0"
-              defaultOpen={state === "current"}
+              open={state === "current" ? true : undefined}
               key={stage.hours}
             >
               <summary className="grid cursor-pointer list-none grid-cols-[20px_minmax(0,1fr)_auto_16px] items-center gap-2 py-3 marker:content-none">

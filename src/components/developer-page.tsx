@@ -78,7 +78,7 @@ function RunIcon({ status }: { status: BackgroundJob["status"] }) {
 
 function CallRow({ call }: { call: LlmCall }) {
   const status = t(`developer.status.${call.status}` as "developer.status.running" | "developer.status.completed" | "developer.status.failed");
-  const kind = call.kind === "chat" ? t("developer.call.chat") : t("developer.call.document");
+  const kind = call.kind === "chat" ? t("developer.call.chat") : call.kind === "research" ? t("developer.call.research") : t("developer.call.document");
   return <details className="developer-call-row"><summary><span className="developer-call-icon">{call.kind === "chat" ? <MessageCircle /> : <FileSearch />}</span><span className="developer-call-main"><strong>{kind}</strong><span>{call.inputLabel || t("developer.notSet")}</span></span><Badge variant={call.status === "failed" ? "destructive" : call.status === "completed" ? "secondary" : "outline"}>{status}</Badge></summary><div className="developer-call-detail"><dl><div><dt>{t("developer.meta.command")}</dt><dd>{call.command}</dd></div><div><dt>{t("developer.meta.duration")}</dt><dd>{formatDuration(call.durationMs)}</dd></div><div><dt>{t("developer.meta.outputChars")}</dt><dd>{new Intl.NumberFormat("en").format(call.outputChars)}</dd></div></dl>{call.error ? <p>{call.error}</p> : null}</div></details>;
 }
 

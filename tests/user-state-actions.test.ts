@@ -3,6 +3,7 @@ import test from "node:test";
 import { normalizeUserState, type DialogKey, type UserState } from "../src/dashboard-model";
 import { makeBodyNoteActions } from "../src/use-body-notes";
 import { makeFastingActions } from "../src/use-fasting-actions";
+import { makeDietActions } from "../src/use-diet-actions";
 import { makeUserStateActions } from "../src/use-user-state-actions";
 
 function stateHarness(initial: Partial<UserState>) {
@@ -67,4 +68,24 @@ test("fasting actions delete a completed local session", async () => {
   await actions.deleteFastingSession("fast-1");
 
   assert.deepEqual(harness.get().fasting.sessions, []);
+});
+
+test("diet actions save, update, and delete local meal entries", async () => {
+  const harness = stateHarness({});
+  const actions = makeDietActions({ getUserState: harness.get, persistUserState: harness.persist, setUserState: harness.set });
+  const form = new FormData();
+  form.set("loggedAt", "2026-07-11");
+  form.set("meal", "dinner");
+  form.set("title", "Synthetic dinner");
+
+  assert.equal(await actions.saveDietEntry(form, "meal-1"), true);
+  assert.equal(harness.get().dietEntries[0]?.title, "Synthetic dinner");
+
+  form.set("title", "Updated dinner");
+  assert.equal(await actions.saveDietEntry(form, "meal-1"), true);
+  assert.equal(harness.get().dietEntries.length, 1);
+  assert.equal(harness.get().dietEntries[0]?.title, "Updated dinner");
+
+  await actions.deleteDietEntry("meal-1");
+  assert.deepEqual(harness.get().dietEntries, []);
 });

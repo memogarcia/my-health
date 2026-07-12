@@ -6,6 +6,8 @@ export const platformPagesModule: RendererModuleDefinition = {
   dependencies: [],
   commands: [
     "get_database_status",
+    "get_shell_theme",
+    "set_shell_theme",
     "select_database",
     "unlock_database",
     "lock_database",

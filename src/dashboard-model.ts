@@ -3,6 +3,12 @@ import { normalizeDeveloperLog, normalizeLlmCall } from "./developer-diagnostics
 import type { DeveloperLog, LlmCall } from "./developer-diagnostics";
 import { normalizeBodyNote, type BodyNote } from "./body-notes";
 import { normalizeFastingState, type FastingState } from "./fasting-state";
+import { normalizeShortcuts, type ShortcutMap } from "./shortcuts";
+import { normalizeChallenge, type Challenge } from "./challenges";
+export type { Challenge } from "./challenges";
+export { getOrganVisual } from "./body-visuals";
+export type { OrganVisual } from "./body-visuals";
+export { navItems, primaryNavGroups } from "./navigation";
 export type { DeveloperLog, DeveloperLogInput, LlmCall, LlmCallInput, LlmCallPatch } from "./developer-diagnostics"; export type { BodyNote } from "./body-notes"; export type { FastingSession, FastingState } from "./fasting-state";
 const MAX_USER_TEXT_CHARS = 32_000;
 /**
@@ -17,7 +23,7 @@ export type ExtractedResultStatus = HealthStatus | "";
 export type LabFlag = "low" | "normal" | "high" | "unknown";
 export type RegimenKind = "medication" | "supplement";
 export type ConditionStatus = "current" | "managed" | "past";
-export type NavKey = "body" | "labs" | "symptoms" | "activity" | "medications" | "fasting" | "breathing" | "plan" | "research" | "documents" | "settings" | "developer";
+export type NavKey = "body" | "labs" | "symptoms" | "activity" | "diet" | "medications" | "fasting" | "breathing" | "challenges" | "plan" | "research" | "documents" | "settings" | "developer";
 export type HistoryTab = "labs" | "symptoms" | "files";
 export type DialogKey = "lab" | "symptom" | "activity" | "document" | "bodyNote" | null;
 export type OrganSummary = {
@@ -147,6 +153,16 @@ export type ActivityEntry = {
   notes: string;
 };
 
+export type DietMeal = "breakfast" | "lunch" | "dinner" | "snack";
+
+export type DietEntry = {
+  id: string;
+  loggedAt: string;
+  meal: DietMeal;
+  title: string;
+  notes: string;
+};
+
 export type AppleHealthImport = {
   id: string;
   sourceName: string;
@@ -214,6 +230,7 @@ export type AiConversationMessage = {
 
 export type AiConversation = {
   id: string;
+  mode: "chat" | "research";
   title: string;
   createdAt: string;
   updatedAt: string;
@@ -223,6 +240,7 @@ export type AiConversation = {
 export type UserState = {
   profile: UserProfile;
   activityEntries: ActivityEntry[];
+  dietEntries: DietEntry[];
   fasting: FastingState;
   bodyNotes: BodyNote[];
   appleHealthImports: AppleHealthImport[];
@@ -231,32 +249,13 @@ export type UserState = {
   backgroundJobs: BackgroundJob[];
   developerLogs: DeveloperLog[];
   llmCalls: LlmCall[];
+  challenges: Challenge[];
+  shortcuts: ShortcutMap;
 };
 
-export type OrganVisual = {
-  color: string;
-  x: number;
-  y: number;
-};
 
-export const navItems: Array<{ key: NavKey; label: string; description: string }> = [
-  { key: "body", label: t("nav.body.label"), description: t("nav.body.description") },
-  { key: "labs", label: t("nav.labs.label"), description: t("nav.labs.description") },
-  { key: "symptoms", label: t("nav.symptoms.label"), description: t("nav.symptoms.description") },
-  { key: "activity", label: t("nav.activity.label"), description: t("nav.activity.description") },
-  { key: "medications", label: t("nav.medications.label"), description: t("nav.medications.description") },
-  { key: "fasting", label: t("nav.fasting.label"), description: t("nav.fasting.description") },
-  { key: "breathing", label: t("nav.breathing.label"), description: t("nav.breathing.description") },
-  { key: "plan", label: t("nav.plan.label"), description: t("nav.plan.description") },
-  { key: "research", label: t("nav.research.label"), description: t("nav.research.description") },
-  { key: "documents", label: t("nav.documents.label"), description: t("nav.documents.description") },
-  { key: "settings", label: t("nav.settings.label"), description: t("nav.settings.description") },
-  { key: "developer", label: t("nav.developer.label"), description: t("nav.developer.description") },
-];
-
-// navItems is the single source of truth for destinations. The sidebar rail
-// (health-workspace) and the Library sub-index (library-workspace) both derive
-// from it; do not duplicate the destination list elsewhere.
+// navItems and primaryNavGroups are the navigation source of truth. The shell
+// derives visible destinations from them; routed pages do not own navigation.
 export const statusLabel: Record<OrganHealthStatus, string> = {
   normal: t("status.normal"),
   monitor: t("status.monitor"),
@@ -265,24 +264,6 @@ export const statusLabel: Record<OrganHealthStatus, string> = {
 };
 
 export const organOrder = ["brain", "thyroid", "lungs", "heart", "liver", "spleen", "stomach", "pancreas", "kidneys", "intestines", "bladder", "blood", "bones", "skin", "reproductive"] as const;
-
-const organVisuals: Record<string, OrganVisual> = {
-  brain: { color: "#e87982", x: 50, y: 13 },
-  thyroid: { color: "#7c5cc4", x: 50, y: 23 },
-  lungs: { color: "#53b7c0", x: 50, y: 37 },
-  heart: { color: "#e05a47", x: 51, y: 47 },
-  liver: { color: "#9a5b45", x: 44, y: 56 },
-  spleen: { color: "#5b8a72", x: 61, y: 55 },
-  stomach: { color: "#e79d6b", x: 57, y: 61 },
-  pancreas: { color: "#c98a4b", x: 50, y: 64 },
-  kidneys: { color: "#b46a78", x: 47, y: 67 },
-  intestines: { color: "#d78770", x: 51, y: 77 },
-  bladder: { color: "#2d9cdb", x: 50, y: 84 },
-  blood: { color: "#c0392b", x: 50, y: 50 },
-  bones: { color: "#cdbb8a", x: 50, y: 50 },
-  skin: { color: "#d99a6c", x: 50, y: 50 },
-  reproductive: { color: "#d76a9e", x: 50, y: 50 },
-};
 
 export const wholeBodySystems = new Set<string>(["blood", "bones", "skin", "reproductive"]);
 
@@ -303,10 +284,6 @@ export const defaultOrgans: OrganSummary[] = [
   { key: "skin", name: t("organ.skin.name"), system: t("organ.skin.system"), status: "empty", labCount: 0, symptomCount: 0 },
   { key: "reproductive", name: t("organ.reproductive.name"), system: t("organ.reproductive.system"), status: "empty", labCount: 0, symptomCount: 0 },
 ];
-
-export function getOrganVisual(key: string): OrganVisual {
-  return organVisuals[key] || { color: "#219d8a", x: 50, y: 50 };
-}
 
 export function deriveOrganStatus(
   input: { labs: LabResult[]; symptoms: SymptomEntry[]; conditions: ConditionEntry[] },
@@ -382,7 +359,13 @@ function formatDateParts(year: number, month: number, day: number): string {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-export function normalizeUserState(value: Partial<UserState> = {}): UserState {
+type UserStateInput = Omit<Partial<UserState>, "aiConversations" | "dietEntries" | "challenges"> & {
+  aiConversations?: Array<Partial<AiConversation>>;
+  dietEntries?: Array<Partial<DietEntry>>;
+  challenges?: Array<Partial<Challenge>>;
+};
+
+export function normalizeUserState(value: UserStateInput = {}): UserState {
   const profile: Partial<UserProfile> = value.profile || {};
   const aiConversations = Array.isArray(value.aiConversations)
     ? value.aiConversations.map(normalizeAiConversation).filter((entry) => entry.id)
@@ -407,6 +390,9 @@ export function normalizeUserState(value: Partial<UserState> = {}): UserState {
     activityEntries: Array.isArray(value.activityEntries)
       ? value.activityEntries.map(normalizeActivityEntry).filter((entry) => entry.loggedAt)
       : [],
+    dietEntries: Array.isArray(value.dietEntries)
+      ? value.dietEntries.map(normalizeDietEntry).filter((entry) => entry.id && entry.loggedAt && entry.title)
+      : [],
     fasting: normalizeFastingState(value.fasting),
     bodyNotes: Array.isArray(value.bodyNotes) ? value.bodyNotes.map(normalizeBodyNote).filter((entry) => entry.id && entry.area && entry.note) : [],
     appleHealthImports: Array.isArray(value.appleHealthImports)
@@ -423,8 +409,13 @@ export function normalizeUserState(value: Partial<UserState> = {}): UserState {
     llmCalls: Array.isArray(value.llmCalls)
       ? value.llmCalls.map(normalizeLlmCall).filter((entry) => entry.id).slice(0, 40)
       : [],
+    challenges: Array.isArray(value.challenges)
+      ? value.challenges.map(normalizeChallenge).filter((entry) => entry.id && entry.title).slice(0, 100)
+      : [],
+    shortcuts: normalizeShortcuts(value.shortcuts),
   };
 }
+
 function normalizeActivityEntry(entry: Partial<ActivityEntry>): ActivityEntry {
   return {
     id: typeof entry.id === "string" ? entry.id : "",
@@ -434,6 +425,18 @@ function normalizeActivityEntry(entry: Partial<ActivityEntry>): ActivityEntry {
     activityName: typeof entry.activityName === "string" ? entry.activityName : "",
     durationMinutes: numberOrZero(entry.durationMinutes),
     notes: typeof entry.notes === "string" ? limitText(entry.notes, MAX_USER_TEXT_CHARS) : "",
+  };
+}
+function normalizeDietEntry(entry: Partial<DietEntry>): DietEntry {
+  const meal = entry.meal === "breakfast" || entry.meal === "lunch" || entry.meal === "dinner" || entry.meal === "snack"
+    ? entry.meal
+    : "snack";
+  return {
+    id: typeof entry.id === "string" ? entry.id : "",
+    loggedAt: typeof entry.loggedAt === "string" ? entry.loggedAt : "",
+    meal,
+    title: typeof entry.title === "string" ? limitText(entry.title.trim(), 160) : "",
+    notes: typeof entry.notes === "string" ? limitText(entry.notes.trim(), MAX_USER_TEXT_CHARS) : "",
   };
 }
 function normalizeAppleHealthImport(entry: Partial<AppleHealthImport>): AppleHealthImport {
@@ -450,6 +453,7 @@ function normalizeAppleHealthImport(entry: Partial<AppleHealthImport>): AppleHea
 function normalizeAiConversation(entry: Partial<AiConversation>): AiConversation {
   return {
     id: typeof entry.id === "string" ? entry.id : "",
+    mode: entry.mode === "research" ? "research" : "chat",
     title: typeof entry.title === "string" ? limitText(entry.title, 120) : "",
     createdAt: typeof entry.createdAt === "string" ? entry.createdAt : "",
     updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : "",
@@ -486,13 +490,8 @@ function normalizeBackgroundJob(entry: Partial<BackgroundJob>): BackgroundJob {
   };
 }
 
-function numberOrNull(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function numberOrZero(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
-}
+function numberOrNull(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) ? value : null; }
+function numberOrZero(value: unknown): number { return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0; }
 
 function limitText(value: string, limit: number): string {
   return value.length > limit ? value.slice(0, limit) : value;

@@ -16,24 +16,24 @@
 .status-attention { color: var(--status-attention); }
 .status-empty { color: var(--status-empty); }
 .health-status-badge.status-normal {
-  border-color: color-mix(in srgb, var(--status-normal) 22%, transparent);
+  border-color: color-mix(in oklch, var(--status-normal) 48%, var(--hairline));
   color: var(--status-normal);
-  background: color-mix(in srgb, var(--status-normal) 7%, white);
+  background: color-mix(in oklch, var(--status-normal) 16%, var(--surface));
 }
 .health-status-badge.status-monitor {
-  border-color: color-mix(in srgb, var(--status-monitor) 24%, transparent);
+  border-color: color-mix(in oklch, var(--status-monitor) 52%, var(--hairline));
   color: var(--status-monitor);
-  background: color-mix(in srgb, var(--status-monitor) 7%, white);
+  background: color-mix(in oklch, var(--status-monitor) 18%, var(--surface));
 }
 .health-status-badge.status-attention {
-  border-color: color-mix(in srgb, var(--status-attention) 26%, transparent);
+  border-color: color-mix(in oklch, var(--status-attention) 54%, var(--hairline));
   color: var(--status-attention);
-  background: color-mix(in srgb, var(--status-attention) 7%, white);
+  background: color-mix(in oklch, var(--status-attention) 17%, var(--surface));
 }
 .health-status-badge.status-empty {
   border-color: color-mix(in srgb, var(--status-empty) 26%, transparent);
-  color: var(--status-empty);
-  background: color-mix(in srgb, var(--status-empty) 7%, white);
+  color: var(--muted-foreground);
+  background: color-mix(in srgb, var(--status-empty) 12%, var(--surface));
 }
 
 .document-result-card {
@@ -43,22 +43,25 @@
   border-color: color-mix(in srgb, var(--status-monitor) 42%, var(--border));
 }
 .document-result-card[data-result-status="normal"] {
-  border-color: color-mix(in srgb, var(--status-normal) 32%, var(--border));
+  border-color: color-mix(in oklch, var(--status-normal) 48%, var(--border));
+  background: color-mix(in oklch, var(--status-normal) 7%, var(--surface));
 }
 .document-result-card[data-result-status="monitor"] {
-  border-color: color-mix(in srgb, var(--status-monitor) 38%, var(--border));
+  border-color: color-mix(in oklch, var(--status-monitor) 52%, var(--border));
+  background: color-mix(in oklch, var(--status-monitor) 8%, var(--surface));
 }
 .document-result-card[data-result-status="attention"] {
-  border-color: color-mix(in srgb, var(--status-attention) 44%, var(--border));
+  border-color: color-mix(in oklch, var(--status-attention) 56%, var(--border));
+  background: color-mix(in oklch, var(--status-attention) 8%, var(--surface));
 }
 
 .severity-meter { display: inline-flex; gap: 3px; }
 .meter-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 999px; }
 /* Unfilled track reads as a lighter step of the same status ramp, so state
    carries across the whole meter, not only the filled dots. */
-.severity-meter.status-normal .meter-dot { background: color-mix(in srgb, var(--status-normal) 16%, white); }
-.severity-meter.status-monitor .meter-dot { background: color-mix(in srgb, var(--status-monitor) 16%, white); }
-.severity-meter.status-attention .meter-dot { background: color-mix(in srgb, var(--status-attention) 16%, white); }
+.severity-meter.status-normal .meter-dot { background: color-mix(in srgb, var(--status-normal) 16%, var(--surface)); }
+.severity-meter.status-monitor .meter-dot { background: color-mix(in srgb, var(--status-monitor) 16%, var(--surface)); }
+.severity-meter.status-attention .meter-dot { background: color-mix(in srgb, var(--status-attention) 16%, var(--surface)); }
 .meter-dot.fill.status-normal { background: var(--status-normal); }
 .meter-dot.fill.status-monitor { background: var(--status-monitor); }
 .meter-dot.fill.status-attention { background: var(--status-attention); }
@@ -90,7 +93,7 @@
 .reference-strip { display: grid; gap: var(--space-1); min-width: 8rem; }
 .reference-strip.compact { margin-top: var(--space-1); }
 .reference-strip-track { position: relative; height: 0.45rem; border-radius: 999px; background: color-mix(in srgb, var(--surface-soft) 82%, var(--border)); }
-.reference-strip-band { position: absolute; inset-block: 0; left: 25%; width: 50%; border-radius: 999px; background: color-mix(in srgb, var(--status-normal) 28%, white); }
+.reference-strip-band { position: absolute; inset-block: 0; left: 25%; width: 50%; border-radius: 999px; background: color-mix(in srgb, var(--status-normal) 28%, var(--surface)); }
 .reference-strip-dot { position: absolute; top: 50%; width: 0.75rem; height: 0.75rem; border: 2px solid var(--card); border-radius: 999px; background: currentColor; transform: translate(-50%, -50%); box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent); }
 .reference-strip-labels { display: flex; justify-content: space-between; gap: var(--space-2); }
 .reference-strip-empty { min-height: 0.75rem; }
@@ -100,10 +103,6 @@
 .timeline-bar { position: absolute; top: 0; bottom: 0; border-radius: 999px; background: color-mix(in srgb, var(--muted-foreground) 42%, transparent); }
 .timeline-bar.active { background: color-mix(in srgb, var(--primary) 72%, var(--status-normal)); }
 .timeline-dot { position: absolute; top: 50%; width: 0.75rem; height: 0.75rem; border-radius: 999px; background: var(--primary); transform: translate(-50%, -50%); }
-.coverage-bars { display: grid; gap: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-4); background: var(--card); }
-.coverage-row { display: grid; grid-template-columns: minmax(7rem, 0.8fr) minmax(8rem, 1fr) 2.5rem; align-items: center; gap: var(--space-3); }
-.coverage-track { height: 0.55rem; overflow: hidden; border-radius: 999px; background: var(--surface-soft); }
-.coverage-fill { display: block; height: 100%; border-radius: inherit; background: color-mix(in srgb, var(--primary) 72%, var(--status-normal)); }
 .status-matrix { display: grid; gap: var(--space-3); overflow-x: auto; border-top: 1px solid var(--border); padding-top: var(--space-2); }
 .status-matrix-header { display: grid; gap: 0.15rem; }
 .status-matrix-grid { display: grid; min-width: 32rem; max-width: 100%; overflow-x: auto; align-items: center; gap: var(--space-1); }
@@ -139,6 +138,9 @@
   padding: var(--space-3);
   background: var(--surface-soft);
 }
+.markdown-output table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.markdown-output :where(th, td) { min-width: 8rem; border-bottom: 1px solid var(--border); padding: var(--space-2) var(--space-3); text-align: left; vertical-align: top; }
+.markdown-output th { background: var(--surface-soft); font-size: var(--fs-sm); font-weight: 650; }
 /* Feature-level refinements. Shared shell and tokens live in styles/. */
 
 .history-page { display: grid; min-width: 0; gap: var(--space-4); }
@@ -168,11 +170,6 @@
 .history-page-symptoms .history-surface [data-slot="empty"] { order: 3; }
 
 
-
-.research-page { gap: var(--space-4); }
-.research-page > [data-slot="tabs-list"] { align-self: flex-start; }
-.deep-research-page { display: grid; gap: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-5); background: var(--card); }
-.deep-research-page > details { border-radius: var(--radius-sm); background: var(--surface-soft); }
 
 .developer-page { display: grid; width: min(100%, 880px); gap: var(--space-5); }
 .developer-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); padding-bottom: var(--space-4); border-bottom: 1px solid var(--border); }

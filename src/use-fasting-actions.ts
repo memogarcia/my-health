@@ -1,6 +1,7 @@
 import { toast } from "sonner";
 import { normalizeUserState, type UserState } from "./dashboard-model";
 import { t } from "./i18n";
+import { isValidFastingTarget } from "./fasting-state";
 
 type Options = {
   getUserState: () => UserState;
@@ -11,7 +12,7 @@ type Options = {
 export function makeFastingActions({ getUserState, setUserState, persistUserState }: Options) {
   async function setFastingTarget(targetHours: number): Promise<void> {
     const current = getUserState();
-    if (current.fasting.activeStartedAt || ![12, 14, 16, 18].includes(targetHours)) return;
+    if (current.fasting.activeStartedAt || !isValidFastingTarget(targetHours)) return;
     const next = normalizeUserState({ ...current, fasting: { ...current.fasting, targetHours } });
     setUserState(next);
     await persistUserState(next);
@@ -19,7 +20,7 @@ export function makeFastingActions({ getUserState, setUserState, persistUserStat
 
   async function startFasting(targetHours: number): Promise<void> {
     const current = getUserState();
-    if (current.fasting.activeStartedAt || ![12, 14, 16, 18].includes(targetHours)) return;
+    if (current.fasting.activeStartedAt || !isValidFastingTarget(targetHours)) return;
     const next = normalizeUserState({
       ...current,
       fasting: { ...current.fasting, activeStartedAt: new Date().toISOString(), targetHours },

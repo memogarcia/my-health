@@ -13,6 +13,7 @@ import { AlertTriangle, Timer } from "./health-icons";
 import { FastingHistory } from "./fasting-history";
 import { formatCompactDuration, formatElapsed } from "./fasting-format";
 import { FASTING_STAGES, FastingStagesTimeline } from "./fasting-stages-timeline";
+import { isValidFastingTarget } from "../fasting-state";
 
 const targetOptions = [12, 14, 16, 18, 20, 24, 36, 48, 72];
 
@@ -42,13 +43,17 @@ export function FastingPage({ controller }: { controller: DashboardController })
 
   function applyCustomTarget(): void {
     const value = Number(customHoursInput);
-    if (!Number.isFinite(value) || value <= 0) return;
+    if (!isValidFastingTarget(value)) return;
     void controller.setFastingTarget(value);
     setCustomHoursInput("");
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-5xl gap-5">
+    <div className="mx-auto grid w-full max-w-5xl gap-5 px-8 py-7 max-[880px]:px-5">
+      <header className="border-b border-border/55 pb-5">
+        <h1 className="text-[1.35rem] font-semibold tracking-[-0.025em] text-ink">{t("nav.fasting.label")}</h1>
+        <p className="mt-1.5 max-w-[64ch] text-sm leading-relaxed text-muted-ink">{t("fasting.description")}</p>
+      </header>
       <Alert className="border-monitor/30 bg-monitor/7">
         <AlertTriangle className="text-monitor" />
         <AlertTitle>{t("fasting.safety.title")}</AlertTitle>
@@ -66,7 +71,7 @@ export function FastingPage({ controller }: { controller: DashboardController })
           </CardHeader>
           <CardContent className="grid gap-5">
             <div className="grid gap-3 rounded-xl bg-secondary/45 p-5 text-center">
-              <strong className="text-4xl font-semibold tracking-[-0.045em] text-ink tabular-nums" aria-live="polite">
+              <strong className="text-4xl font-semibold tracking-[-0.045em] text-ink tabular-nums">
                 {formatElapsed(elapsedSeconds)}
               </strong>
               <div className="grid gap-1">
@@ -76,7 +81,7 @@ export function FastingPage({ controller }: { controller: DashboardController })
                 </strong>
               </div>
               <Progress aria-label={t("fasting.target.label")} className="h-1.5" value={progress} />
-              <p className="text-xs leading-relaxed text-muted-ink" role="status">
+              <p className="text-xs leading-relaxed text-muted-ink">
                 {fasting.activeStartedAt
                   ? nextZoneStatus ? t("fasting.timer.statusWithNext", { status: targetStatus, next: nextZoneStatus }) : targetStatus
                   : t("fasting.timer.readyDescription")}
@@ -128,7 +133,7 @@ export function FastingPage({ controller }: { controller: DashboardController })
                   <Input
                     aria-label={t("fasting.target.custom")}
                     disabled={Boolean(fasting.activeStartedAt)}
-                    max="720"
+                    max="72"
                     min="1"
                     onChange={(event) => setCustomHoursInput(event.target.value)}
                     placeholder={t("fasting.target.customPlaceholder")}
@@ -136,7 +141,7 @@ export function FastingPage({ controller }: { controller: DashboardController })
                     value={customHoursInput}
                   />
                   <Button
-                    disabled={Boolean(fasting.activeStartedAt) || !customHoursInput || Number(customHoursInput) <= 0}
+                    disabled={Boolean(fasting.activeStartedAt) || !isValidFastingTarget(Number(customHoursInput))}
                     onClick={applyCustomTarget}
                     type="button"
                     variant="secondary"

@@ -12,7 +12,8 @@ import { ConversationEmpty, ConversationMessage, PendingMessage } from "./ai-cha
 import { PromptComposer } from "./prompt-composer";
 
 export function AiChatPage({ controller }: { controller: DashboardController }) {
-  const active = getActiveAiConversation(controller.userState);
+  const activeCandidate = getActiveAiConversation(controller.userState);
+  const active = activeCandidate?.mode === "chat" ? activeCandidate : null;
   return (
     <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[228px_minmax(0,1fr)] bg-canvas max-[1040px]:grid-cols-[200px_minmax(0,1fr)] max-[880px]:grid-cols-[174px_minmax(0,1fr)]">
       <ThreadRail controller={controller} activeConversation={active} />
@@ -22,7 +23,8 @@ export function AiChatPage({ controller }: { controller: DashboardController }) 
 }
 
 function ThreadRail({ controller, activeConversation }: { controller: DashboardController; activeConversation: AiConversation | null }) {
-  const count = controller.userState.aiConversations.length;
+  const conversations = controller.userState.aiConversations.filter((conversation) => conversation.mode === "chat");
+  const count = conversations.length;
   return (
     <aside className="flex min-h-0 flex-col border-r border-border/80 bg-canvas">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/65 px-4">
@@ -46,7 +48,7 @@ function ThreadRail({ controller, activeConversation }: { controller: DashboardC
         </Button>
       </header>
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
-        {count ? controller.userState.aiConversations.map((conversation) => (
+        {count ? conversations.map((conversation) => (
           <ThreadRow
             active={conversation.id === activeConversation?.id}
             controller={controller}
